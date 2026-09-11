@@ -5,6 +5,7 @@ import helmet from 'helmet';
 
 import { env } from './config/env.js';
 import authRoutes from './modules/auth.routes.js';
+import purchaseRoutes from './modules/purchases.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js';
 import routes from './routes/index.js';
 
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use('/auth', authRoutes);
+app.use('/purchases', purchaseRoutes);
 app.use(routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
