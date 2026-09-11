@@ -20,3 +20,6 @@ export const forbidden = (message: string, code?: string) => new HttpError(403, 
 export const notFound = (message: string, code?: string) => new HttpError(404, message, code);
 
 export const conflict = (message: string, code?: string) => new HttpError(409, message, code);
+
+export const serviceUnavailable = (message: string, code?: string) =>
+  new HttpError(503, message, code);

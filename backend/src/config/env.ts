@@ -27,4 +27,8 @@ export const env = {
   refreshTokenSecret,
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? '15m',
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? '7d',
+  aiProvider: process.env.AI_PROVIDER ?? 'unconfigured',
+  aiApiKey: process.env.AI_API_KEY,
+  aiApiUrl: process.env.AI_API_URL,
+  geminiApiKey: process.env.GEMINI_API_KEY,
 } as const;

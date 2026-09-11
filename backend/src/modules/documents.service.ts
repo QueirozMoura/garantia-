@@ -25,10 +25,19 @@ const documentSelect = {
 type DocumentResult = Prisma.DocumentGetPayload<{ select: typeof documentSelect }>;
 
 const getOwnedPurchase = async (userId: string, purchaseId: string) => {
-  const purchase = await prisma.purchase.findUnique({
-    where: { id: purchaseId },
-    select: { userId: true },
-  });
+  let purchase;
+
+  try {
+    purchase = await prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      select: { userId: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2023') {
+      throw notFound('Purchase not found', 'PURCHASE_NOT_FOUND');
+    }
+    throw error;
+  }
 
   if (!purchase) {
     throw notFound('Purchase not found', 'PURCHASE_NOT_FOUND');
@@ -40,14 +49,23 @@ const getOwnedPurchase = async (userId: string, purchaseId: string) => {
 };
 
 const getOwnedDocument = async (userId: string, documentId: string) => {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: {
-      ...documentSelect,
-      storagePath: true,
-      purchase: { select: { userId: true } },
-    },
-  });
+  let document;
+
+  try {
+    document = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: {
+        ...documentSelect,
+        storagePath: true,
+        purchase: { select: { userId: true } },
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2023') {
+      throw notFound('Document not found', 'DOCUMENT_NOT_FOUND');
+    }
+    throw error;
+  }
 
   if (!document) {
     throw notFound('Document not found', 'DOCUMENT_NOT_FOUND');
@@ -128,7 +146,7 @@ export const listDocuments = async (userId: string, purchaseId: string) => {
   });
 };
 
-export const getDocumentFile = async (userId: string, documentId: string) => {
+export const getOwnedDocumentForAI = async (userId: string, documentId: string) => {
   const document = await getOwnedDocument(userId, documentId);
   const filePath = absoluteStoragePath(document.storagePath);
 
@@ -141,6 +159,9 @@ export const getDocumentFile = async (userId: string, documentId: string) => {
 
   return { document, buffer };
 };
+
+export const getDocumentFile = async (userId: string, documentId: string) =>
+  getOwnedDocumentForAI(userId, documentId);
 
 export const deleteDocument = async (userId: string, documentId: string) => {
   const document = await getOwnedDocument(userId, documentId);

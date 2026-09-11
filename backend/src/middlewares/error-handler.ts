@@ -14,6 +14,27 @@ const statusByName: Record<string, number> = {
   ConflictError: 409,
 };
 
+const redactDiagnosticText = (value: string) =>
+  value
+    .replace(
+      /(gemini[_-]?api[_-]?key|api[_-]?key|authorization|bearer|access[_-]?token|refresh[_-]?token)\s*[:=]\s*["']?[^,\s"']+/gi,
+      '$1=[REDACTED]',
+    )
+    .replace(/\b(?:AIza[0-9A-Za-z_-]{20,}|AQ\.[0-9A-Za-z_-]{20,})\b/g, '[REDACTED]')
+    .slice(0, 2000);
+
+const diagnosticDetails = (error: unknown, depth = 0): unknown => {
+  if (depth > 2 || !(error instanceof Error)) return undefined;
+
+  const details: { name: string; message: string; stack?: string; cause?: unknown } = {
+    name: error.name,
+    message: redactDiagnosticText(error.message),
+  };
+  if (error.stack) details.stack = redactDiagnosticText(error.stack);
+  if (error.cause) details.cause = diagnosticDetails(error.cause, depth + 1);
+  return details;
+};
+
 export const notFoundHandler: RequestHandler = (request, response) => {
   response.status(404).json({
     error: {
@@ -47,6 +68,10 @@ export const errorHandler: ErrorRequestHandler = (
 
   const status = error.statusCode ?? error.status ?? statusByName[error.name] ?? 500;
   const isServerError = status >= 500;
+
+  if (isServerError) {
+    console.error('[error-handler] Internal error:', diagnosticDetails(error));
+  }
 
   response.status(status).json({
     error: {
