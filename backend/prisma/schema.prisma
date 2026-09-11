@@ -17,6 +17,13 @@ model User {
   purchases    Purchase[]
 }
 
+enum DocumentType {
+  INVOICE
+  RECEIPT
+  WARRANTY
+  OTHER
+}
+
 model Purchase {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @db.Uuid
@@ -32,8 +39,25 @@ model Purchase {
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   warranty     Warranty?
+  documents    Document[]
 
   @@index([userId])
+}
+
+model Document {
+  id          String       @id @default(uuid()) @db.Uuid
+  purchaseId  String       @db.Uuid
+  name        String
+  fileName    String
+  mimeType    String
+  size        Int
+  storagePath String
+  type        DocumentType @default(OTHER)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  purchase    Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([purchaseId])
 }
 
 model Warranty {
