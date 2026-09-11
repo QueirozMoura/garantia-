@@ -6,3 +6,45 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  email        String     @unique
+  passwordHash String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  purchases    Purchase[]
+}
+
+model Purchase {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  productName  String
+  brand        String?
+  model        String?
+  serialNumber String?
+  store        String?
+  purchaseDate DateTime
+  price        Decimal   @db.Decimal(12, 2)
+  category     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  warranty     Warranty?
+
+  @@index([userId])
+}
+
+model Warranty {
+  id             String   @id @default(uuid()) @db.Uuid
+  purchaseId     String   @unique @db.Uuid
+  durationMonths Int
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  purchase       Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([endDate])
+}

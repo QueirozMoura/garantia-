@@ -1,8 +1,10 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env.js';
+import authRoutes from './modules/auth.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js';
 import routes from './routes/index.js';
 
@@ -13,11 +15,14 @@ app.use(helmet());
 app.use(
   cors({
     origin: env.clientUrl,
+    credentials: true,
   }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
+app.use('/auth', authRoutes);
 app.use(routes);
 app.use(notFoundHandler);
 app.use(errorHandler);

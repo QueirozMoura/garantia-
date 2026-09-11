@@ -1,10 +1,18 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import { ZodError } from 'zod';
 
 interface ErrorWithStatus extends Error {
   status?: number;
   statusCode?: number;
   code?: string;
 }
+
+const statusByName: Record<string, number> = {
+  UnauthorizedError: 401,
+  ForbiddenError: 403,
+  NotFoundError: 404,
+  ConflictError: 409,
+};
 
 export const notFoundHandler: RequestHandler = (request, response) => {
   response.status(404).json({
@@ -16,14 +24,28 @@ export const notFoundHandler: RequestHandler = (request, response) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (
-  error: ErrorWithStatus,
+  error: ErrorWithStatus | ZodError,
   _request,
   response,
   _next,
 ) => {
   void _next;
 
-  const status = error.statusCode ?? error.status ?? 500;
+  if (error instanceof ZodError) {
+    response.status(400).json({
+      error: {
+        message: 'Validation failed',
+        code: 'VALIDATION_ERROR',
+        issues: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+        })),
+      },
+    });
+    return;
+  }
+
+  const status = error.statusCode ?? error.status ?? statusByName[error.name] ?? 500;
   const isServerError = status >= 500;
 
   response.status(status).json({
