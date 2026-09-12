@@ -25,8 +25,9 @@ const documentSelect = {
 type DocumentResult = Prisma.DocumentGetPayload<{ select: typeof documentSelect }>;
 
 // General listing returns the document plus the basic purchase info the client
-// needs to identify the product. Only public purchase fields are selected, so
-// internal fields such as userId and price are never leaked.
+// needs to identify the product. Only the identification fields are selected,
+// so internal fields such as userId, price, serialNumber and storagePath are
+// never leaked.
 const listDocumentSelect = {
   ...documentSelect,
   purchase: {
@@ -35,8 +36,8 @@ const listDocumentSelect = {
       productName: true,
       brand: true,
       model: true,
+      store: true,
       purchaseDate: true,
-      category: true,
     },
   },
 } satisfies Prisma.DocumentSelect;

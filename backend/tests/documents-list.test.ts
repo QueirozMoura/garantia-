@@ -1,12 +1,19 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { api, createUserWithToken } from './helpers/http.js';
 import { cleanDatabase, disconnectDatabase, testPrisma } from './helpers/db.js';
+import {
+  countStatementsFor,
+  createCountingClient,
+  disconnectQueryCounter,
+} from './helpers/query-counter.js';
 
 type PurchaseOverrides = {
   productName?: string;
   brand?: string | null;
   model?: string | null;
+  store?: string | null;
+  serialNumber?: string | null;
   purchaseDate?: Date;
   category?: string;
 };
@@ -18,6 +25,8 @@ const createPurchase = async (userId: string, overrides: PurchaseOverrides = {})
       productName: overrides.productName ?? 'Produto',
       brand: overrides.brand ?? 'Marca',
       model: overrides.model ?? 'Modelo',
+      store: overrides.store ?? 'Loja',
+      serialNumber: overrides.serialNumber ?? 'SN-0001',
       purchaseDate: overrides.purchaseDate ?? new Date('2026-09-04T00:00:00.000Z'),
       price: '100.00',
       category: overrides.category ?? 'Eletrônicos',
@@ -58,6 +67,7 @@ describe('GET /documents', () => {
 
   afterAll(async () => {
     await cleanDatabase();
+    await disconnectQueryCounter();
     await disconnectDatabase();
   });
 
@@ -107,6 +117,8 @@ describe('GET /documents', () => {
       productName: 'Notebook',
       brand: 'Dell',
       model: 'Inspiron',
+      store: 'Loja Central',
+      serialNumber: 'SN-SECRET',
       category: 'Informática',
       purchaseDate: new Date('2026-09-04T00:00:00.000Z'),
     });
@@ -152,20 +164,29 @@ describe('GET /documents', () => {
       ].sort(),
     );
 
-    // Related purchase exposes only the public summary.
+    // Related purchase exposes only the identification summary, with the exact
+    // expected shape.
     expect(item.purchase).toEqual({
       id: purchase.id,
       productName: 'Notebook',
       brand: 'Dell',
       model: 'Inspiron',
+      store: 'Loja Central',
       purchaseDate: '2026-09-04T00:00:00.000Z',
-      category: 'Informática',
     });
     expect(Object.keys(item.purchase).sort()).toEqual(
-      ['brand', 'category', 'id', 'model', 'productName', 'purchaseDate'].sort(),
+      ['brand', 'id', 'model', 'productName', 'purchaseDate', 'store'].sort(),
     );
+
+    // Forbidden fields must never appear on the document nor on the purchase.
+    expect(item).not.toHaveProperty('storagePath');
+    expect(item).not.toHaveProperty('userId');
     expect(item.purchase).not.toHaveProperty('userId');
     expect(item.purchase).not.toHaveProperty('price');
+    expect(item.purchase).not.toHaveProperty('serialNumber');
+    expect(item.purchase).not.toHaveProperty('storagePath');
+    expect(item.purchase).not.toHaveProperty('category');
+    expect(JSON.stringify(response.body)).not.toContain('SN-SECRET');
   });
 
   it('ordena por createdAt desc (mais recente primeiro)', async () => {
@@ -191,6 +212,32 @@ describe('GET /documents', () => {
     expect(response.status).toBe(200);
     const ids = response.body.documents.map((document: { id: string }) => document.id);
     expect(ids).toEqual([newest.id, middle.id, oldest.id]);
+  });
+
+  it('desempata por id asc quando o createdAt é igual', async () => {
+    const { token, user } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    // Same createdAt for all three: the deterministic tie-break is `id asc`.
+    const sameCreatedAt = new Date('2025-06-01T00:00:00.000Z');
+    const first = await createDocument(purchase.id, {
+      name: 'Primeiro',
+      createdAt: sameCreatedAt,
+    });
+    const second = await createDocument(purchase.id, {
+      name: 'Segundo',
+      createdAt: sameCreatedAt,
+    });
+    const third = await createDocument(purchase.id, {
+      name: 'Terceiro',
+      createdAt: sameCreatedAt,
+    });
+
+    const response = await getDocuments(token);
+
+    expect(response.status).toBe(200);
+    const ids = response.body.documents.map((document: { id: string }) => document.id);
+    expect(ids).toEqual([first.id, second.id, third.id].sort());
   });
 
   it('isola os documentos por usuário: cada um só enxerga os próprios', async () => {
@@ -245,6 +292,59 @@ describe('GET /documents', () => {
     expect(response.body.documents[0].purchase.productName).toBe('Produto A');
   });
 
+  it('carrega as compras sem N+1: nº de queries não cresce com o nº de documentos', async () => {
+    // O client observador substitui o módulo que o service realmente importa,
+    // então `listAllDocuments` abaixo roda o código de PRODUÇÃO. Medir uma cópia
+    // manual do `select` apenas reafirmaria a cópia; assim, um N+1 introduzido
+    // no service muda o nº de statements observado e falha o teste.
+    const countingClient = await createCountingClient();
+    // O app já carregou o service (e o client real) no setup desta suíte, então
+    // o cache de módulos precisa ser limpo para o mock abaixo valer de fato.
+    vi.resetModules();
+    // O specifier é resolvido a partir DESTE arquivo, por isso o mock vive aqui
+    // (e não no helper). O import do service é dinâmico para acontecer depois.
+    vi.doMock('../src/config/prisma.js', () => ({
+      prisma: countingClient,
+      default: countingClient,
+    }));
+    const { listAllDocuments } = await import('../src/modules/documents.service.js');
+
+    const single = await createUserWithToken();
+    const singlePurchase = await createPurchase(single.user.id, { productName: 'Único' });
+    await createDocument(singlePurchase.id, { name: 'Doc único' });
+
+    const many = await createUserWithToken();
+    for (let index = 0; index < 5; index += 1) {
+      const purchase = await createPurchase(many.user.id, { productName: `Produto ${index}` });
+      await createDocument(purchase.id, { name: `Doc ${index}` });
+    }
+
+    const oneDoc = await countStatementsFor(() => listAllDocuments(single.user.id));
+    const manyDocs = await countStatementsFor(() => listAllDocuments(many.user.id));
+
+    // O service devolveu linhas reais, cada uma com o resumo da compra carregado
+    // pela relação (sem buscar a purchase por documento).
+    expect(oneDoc.result).toHaveLength(1);
+    expect(manyDocs.result).toHaveLength(5);
+    expect(oneDoc.result.every((document) => !!document.purchase)).toBe(true);
+    expect(manyDocs.result.every((document) => !!document.purchase)).toBe(true);
+
+    // Guarda contra aprovação por vacuidade: sem isto, um contador ligado a nada
+    // (0 === 0) pareceria sucesso.
+    expect(oneDoc.statements).toBeGreaterThan(0);
+    expect(manyDocs.statements).toBeGreaterThan(0);
+    // Nº constante de statements, independente do volume → sem N+1.
+    expect(manyDocs.statements).toBe(oneDoc.statements);
+
+    // A rota HTTP expõe o mesmo resumo de compra para cada documento.
+    const response = await getDocuments(many.token);
+    expect(response.status).toBe(200);
+    expect(response.body.documents).toHaveLength(5);
+    expect(
+      response.body.documents.every((document: { purchase: unknown }) => !!document.purchase),
+    ).toBe(true);
+  });
+
   it('não quebra as rotas existentes de documentos por compra e por id', async () => {
     const { token, user } = await createUserWithToken();
     const purchase = await createPurchase(user.id, { productName: 'Produto' });
@@ -265,6 +365,24 @@ describe('GET /documents', () => {
     // The file does not exist on disk, but the route must still resolve to the
     // service (404 file-not-found) and NOT be swallowed by the general list route.
     expect(download.status).toBe(404);
+
+    // POST /documents/:documentId/extract — route still resolves and validates
+    // the document id before reaching the AI provider.
+    const extractUnauthenticated = await api().post(`/documents/${document.id}/extract`);
+    expect(extractUnauthenticated.status).toBe(401);
+
+    const extractInvalidId = await api()
+      .post('/documents/not-a-uuid/extract')
+      .set('Authorization', `Bearer ${token}`);
+    expect(extractInvalidId.status).toBe(404);
+
+    // PATCH /documents/:documentId/extraction — route still resolves; an invalid
+    // body must be rejected with 400 (not 404/500), proving it is mounted.
+    const extractionInvalidBody = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
+    expect(extractionInvalidBody.status).toBe(400);
 
     // DELETE /documents/:documentId
     const removal = await api()
