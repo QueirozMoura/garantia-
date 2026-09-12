@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 import { PurchaseForm } from '../components/purchases/PurchaseForm.tsx'
 import { EMPTY_PURCHASE_FIELDS } from '../components/purchases/purchase-form.ts'
@@ -37,23 +37,40 @@ type ExtractionState =
 
 export function AddPurchase() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuth()
+  // Dados vindos da etapa de confirmação ("Voltar") — preservam a revisão.
+  const returnedState =
+    (location.state as {
+      purchaseId?: string
+      documentId?: string
+      reviewed?: DocumentExtraction
+      invoiceNumber?: string | null
+    } | null) ?? null
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   // Compra já criada quando o upload da nota fiscal falha. Guardar o id
   // permite tentar o upload novamente SEM recriar a compra (sem duplicar).
-  const [createdPurchaseId, setCreatedPurchaseId] = useState<string | null>(null)
+  // Também é restaurado ao voltar da confirmação.
+  const [createdPurchaseId, setCreatedPurchaseId] = useState<string | null>(
+    returnedState?.purchaseId ?? null,
+  )
 
   // Nota fiscal selecionada (opcional). Não é lida nem enviada até o envio.
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
 
   // Análise por IA (somente leitura — nada é aplicado à compra nesta etapa).
-  const [documentId, setDocumentId] = useState<string | null>(null)
-  const [extraction, setExtraction] = useState<ExtractionState>({ status: 'idle' })
-  // Dados revisados pelo usuário na etapa de revisão (apenas estado local).
-  const [reviewedData, setReviewedData] = useState<DocumentExtraction | null>(null)
+  const [documentId, setDocumentId] = useState<string | null>(
+    returnedState?.documentId ?? null,
+  )
+  // Ao voltar da confirmação, reabre a revisão com os dados revisados.
+  const [extraction, setExtraction] = useState<ExtractionState>(
+    returnedState?.reviewed
+      ? { status: 'success', data: returnedState.reviewed }
+      : { status: 'idle' },
+  )
   // Guarda síncrona contra duplo disparo de /extract (evita chamadas duplicadas).
   const isExtractingRef = useRef(false)
 
@@ -90,7 +107,7 @@ export function AddPurchase() {
     setCreatedPurchaseId(purchaseId)
 
     if (!invoiceFile || invoiceError) {
-      finishSuccess(purchaseId)
+      finishSuccess()
       return
     }
 
@@ -103,7 +120,7 @@ export function AddPurchase() {
    */
   async function attachInvoice(purchaseId: string) {
     if (!invoiceFile || invoiceError) {
-      finishSuccess(purchaseId)
+      finishSuccess()
       return
     }
     try {
@@ -159,29 +176,11 @@ export function AddPurchase() {
   }
 
   /**
-   * Conclui o envio com sucesso. Com nota fiscal (ou retry), vai para os
-   * detalhes da compra criada; no fluxo manual sem nota, mantém o destino
-   * anterior (/purchases). O resultado da extração (se houver) é levado via
-   * state de navegação, para ficar disponível à próxima etapa.
+   * Conclui o envio do fluxo MANUAL (sem nota fiscal): navega para a lista.
+   * O fluxo com nota segue para a confirmação final, que faz o PATCH.
    */
-  function finishSuccess(
-    purchaseId: string | null = null,
-    reviewedOverride: DocumentExtraction | null = null,
-  ) {
+  function finishSuccess() {
     setIsSuccess(true)
-    if (purchaseId !== null && (invoiceFile || createdPurchaseId)) {
-      // Leva os dados revisados (ou a extração original) via state de navegação,
-      // disponíveis para a próxima etapa. Nada é salvo aqui.
-      const extractionState =
-        reviewedOverride ??
-        reviewedData ??
-        (extraction.status === 'success' ? extraction.data : null)
-      navigate(`/purchases/${purchaseId}`, {
-        replace: true,
-        state: extractionState ? { extraction: extractionState } : undefined,
-      })
-      return
-    }
     navigate('/purchases', { replace: true })
   }
   return (
@@ -216,10 +215,19 @@ export function AddPurchase() {
             if (documentId) void runExtraction(documentId)
           }}
           onContinue={(reviewed) => {
-            // Guarda os dados revisados apenas localmente (próxima etapa) e
-            // repassa diretamente para a navegação (evita ler state obsoleto).
-            setReviewedData(reviewed)
-            finishSuccess(createdPurchaseId, reviewed)
+            // Avança para a confirmação final levando o necessário via
+            // location.state (preserva a arquitetura da Etapa 3). A persistência
+            // (PATCH) acontece somente na confirmação.
+            if (!createdPurchaseId || !documentId) return
+            navigate('/purchases/new/confirm', {
+              state: {
+                purchaseId: createdPurchaseId,
+                documentId,
+                extraction: reviewed,
+                invoiceNumber:
+                  extraction.status === 'success' ? extraction.data.invoiceNumber : null,
+              },
+            })
           }}
           onBack={() => {
             // Volta ao estado anterior sem criar compra/documento/extração.
