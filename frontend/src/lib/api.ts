@@ -11,6 +11,12 @@ import type {
   WarrantyResponse,
 } from '../types/warranty.ts'
 import type {
+  Document,
+  DocumentResponse,
+  DocumentType,
+  DocumentsResponse,
+} from '../types/document.ts'
+import type {
   AuthUser,
   LoginCredentials,
   LoginResponse,
@@ -224,6 +230,92 @@ export async function createPurchaseWarranty(
     },
   )
   return data.warranty
+}
+
+/**
+ * Lista os documentos vinculados a uma compra do usuário logado:
+ * GET /purchases/:purchaseId/documents — responde 200 com `{ documents }`.
+ */
+export async function getPurchaseDocuments(purchaseId: string): Promise<Document[]> {
+  const data = await request<DocumentsResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/documents`,
+  )
+  return data.documents
+}
+
+/**
+ * Envia um novo documento para uma compra do usuário logado:
+ * POST /purchases/:purchaseId/documents — responde 201 com `{ document }`.
+ *
+ * Usa FormData (`file`, `name`, `type`). O Content-Type NÃO é definido
+ * manualmente: o browser gera o boundary de multipart automaticamente.
+ */
+export async function uploadPurchaseDocument(
+  purchaseId: string,
+  file: File,
+  name: string,
+  type: DocumentType,
+): Promise<Document> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('name', name)
+  formData.append('type', type)
+
+  const data = await request<DocumentResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/documents`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  )
+  return data.document
+}
+
+/**
+ * Exclui um documento do usuário logado:
+ * DELETE /documents/:documentId — responde 204 sem corpo.
+ */
+export async function deleteDocument(documentId: string): Promise<void> {
+  await request<void>(`/documents/${encodeURIComponent(documentId)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Baixa o arquivo de um documento do usuário logado:
+ * GET /documents/:documentId — responde o binário com o Content-Type original.
+ *
+ * A rota é autenticada e privada: o token segue no header Authorization e
+ * nunca na URL. O Blob resultante é usado apenas em memória para exibição.
+ */
+export async function getDocumentFile(documentId: string): Promise<Blob> {
+  const url = `${API_URL}/documents/${encodeURIComponent(documentId)}`
+  const headers = new Headers()
+
+  const token = getStoredAccessToken()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, { headers, credentials: 'include' })
+  } catch {
+    throw new ApiError(
+      'Não foi possível conectar ao servidor. Tente novamente.',
+      0,
+      'NETWORK_ERROR',
+    )
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new AuthenticationError()
+    }
+    throw new ApiError(`Erro na requisição (${response.status})`, response.status)
+  }
+
+  return response.blob()
 }
 
 /**

@@ -5,6 +5,7 @@ import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetails
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
 import { PurchaseWarrantySection } from '../components/purchases/PurchaseWarrantySection.tsx'
+import { PurchaseDocumentsSection } from '../components/purchases/PurchaseDocumentsSection.tsx'
 import { getPurchase, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
@@ -107,6 +108,10 @@ export function PurchaseDetails() {
 
       {currentState.status === 'success' && (
         <PurchaseWarrantySection purchaseId={currentState.purchase.id} />
+      )}
+
+      {currentState.status === 'success' && (
+        <PurchaseDocumentsSection purchaseId={currentState.purchase.id} />
       )}
     </div>
   )
