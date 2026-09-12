@@ -17,12 +17,18 @@ import {
   deleteDocument,
   getDocumentFile,
   extractDocument,
+  confirmDocumentExtraction,
   AuthenticationError,
   ApiError,
 } from '../../lib/api.ts'
 import { useAuth } from '../../contexts/auth-context.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
-import type { Document, DocumentExtraction, DocumentType } from '../../types/document.ts'
+import type {
+  Document,
+  DocumentExtraction,
+  DocumentExtractionConfirmationResponse,
+  DocumentType,
+} from '../../types/document.ts'
 import { DocumentExtractionPanel } from './DocumentExtractionPanel.tsx'
 
 type FetchState =
@@ -35,6 +41,7 @@ const FALLBACK_UPLOAD_ERROR = 'Não foi possível enviar o documento.'
 const FALLBACK_DELETE_ERROR = 'Não foi possível excluir o documento.'
 const FALLBACK_VIEW_ERROR = 'Não foi possível abrir o documento.'
 const FALLBACK_EXTRACT_ERROR = 'Não foi possível analisar o documento. Tente novamente.'
+const FALLBACK_CONFIRM_ERROR = 'Não foi possível aplicar os dados. Tente novamente.'
 
 /** Mensagens amigáveis por código de erro da extração por IA. */
 const EXTRACT_ERROR_MESSAGES: Record<string, string> = {
@@ -50,6 +57,25 @@ const extractErrorMessage = (error: unknown) => {
     return EXTRACT_ERROR_MESSAGES[error.code]
   }
   return FALLBACK_EXTRACT_ERROR
+}
+
+/**
+ * Traduz um erro da confirmação em uma mensagem amigável por status HTTP.
+ * Nunca expõe detalhes internos/stack.
+ */
+const confirmErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 400) {
+      return 'Os dados extraídos não puderam ser aplicados. Verifique as informações e tente novamente.'
+    }
+    if (error.status === 403) {
+      return 'Você não tem permissão para atualizar este documento.'
+    }
+    if (error.status === 404) {
+      return 'Este documento não foi encontrado.'
+    }
+  }
+  return FALLBACK_CONFIRM_ERROR
 }
 
 /** Limite do backend (10 MB). Validação básica só para evitar round-trip. */
@@ -92,9 +118,18 @@ function fileExtension(fileName: string): string {
 
 export interface PurchaseDocumentsSectionProps {
   purchaseId: string
+  /**
+   * Chamado quando uma extração é confirmada com sucesso, com a compra e a
+   * garantia já atualizadas retornadas pelo backend. Permite atualizar a tela
+   * sem reload.
+   */
+  onPurchaseUpdated?: (result: DocumentExtractionConfirmationResponse) => void
 }
 
-export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectionProps) {
+export function PurchaseDocumentsSection({
+  purchaseId,
+  onPurchaseUpdated,
+}: PurchaseDocumentsSectionProps) {
   const navigate = useNavigate()
   const { setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
@@ -103,7 +138,13 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [extractingId, setExtractingId] = useState<string | null>(null)
-  const [extraction, setExtraction] = useState<DocumentExtraction | null>(null)
+  // Extração aberta no painel, junto do documento de origem (para o PATCH).
+  const [extraction, setExtraction] = useState<{
+    documentId: string
+    data: DocumentExtraction
+  } | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const handleAuthError = useCallback(() => {
     setUser(null)
@@ -189,7 +230,8 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
       setActionError(null)
       try {
         const data = await extractDocument(document.id)
-        setExtraction(data)
+        setConfirmError(null)
+        setExtraction({ documentId: document.id, data })
       } catch (error) {
         if (error instanceof AuthenticationError) {
           handleAuthError()
@@ -202,6 +244,30 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
     },
     [extractingId, handleAuthError],
   )
+
+  const handleConfirm = useCallback(async () => {
+    if (!extraction || isConfirming) return
+    setIsConfirming(true)
+    setConfirmError(null)
+    try {
+      const result = await confirmDocumentExtraction(
+        extraction.documentId,
+        extraction.data,
+      )
+      // Fecha o painel e propaga os dados atualizados para a página (sem F5).
+      setExtraction(null)
+      onPurchaseUpdated?.(result)
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        handleAuthError()
+        return
+      }
+      // Mantém o painel aberto e os dados extraídos intactos para tentar de novo.
+      setConfirmError(confirmErrorMessage(error))
+    } finally {
+      setIsConfirming(false)
+    }
+  }, [extraction, isConfirming, onPurchaseUpdated, handleAuthError])
 
   const documents = state.status === 'success' ? state.documents : []
 
@@ -277,7 +343,13 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
       </div>
 
       {extraction && (
-        <DocumentExtractionPanel data={extraction} onClose={() => setExtraction(null)} />
+        <DocumentExtractionPanel
+          data={extraction.data}
+          onClose={() => setExtraction(null)}
+          onConfirm={handleConfirm}
+          isSaving={isConfirming}
+          confirmError={confirmError}
+        />
       )}
     </section>
   )

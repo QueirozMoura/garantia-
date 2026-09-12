@@ -1,3 +1,6 @@
+import type { Purchase } from './purchase.ts'
+import type { Warranty } from './warranty.ts'
+
 /**
  * Tipos da resposta real dos endpoints de documentos.
  *
@@ -80,4 +83,17 @@ export interface DocumentExtraction {
 /** Envelope de POST /documents/:documentId/extract: `{ data }`. */
 export interface DocumentExtractionResponse {
   data: DocumentExtraction
+}
+
+/**
+ * Resposta de PATCH /documents/:documentId/extraction: `{ purchase, warranty }`.
+ *
+ * `purchase` é a compra já atualizada (mesmo formato de GET /purchases);
+ * `warranty` é a garantia criada/atualizada quando a extração trouxe
+ * `warrantyMonths`, ou `null` quando nada foi aplicado. Reutiliza os tipos
+ * existentes de Purchase/Warranty para não duplicar contratos.
+ */
+export interface DocumentExtractionConfirmationResponse {
+  purchase: Purchase
+  warranty: Warranty | null
 }

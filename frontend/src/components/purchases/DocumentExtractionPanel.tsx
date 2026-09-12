@@ -1,13 +1,19 @@
 import { useEffect } from 'react'
-import { X } from 'lucide-react'
+import { AlertCircle, Loader2, X } from 'lucide-react'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 import type { DocumentExtraction } from '../../types/document.ts'
 
 export interface DocumentExtractionPanelProps {
-  /** Dados extraídos pela IA (somente leitura nesta etapa). */
+  /** Dados extraídos pela IA, preenchidos exatamente como vieram da API. */
   data: DocumentExtraction
-  /** Fecha o painel. Nenhum dado é salvo nesta etapa. */
+  /** Fecha o painel sem aplicar nada. */
   onClose: () => void
+  /** Aplica os dados extraídos à compra (PATCH). Ausente = somente leitura. */
+  onConfirm?: () => void
+  /** `true` enquanto a confirmação está em andamento. */
+  isSaving?: boolean
+  /** Mensagem de erro amigável exibida quando a confirmação falha. */
+  confirmError?: string | null
 }
 
 /** Exibido quando o backend não identificou um campo. */
@@ -38,14 +44,22 @@ const FIELDS: Array<{ label: string; render: (data: DocumentExtraction) => strin
 /**
  * Painel de revisão dos dados extraídos da nota pela IA.
  *
- * Nesta etapa é somente leitura: não há botão de salvar/confirmar e nenhuma
- * chamada além do POST de extração. O usuário apenas revisa e fecha.
+ * Exibe os valores exatamente como vieram da extração (sem edição nem
+ * conversão de `null`). Quando `onConfirm` é fornecido, permite aplicar os
+ * dados à compra; sem ele, o painel é somente leitura.
  */
-export function DocumentExtractionPanel({ data, onClose }: DocumentExtractionPanelProps) {
+export function DocumentExtractionPanel({
+  data,
+  onClose,
+  onConfirm,
+  isSaving = false,
+  confirmError = null,
+}: DocumentExtractionPanelProps) {
   // Fecha com Esc e evita rolagem do fundo enquanto o painel está aberto.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      // Não permite fechar no meio de um salvamento.
+      if (event.key === 'Escape' && !isSaving) onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
     const previousOverflow = document.body.style.overflow
@@ -54,7 +68,7 @@ export function DocumentExtractionPanel({ data, onClose }: DocumentExtractionPan
       window.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onClose])
+  }, [onClose, isSaving])
 
   return (
     <div
@@ -62,7 +76,9 @@ export function DocumentExtractionPanel({ data, onClose }: DocumentExtractionPan
       role="dialog"
       aria-modal="true"
       aria-labelledby="document-extraction-title"
-      onClick={onClose}
+      onClick={() => {
+        if (!isSaving) onClose()
+      }}
     >
       <div
         className="w-full max-w-lg rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
@@ -84,8 +100,9 @@ export function DocumentExtractionPanel({ data, onClose }: DocumentExtractionPan
           <button
             type="button"
             onClick={onClose}
+            disabled={isSaving}
             aria-label="Fechar"
-            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white p-2 text-slate-500 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white p-2 text-slate-500 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -105,15 +122,47 @@ export function DocumentExtractionPanel({ data, onClose }: DocumentExtractionPan
           ))}
         </dl>
 
-        {/* Ação: apenas fechar nesta etapa — nada é salvo. */}
-        <div className="flex justify-end border-t border-slate-100 p-5 sm:p-6">
+        {/* Erro da confirmação (mantém o painel aberto para tentar de novo). */}
+        {confirmError && (
+          <div
+            role="alert"
+            className="mx-5 flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700 sm:mx-6"
+          >
+            <AlertCircle
+              className="h-4 w-4 shrink-0 translate-y-0.5"
+              aria-hidden="true"
+            />
+            <span>{confirmError}</span>
+          </div>
+        )}
+
+        {/* Ações: aplicar os dados à compra ou apenas fechar. */}
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end sm:p-6">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
+            disabled={isSaving}
+            className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             Fechar
           </button>
+          {onConfirm && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isSaving}
+              className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                'Usar estes dados'
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

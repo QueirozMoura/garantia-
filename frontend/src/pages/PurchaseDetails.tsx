@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, CheckCircle } from 'lucide-react'
 import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetailsSkeleton.tsx'
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
@@ -10,6 +10,7 @@ import { getPurchase, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import type { Purchase } from '../types/purchase.ts'
+import type { DocumentExtractionConfirmationResponse } from '../types/document.ts'
 
 type FetchState =
   | { status: 'loading' }
@@ -25,6 +26,9 @@ export function PurchaseDetails() {
   const { setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
+  // Incrementado após uma extração confirmada para recarregar a seção de garantia.
+  const [warrantyReloadKey, setWarrantyReloadKey] = useState(0)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -64,6 +68,20 @@ export function PurchaseDetails() {
     setReloadKey((key) => key + 1)
   }, [])
 
+  /**
+   * Aplica na tela o resultado da confirmação de uma extração, usando os dados
+   * já atualizados retornados pelo backend (sem recalcular nada aqui).
+   */
+  const handleExtractionApplied = useCallback(
+    (result: DocumentExtractionConfirmationResponse) => {
+      setState({ status: 'success', purchase: result.purchase })
+      setSuccessMessage('Dados da nota aplicados à compra.')
+      // A garantia é carregada pela própria seção; força um novo fetch.
+      setWarrantyReloadKey((key) => key + 1)
+    },
+    [],
+  )
+
   // Rota sem :id válido cai no mesmo estado de "não encontrada".
   const currentState: FetchState = id ? state : { status: 'notFound' }
 
@@ -102,16 +120,32 @@ export function PurchaseDetails() {
         />
       )}
 
+      {currentState.status === 'success' && successMessage && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800"
+        >
+          <CheckCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {currentState.status === 'success' && (
         <PurchaseDetailsContent purchase={currentState.purchase} />
       )}
 
       {currentState.status === 'success' && (
-        <PurchaseWarrantySection purchaseId={currentState.purchase.id} />
+        <PurchaseWarrantySection
+          key={warrantyReloadKey}
+          purchaseId={currentState.purchase.id}
+        />
       )}
 
       {currentState.status === 'success' && (
-        <PurchaseDocumentsSection purchaseId={currentState.purchase.id} />
+        <PurchaseDocumentsSection
+          purchaseId={currentState.purchase.id}
+          onPurchaseUpdated={handleExtractionApplied}
+        />
       )}
     </div>
   )

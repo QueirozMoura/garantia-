@@ -16,6 +16,7 @@ import type {
 import type {
   Document,
   DocumentExtraction,
+  DocumentExtractionConfirmationResponse,
   DocumentExtractionResponse,
   DocumentResponse,
   DocumentType,
@@ -338,6 +339,37 @@ export async function extractDocument(documentId: string): Promise<DocumentExtra
     { method: 'POST' },
   )
   return data.data
+}
+
+/**
+ * Confirma a extração de uma nota, aplicando os dados à compra (e à garantia,
+ * quando houver `warrantyMonths`):
+ * PATCH /documents/:documentId/extraction — responde 200 com `{ purchase, warranty }`.
+ *
+ * Envia exatamente a extração revisada. A validação, a transação e as regras de
+ * garantia/ownership ficam no backend; aqui só enviamos e devolvemos o resultado
+ * já atualizado para a tela. Erros (400, 401, 403, 404...) seguem o tratamento
+ * padrão do `request`.
+ */
+export async function confirmDocumentExtraction(
+  documentId: string,
+  data: DocumentExtraction,
+): Promise<DocumentExtractionConfirmationResponse> {
+  return request<DocumentExtractionConfirmationResponse>(
+    `/documents/${encodeURIComponent(documentId)}/extraction`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        productName: data.productName,
+        brand: data.brand,
+        model: data.model,
+        purchaseDate: data.purchaseDate,
+        price: data.price,
+        store: data.store,
+        warrantyMonths: data.warrantyMonths,
+      }),
+    },
+  )
 }
 
 /**
