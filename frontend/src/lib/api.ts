@@ -1,5 +1,11 @@
 import type { DashboardResponse } from '../types/dashboard.ts'
-import type { AuthUser, LoginCredentials, LoginResponse } from '../types/auth.ts'
+import type {
+  AuthUser,
+  LoginCredentials,
+  LoginResponse,
+  RegisterCredentials,
+  RegisterResponse,
+} from '../types/auth.ts'
 
 /** Chave de armazenamento do access token. O Dashboard depende desta chave. */
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -141,6 +147,19 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   })
   setStoredAccessToken(data.accessToken)
   return data
+}
+
+/**
+ * Cria uma nova conta no backend.
+ * POST /auth/register — responde 201 `{ user }`, sem access token nem sessão.
+ */
+export async function register(
+  credentials: RegisterCredentials,
+): Promise<RegisterResponse> {
+  return request<RegisterResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
 }
 
 /**

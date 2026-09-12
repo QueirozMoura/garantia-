@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck, Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
@@ -186,7 +186,17 @@ export function Login() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Ainda não tem uma conta?{' '}
+          <Link
+            to="/register"
+            className="rounded font-medium text-emerald-700 transition-colors hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          >
+            Criar conta
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
           Garantia+ · Seu controle de compras e garantias
         </p>
       </div>

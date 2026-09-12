@@ -16,3 +16,17 @@ export interface LoginResponse {
   user: AuthUser
   accessToken: string
 }
+
+export interface RegisterCredentials {
+  name: string
+  email: string
+  password: string
+}
+
+/**
+ * Resposta de POST /auth/register: 201 `{ user }`.
+ * O endpoint de cadastro NÃO retorna access token nem define cookie de sessão.
+ */
+export interface RegisterResponse {
+  user: AuthUser
+}

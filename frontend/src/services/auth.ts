@@ -1,5 +1,6 @@
 import {
   login,
+  register,
   getMe,
   logout as logoutRequest,
   getStoredAccessToken,
@@ -7,13 +8,27 @@ import {
   AuthenticationError,
   ApiError,
 } from '../lib/api.ts'
-import type { AuthUser, LoginCredentials, LoginResponse } from '../types/auth.ts'
+import type {
+  AuthUser,
+  LoginCredentials,
+  LoginResponse,
+  RegisterCredentials,
+  RegisterResponse,
+} from '../types/auth.ts'
 
 /** Erro de autenticação já traduzido para exibição amigável no formulário. */
 export class LoginFormError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'LoginFormError'
+  }
+}
+
+/** Erro de cadastro já traduzido para exibição amigável no formulário. */
+export class RegisterFormError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RegisterFormError'
   }
 }
 
@@ -51,6 +66,40 @@ export async function authenticate(
     return await login(credentials)
   } catch (error) {
     throw new LoginFormError(toFriendlyMessage(error))
+  }
+}
+
+/**
+ * Mapeia erros de POST /auth/register para mensagens amigáveis, usando os
+ * códigos reais do backend (EMAIL_ALREADY_REGISTERED) sem expor detalhes internos.
+ */
+function toRegisterFriendlyMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return 'Não foi possível conectar ao servidor. Tente novamente.'
+    }
+    if (error.code === 'EMAIL_ALREADY_REGISTERED' || error.status === 409) {
+      return 'Este email já está cadastrado.'
+    }
+    if (error.status === 400) {
+      return 'Verifique os dados informados.'
+    }
+    if (error.status >= 500) {
+      return 'O servidor está indisponível no momento. Tente novamente mais tarde.'
+    }
+    return 'Não foi possível criar a conta. Tente novamente.'
+  }
+  return 'Não foi possível criar a conta. Tente novamente.'
+}
+
+/** Cria a conta via POST /auth/register (não inicia sessão nem retorna token). */
+export async function registerUser(
+  credentials: RegisterCredentials,
+): Promise<RegisterResponse> {
+  try {
+    return await register(credentials)
+  } catch (error) {
+    throw new RegisterFormError(toRegisterFriendlyMessage(error))
   }
 }
 
