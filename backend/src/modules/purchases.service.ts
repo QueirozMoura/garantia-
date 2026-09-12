@@ -25,6 +25,21 @@ const serializePurchase = (
   price: purchase.price.toFixed(2),
 });
 
+// PostgreSQL SQLSTATE for a foreign key violation caused by an ON DELETE RESTRICT
+// constraint. Prisma reports this as a PrismaClientUnknownRequestError (not the
+// KnownRequestError P2003 path), so it is matched defensively on the message.
+const RESTRICT_VIOLATION_SQLSTATE = '23001';
+
+const isRestrictForeignKeyViolation = (error: unknown) => {
+  if (!(error instanceof Prisma.PrismaClientUnknownRequestError)) return false;
+
+  return (
+    error.message.includes(`code: "${RESTRICT_VIOLATION_SQLSTATE}"`) ||
+    (error.message.includes(RESTRICT_VIOLATION_SQLSTATE) &&
+      error.message.includes('foreign key constraint'))
+  );
+};
+
 const getOwnedPurchase = async (userId: string, purchaseId: string) => {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
@@ -115,6 +130,13 @@ export const deletePurchase = async (userId: string, purchaseId: string) => {
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      throw badRequest(
+        'Purchase cannot be deleted while it has related data',
+        'PURCHASE_HAS_DEPENDENCIES',
+      );
+    }
+
+    if (isRestrictForeignKeyViolation(error)) {
       throw badRequest(
         'Purchase cannot be deleted while it has related data',
         'PURCHASE_HAS_DEPENDENCIES',

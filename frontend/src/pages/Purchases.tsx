@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Plus, CheckCircle } from 'lucide-react'
 import { PurchasesList } from '../components/purchases/PurchasesList.tsx'
 import { PurchasesSkeleton } from '../components/purchases/PurchasesSkeleton.tsx'
 import { PurchasesEmptyState } from '../components/purchases/PurchasesEmptyState.tsx'
@@ -21,9 +21,13 @@ const FALLBACK_ERROR = 'Não foi possível carregar suas compras. Tente novament
 
 export function Purchases() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
+  // Flash message vinda de outra tela (ex.: exclusão de compra).
+  const flashMessage =
+    (location.state as { flashMessage?: string } | null)?.flashMessage ?? null
 
   useEffect(() => {
     let isActive = true
@@ -76,6 +80,16 @@ export function Purchases() {
           <span>Adicionar compra</span>
         </button>
       </section>
+
+      {flashMessage && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800"
+        >
+          <CheckCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
+          <span>{flashMessage}</span>
+        </div>
+      )}
 
       {state.status === 'loading' && <PurchasesSkeleton />}
 

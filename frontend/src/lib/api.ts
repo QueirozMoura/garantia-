@@ -219,6 +219,20 @@ export async function updatePurchase(
 }
 
 /**
+ * Exclui uma compra do usuário logado:
+ * DELETE /purchases/:id — responde 204 sem corpo.
+ *
+ * Sem body e sem `userId` (a autorização é do backend via token). O `request`
+ * já trata 204 sem tentar ler JSON; 404 (PURCHASE_NOT_FOUND), 403
+ * (PURCHASE_ACCESS_DENIED) e 400 (PURCHASE_HAS_DEPENDENCIES) viram ApiError.
+ */
+export async function deletePurchase(id: string): Promise<void> {
+  await request<void>(`/purchases/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
  * Lista todas as garantias do usuário logado, com os dados básicos da compra
  * relacionada: GET /warranties — responde 200 com `{ warranties }`.
  */

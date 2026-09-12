@@ -54,3 +54,27 @@ export const createPurchaseWithDocument = async (
 
   return { purchase, document };
 };
+
+// Creates a Purchase owned by userId together with a Warranty (RESTRICT relation).
+export const createPurchaseWithWarranty = async (userId: string) => {
+  const purchase = await testPrisma.purchase.create({
+    data: {
+      userId,
+      productName: 'Product With Warranty',
+      purchaseDate: new Date('2024-01-01T00:00:00.000Z'),
+      price: '250.00',
+      category: 'electronics',
+    },
+  });
+
+  const warranty = await testPrisma.warranty.create({
+    data: {
+      purchaseId: purchase.id,
+      durationMonths: 12,
+      startDate: new Date('2024-01-01T00:00:00.000Z'),
+      endDate: new Date('2025-01-01T00:00:00.000Z'),
+    },
+  });
+
+  return { purchase, warranty };
+};

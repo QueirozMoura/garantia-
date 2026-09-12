@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft, CheckCircle, Pencil } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, CheckCircle, Pencil, Trash2 } from 'lucide-react'
 import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetailsSkeleton.tsx'
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
 import { PurchaseWarrantySection } from '../components/purchases/PurchaseWarrantySection.tsx'
 import { PurchaseDocumentsSection } from '../components/purchases/PurchaseDocumentsSection.tsx'
-import { getPurchase, AuthenticationError, ApiError } from '../lib/api.ts'
+import { DeletePurchaseDialog } from '../components/purchases/DeletePurchaseDialog.tsx'
+import { getPurchase, deletePurchase, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import type { Purchase } from '../types/purchase.ts'
@@ -19,6 +20,17 @@ type FetchState =
   | { status: 'success'; purchase: Purchase }
 
 const FALLBACK_ERROR = 'Não foi possível carregar a compra. Tente novamente.'
+const FALLBACK_DELETE_ERROR = 'Não foi possível excluir a compra. Tente novamente.'
+
+/** Mensagens amigáveis por status HTTP do DELETE. */
+const deleteErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return 'Você não tem permissão para excluir esta compra.'
+    if (error.status === 404) return 'Esta compra não foi encontrada.'
+  }
+  // 400/500 e demais erros caem na mensagem genérica amigável.
+  return FALLBACK_DELETE_ERROR
+}
 
 export function PurchaseDetails() {
   const { id } = useParams<{ id: string }>()
@@ -33,6 +45,9 @@ export function PurchaseDetails() {
   const flashMessage =
     (location.state as { flashMessage?: string } | null)?.flashMessage ?? null
   const [successMessage, setSuccessMessage] = useState<string | null>(flashMessage)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -86,6 +101,32 @@ export function PurchaseDetails() {
     [],
   )
 
+  /** Executa a exclusão somente quando o usuário confirma no modal. */
+  const handleDelete = useCallback(async () => {
+    if (!id || isDeleting) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deletePurchase(id)
+      // Sucesso: fecha o modal e volta para a lista com flash message.
+      setIsDeleteOpen(false)
+      navigate('/purchases', {
+        replace: true,
+        state: { flashMessage: 'Compra excluída com sucesso.' },
+      })
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        // Token inválido/expirado: segue o padrão global e volta ao login.
+        setUser(null)
+        navigate('/login', { replace: true })
+        return
+      }
+      // Mantém o modal aberto para o usuário tentar novamente.
+      setDeleteError(deleteErrorMessage(error))
+      setIsDeleting(false)
+    }
+  }, [id, isDeleting, navigate, setUser])
+
   // Rota sem :id válido cai no mesmo estado de "não encontrada".
   const currentState: FetchState = id ? state : { status: 'notFound' }
 
@@ -120,6 +161,20 @@ export function PurchaseDetails() {
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span>Voltar para compras</span>
           </Link>
+
+          {currentState.status === 'success' && (
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteError(null)
+                setIsDeleteOpen(true)
+              }}
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:text-sm"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span>Excluir compra</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -161,6 +216,16 @@ export function PurchaseDetails() {
         <PurchaseDocumentsSection
           purchaseId={currentState.purchase.id}
           onPurchaseUpdated={handleExtractionApplied}
+        />
+      )}
+
+      {currentState.status === 'success' && isDeleteOpen && (
+        <DeletePurchaseDialog
+          purchase={currentState.purchase}
+          onClose={() => setIsDeleteOpen(false)}
+          onConfirm={handleDelete}
+          isDeleting={isDeleting}
+          errorMessage={deleteError}
         />
       )}
     </div>
