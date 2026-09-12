@@ -30,7 +30,11 @@ import type {
   DocumentType,
 } from '../../types/document.ts'
 import { DocumentExtractionPanel } from './DocumentExtractionPanel.tsx'
-import { formatFileSize, validateDocumentFile } from './purchase-document.ts'
+import {
+  extractFriendlyMessage,
+  formatFileSize,
+  validateDocumentFile,
+} from './purchase-document.ts'
 
 type FetchState =
   | { status: 'loading' }
@@ -41,24 +45,11 @@ const FALLBACK_ERROR = 'Não foi possível carregar os documentos.'
 const FALLBACK_UPLOAD_ERROR = 'Não foi possível enviar o documento.'
 const FALLBACK_DELETE_ERROR = 'Não foi possível excluir o documento.'
 const FALLBACK_VIEW_ERROR = 'Não foi possível abrir o documento.'
-const FALLBACK_EXTRACT_ERROR = 'Não foi possível analisar o documento. Tente novamente.'
 const FALLBACK_CONFIRM_ERROR = 'Não foi possível aplicar os dados. Tente novamente.'
 
-/** Mensagens amigáveis por código de erro da extração por IA. */
-const EXTRACT_ERROR_MESSAGES: Record<string, string> = {
-  AI_PROVIDER_NOT_CONFIGURED: 'Não foi possível usar a leitura por IA no momento.',
-  AI_PROVIDER_REQUEST_FAILED:
-    'Não conseguimos analisar este documento agora. Tente novamente.',
-  AI_INVALID_RESPONSE: 'A IA não conseguiu interpretar este documento corretamente.',
-}
-
 /** Traduz um erro da extração em uma mensagem amigável (sem detalhes internos). */
-const extractErrorMessage = (error: unknown) => {
-  if (error instanceof ApiError && error.code && EXTRACT_ERROR_MESSAGES[error.code]) {
-    return EXTRACT_ERROR_MESSAGES[error.code]
-  }
-  return FALLBACK_EXTRACT_ERROR
-}
+const extractErrorMessage = (error: unknown) =>
+  extractFriendlyMessage(error instanceof ApiError ? error : null)
 
 /**
  * Traduz um erro da confirmação em uma mensagem amigável por status HTTP.
