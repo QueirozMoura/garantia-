@@ -16,7 +16,9 @@ import type {
   Document,
   DocumentResponse,
   DocumentType,
+  DocumentWithPurchase,
   DocumentsResponse,
+  DocumentsListResponse,
 } from '../types/document.ts'
 import type {
   AuthUser,
@@ -280,6 +282,20 @@ export async function uploadPurchaseDocument(
     },
   )
   return data.document
+}
+
+/**
+ * Exclui um documento do usuário logado:
+ * DELETE /documents/:documentId — responde 204 sem corpo.
+ */
+/**
+ * Lista todos os documentos do usuário logado, das adições mais recentes para
+ * as mais antigas, cada um com os dados básicos da compra relacionada:
+ * GET /documents — responde 200 com `{ documents }`.
+ */
+export async function getDocuments(): Promise<DocumentWithPurchase[]> {
+  const data = await request<DocumentsListResponse>('/documents')
+  return data.documents
 }
 
 /**

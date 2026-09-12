@@ -19,9 +19,39 @@ export interface Document {
   updatedAt: string
 }
 
-/** Envelope de GET /purchases/:purchaseId/documents: `{ documents }`. */
+/**
+ * Dados básicos da compra relacionados a um documento, retornados pela
+ * listagem geral (GET /documents). Apenas campos públicos são expostos pelo
+ * backend — `userId` e `price` nunca são retornados.
+ */
+export interface DocumentPurchase {
+  id: string
+  productName: string
+  brand: string | null
+  model: string | null
+  purchaseDate: string
+  category: string
+}
+
+/** Documento acompanhado da compra relacionada (GET /documents). */
+export interface DocumentWithPurchase extends Document {
+  purchase: DocumentPurchase
+}
+
+/**
+ * Envelope de GET /purchases/:purchaseId/documents: `{ documents }`.
+ * Estes documentos não trazem a compra embutida.
+ */
 export interface DocumentsResponse {
   documents: Document[]
+}
+
+/**
+ * Envelope de GET /documents: `{ documents }`, cada documento acompanhado dos
+ * dados públicos da compra relacionada.
+ */
+export interface DocumentsListResponse {
+  documents: DocumentWithPurchase[]
 }
 
 /** Envelope de POST /purchases/:purchaseId/documents — responde 201 `{ document }`. */
