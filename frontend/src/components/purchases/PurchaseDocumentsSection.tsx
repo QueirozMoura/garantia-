@@ -30,6 +30,7 @@ import type {
   DocumentType,
 } from '../../types/document.ts'
 import { DocumentExtractionPanel } from './DocumentExtractionPanel.tsx'
+import { formatFileSize, validateDocumentFile } from './purchase-document.ts'
 
 type FetchState =
   | { status: 'loading' }
@@ -78,13 +79,6 @@ const confirmErrorMessage = (error: unknown) => {
   return FALLBACK_CONFIRM_ERROR
 }
 
-/** Limite do backend (10 MB). Validação básica só para evitar round-trip. */
-const MAX_FILE_SIZE = 10 * 1024 * 1024
-
-/** Extensões e MIME aceitos pelo backend. */
-const ACCEPTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png']
-const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
-
 /** Rótulos em português por tipo de documento. */
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   INVOICE: 'Nota fiscal',
@@ -94,27 +88,6 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 }
 
 const DOCUMENT_TYPE_OPTIONS: DocumentType[] = ['INVOICE', 'RECEIPT', 'WARRANTY', 'OTHER']
-
-/**
- * Formata bytes em KB/MB com no máximo uma casa decimal.
- * Abaixo de 1 KB, mostra em bytes para não exibir "0 KB".
- */
-function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB'
-  if (bytes < 1024) return `${bytes} B`
-
-  const kilobytes = bytes / 1024
-  if (kilobytes < 1024) return `${kilobytes.toFixed(1).replace('.0', '')} KB`
-
-  const megabytes = kilobytes / 1024
-  return `${megabytes.toFixed(1).replace('.0', '')} MB`
-}
-
-/** Extensão em minúsculas, incluindo o ponto. */
-function fileExtension(fileName: string): string {
-  const index = fileName.lastIndexOf('.')
-  return index >= 0 ? fileName.slice(index).toLowerCase() : ''
-}
 
 export interface PurchaseDocumentsSectionProps {
   purchaseId: string
@@ -587,19 +560,7 @@ function DocumentForm({
   const nameError = name.trim() ? null : 'Informe o nome do documento.'
 
   // Validação básica de arquivo — o backend continua sendo a fonte de verdade.
-  const validateFile = useCallback((candidate: File): string | null => {
-    if (!ACCEPTED_EXTENSIONS.includes(fileExtension(candidate.name))) {
-      return 'Este arquivo não é suportado.'
-    }
-    if (candidate.type && !ACCEPTED_MIME_TYPES.includes(candidate.type)) {
-      return 'Este arquivo não é suportado.'
-    }
-    if (candidate.size > MAX_FILE_SIZE) {
-      return 'O arquivo deve ter no máximo 10 MB.'
-    }
-    return null
-  }, [])
-
+  const validateFile = validateDocumentFile
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0] ?? null
     setSubmitError(null)
