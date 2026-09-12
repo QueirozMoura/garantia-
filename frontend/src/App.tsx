@@ -6,6 +6,7 @@ import { AddPurchase } from './pages/AddPurchase.tsx'
 import { PurchaseDetails } from './pages/PurchaseDetails.tsx'
 import { Warranties } from './pages/Warranties.tsx'
 import { Documents } from './pages/Documents.tsx'
+import { Alerts } from './pages/Alerts.tsx'
 import { Login } from './pages/Login.tsx'
 import { Register } from './pages/Register.tsx'
 import { RequireAuth, RequireGuest } from './components/auth/RouteGuards.tsx'
@@ -85,6 +86,16 @@ function App() {
           <RequireAuth>
             <AppLayout activeNavId="documentos">
               <Documents />
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <RequireAuth>
+            <AppLayout activeNavId="alertas">
+              <Alerts />
             </AppLayout>
           </RequireAuth>
         }

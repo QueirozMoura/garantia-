@@ -1,3 +1,4 @@
+import type { Alert, AlertsResponse } from '../types/alert.ts'
 import type { DashboardResponse } from '../types/dashboard.ts'
 import type {
   CreatePurchaseInput,
@@ -296,6 +297,19 @@ export async function uploadPurchaseDocument(
 export async function getDocuments(): Promise<DocumentWithPurchase[]> {
   const data = await request<DocumentsListResponse>('/documents')
   return data.documents
+}
+
+/**
+ * Lista os alertas do usuário logado, derivados de suas garantias, na ordem de
+ * urgência definida pelo backend:
+ * GET /alerts — responde 200 com `{ alerts }`.
+ *
+ * As regras de negócio (dias restantes, garantia vencida/vencendo) são do
+ * backend; aqui apenas devolvemos os alertas como recebidos.
+ */
+export async function getAlerts(): Promise<Alert[]> {
+  const data = await request<AlertsResponse>('/alerts')
+  return data.alerts
 }
 
 /**

@@ -21,7 +21,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { id: 'compras', label: 'Minhas compras', icon: ShoppingBag, path: '/purchases' },
   { id: 'garantias', label: 'Garantias', icon: ShieldCheck, path: '/warranties' },
   { id: 'documentos', label: 'Documentos', icon: FileText, path: '/documents' },
-  { id: 'alertas', label: 'Alertas', icon: Bell },
+  { id: 'alertas', label: 'Alertas', icon: Bell, path: '/alerts' },
 ]
 
 export const BOTTOM_NAV_ITEMS: NavItem[] = [
@@ -29,6 +29,7 @@ export const BOTTOM_NAV_ITEMS: NavItem[] = [
   { id: 'compras', label: 'Compras', icon: ShoppingBag, path: '/purchases' },
   { id: 'garantias', label: 'Garantias', icon: ShieldCheck, path: '/warranties' },
   { id: 'documentos', label: 'Documentos', icon: FileText, path: '/documents' },
+  { id: 'alertas', label: 'Alertas', icon: Bell, path: '/alerts' },
 ]
 
 export const SETTINGS_NAV_ITEM: NavItem = {
