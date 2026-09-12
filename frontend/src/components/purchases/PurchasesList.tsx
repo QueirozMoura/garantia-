@@ -5,6 +5,11 @@ import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 
 export interface PurchasesListProps {
   purchases: Purchase[]
+  /**
+   * Total de compras antes da busca/filtro. Quando informado e diferente do
+   * número exibido, o contador mostra "3 de 12 compras" em vez de "3 compras".
+   */
+  totalCount?: number
 }
 
 /** Junta marca e modelo, exibindo apenas os campos que existem na resposta. */
@@ -12,7 +17,14 @@ function brandModelLabel(purchase: Purchase): string {
   return [purchase.brand, purchase.model].filter(Boolean).join(' ')
 }
 
-export function PurchasesList({ purchases }: PurchasesListProps) {
+export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
+  const count = purchases.length
+  const isFiltered = typeof totalCount === 'number' && totalCount !== count
+  // "1 item" / "3 de 12 itens" — singular apenas quando o exibido é 1.
+  const counterLabel = isFiltered
+    ? `${count} de ${totalCount} ${totalCount === 1 ? 'item' : 'itens'}`
+    : `${count} ${count === 1 ? 'item' : 'itens'}`
+
   return (
     <div className="rounded-xl border-slate-200 bg-white">
       {/* Header */}
@@ -24,8 +36,8 @@ export function PurchasesList({ purchases }: PurchasesListProps) {
               Histórico completo dos produtos cadastrados.
             </p>
           </div>
-          <span className="text-xs font-medium text-slate-400">
-            {purchases.length} {purchases.length === 1 ? 'item' : 'itens'}
+          <span aria-live="polite" className="text-xs font-medium text-slate-400">
+            {counterLabel}
           </span>
         </div>
       </div>
