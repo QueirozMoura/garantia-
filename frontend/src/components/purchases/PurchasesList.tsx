@@ -1,4 +1,5 @@
 import { ShoppingBag, Store, Calendar } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Purchase } from '../../types/purchase.ts'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 
@@ -57,19 +58,24 @@ export function PurchasesList({ purchases }: PurchasesListProps) {
               return (
                 <tr key={purchase.id} className="transition-colors hover:bg-slate-50/60">
                   <td className="px-3.5 py-3.5 lg:px-5 font-medium text-slate-900">
-                    <div className="flex items-center gap-2">
+                    <Link
+                      to={`/purchases/${purchase.id}`}
+                      className="group flex items-center gap-2 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                    >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
                         <ShoppingBag className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate">{purchase.productName}</span>
+                        <span className="block truncate group-hover:text-emerald-700">
+                          {purchase.productName}
+                        </span>
                         {brandModel && (
                           <span className="block truncate text-[11px] text-slate-400">
                             {brandModel}
                           </span>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-3 py-3.5 lg:px-4 text-slate-600">
                     <span className="truncate block">{purchase.store ?? '-'}</span>
@@ -97,7 +103,11 @@ export function PurchasesList({ purchases }: PurchasesListProps) {
         {purchases.map((purchase) => {
           const brandModel = brandModelLabel(purchase)
           return (
-            <div key={purchase.id} className="p-4 space-y-2.5">
+            <Link
+              key={purchase.id}
+              to={`/purchases/${purchase.id}`}
+              className="block p-4 space-y-2.5 transition-colors hover:bg-slate-50/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
@@ -133,7 +143,7 @@ export function PurchasesList({ purchases }: PurchasesListProps) {
                   {purchase.category}
                 </span>
               </div>
-            </div>
+            </Link>
           )
         })}
       </div>

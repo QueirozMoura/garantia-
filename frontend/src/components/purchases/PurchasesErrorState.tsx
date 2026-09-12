@@ -3,22 +3,28 @@ import { AlertCircle, RefreshCw } from 'lucide-react'
 export interface PurchasesErrorStateProps {
   message?: string
   onRetry: () => void
+  /** Título do card. Padrão mantém a mensagem usada na lista de compras. */
+  title?: string
+  /** Texto padrão quando `message` não é informado. */
+  fallbackMessage?: string
 }
 
-export function PurchasesErrorState({ message, onRetry }: PurchasesErrorStateProps) {
+export function PurchasesErrorState({
+  message,
+  onRetry,
+  title = 'Não foi possível carregar suas compras',
+  fallbackMessage = 'Ocorreu uma instabilidade momentânea ao buscar suas compras. Tente novamente.',
+}: PurchasesErrorStateProps) {
   return (
     <div className="rounded-2xl border-slate-200 bg-white p-8 text-center sm:p-12 shadow-xs">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
         <AlertCircle className="h-6 w-6 text-amber-600" aria-hidden="true" />
       </div>
 
-      <h3 className="mt-4 text-base font-semibold text-slate-900 sm:text-lg">
-        Não foi possível carregar suas compras
-      </h3>
+      <h3 className="mt-4 text-base font-semibold text-slate-900 sm:text-lg">{title}</h3>
 
       <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-        {message ||
-          'Ocorreu uma instabilidade momentânea ao buscar suas compras. Tente novamente.'}
+        {message || fallbackMessage}
       </p>
 
       <div className="mt-6 flex justify-center">

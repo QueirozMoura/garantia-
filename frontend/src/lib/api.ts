@@ -152,6 +152,19 @@ export async function getPurchases(): Promise<Purchase[]> {
 }
 
 /**
+ * Busca uma compra específica do usuário logado:
+ * GET /purchases/:id — responde 200 com `{ purchase }`.
+ * 404 (PURCHASE_NOT_FOUND) quando não existe; 403 (PURCHASE_ACCESS_DENIED)
+ * quando pertence a outro usuário.
+ */
+export async function getPurchase(id: string): Promise<Purchase> {
+  const data = await request<CreatePurchaseResponse>(
+    `/purchases/${encodeURIComponent(id)}`,
+  )
+  return data.purchase
+}
+
+/**
  * Cadastra uma nova compra do usuário logado:
  * POST /purchases — responde 201 com `{ purchase }`.
  */
