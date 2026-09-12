@@ -7,8 +7,11 @@ import type { CreatePurchaseInput } from '../../types/purchase.ts'
 const PRODUCT_NAME_MAX = 255
 const OPTIONAL_TEXT_MAX = 255
 const CATEGORY_MAX = 100
-const PRICE_MAX = 9999.99
 const CENT = 0.01
+/** Limite de preço aceito (espelha o schema do backend). Compartilhado. */
+export const PRICE_MAX = 9999.99
+/** Máximo de caracteres para os campos de texto livre, espelhando o backend. */
+export const TEXT_MAX = OPTIONAL_TEXT_MAX
 
 export interface PurchaseFormFields {
   productName: string
@@ -35,15 +38,32 @@ export const EMPTY_PURCHASE_FIELDS: PurchaseFormFields = {
 }
 
 /** Valida "YYYY-MM-DD" como data de calendário real, sem drift de fuso (UTC). */
-function isValidPurchaseDate(value: string): boolean {
+export function isValidPurchaseDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00.000Z`)
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value)
 }
 
 /** Converte a string do input para número, tratando vírgula decimal (pt-BR). */
-function parsePrice(value: string): number {
+export function parsePrice(value: string): number {
   return Number.parseFloat(value.trim().replace(',', '.'))
+}
+
+/**
+ * Valida o preço exatamente como o formulário de compra (mesmo limite e regra
+ * de 2 casas decimais). Retorna a mensagem de erro ou null se estiver válido.
+ */
+export function validatePriceValue(raw: string): string | null {
+  const value = raw.trim()
+  if (!value) return 'Informe o preço.'
+  const price = parsePrice(value)
+  if (Number.isNaN(price) || !Number.isFinite(price)) return 'Informe um preço válido.'
+  if (price < 0) return 'O preço não pode ser negativo.'
+  if (price > PRICE_MAX) return `O preço deve ser no máximo ${PRICE_MAX.toFixed(2)}.`
+  if (Math.abs(price / CENT - Math.round(price / CENT)) > 1e-6) {
+    return 'O preço deve ter no máximo 2 casas decimais.'
+  }
+  return null
 }
 
 /**

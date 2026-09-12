@@ -52,6 +52,8 @@ export function AddPurchase() {
   // Análise por IA (somente leitura — nada é aplicado à compra nesta etapa).
   const [documentId, setDocumentId] = useState<string | null>(null)
   const [extraction, setExtraction] = useState<ExtractionState>({ status: 'idle' })
+  // Dados revisados pelo usuário na etapa de revisão (apenas estado local).
+  const [reviewedData, setReviewedData] = useState<DocumentExtraction | null>(null)
   // Guarda síncrona contra duplo disparo de /extract (evita chamadas duplicadas).
   const isExtractingRef = useRef(false)
 
@@ -162,13 +164,21 @@ export function AddPurchase() {
    * anterior (/purchases). O resultado da extração (se houver) é levado via
    * state de navegação, para ficar disponível à próxima etapa.
    */
-  function finishSuccess(purchaseId: string | null = null) {
+  function finishSuccess(
+    purchaseId: string | null = null,
+    reviewedOverride: DocumentExtraction | null = null,
+  ) {
     setIsSuccess(true)
     if (purchaseId !== null && (invoiceFile || createdPurchaseId)) {
+      // Leva os dados revisados (ou a extração original) via state de navegação,
+      // disponíveis para a próxima etapa. Nada é salvo aqui.
+      const extractionState =
+        reviewedOverride ??
+        reviewedData ??
+        (extraction.status === 'success' ? extraction.data : null)
       navigate(`/purchases/${purchaseId}`, {
         replace: true,
-        state:
-          extraction.status === 'success' ? { extraction: extraction.data } : undefined,
+        state: extractionState ? { extraction: extractionState } : undefined,
       })
       return
     }
@@ -205,7 +215,16 @@ export function AddPurchase() {
           onRetry={() => {
             if (documentId) void runExtraction(documentId)
           }}
-          onContinue={() => finishSuccess(createdPurchaseId)}
+          onContinue={(reviewed) => {
+            // Guarda os dados revisados apenas localmente (próxima etapa) e
+            // repassa diretamente para a navegação (evita ler state obsoleto).
+            setReviewedData(reviewed)
+            finishSuccess(createdPurchaseId, reviewed)
+          }}
+          onBack={() => {
+            // Volta ao estado anterior sem criar compra/documento/extração.
+            setExtraction({ status: 'idle' })
+          }}
         />
       ) : (
         <>
@@ -274,14 +293,15 @@ export function AddPurchase() {
 interface ExtractionStageProps {
   state: ExtractionState
   onRetry: () => void
-  onContinue: () => void
+  onContinue: (reviewed: DocumentExtraction) => void
+  onBack: () => void
 }
 
 /**
- * Etapa pós-upload: análise da nota pela IA, preview do resultado e retry.
- * Nada aqui é salvo na compra — é apenas visualização (somente leitura).
+ * Etapa pós-upload: análise da nota pela IA, revisão do resultado e retry.
+ * Nada aqui é salvo na compra — a revisão vive apenas no estado local.
  */
-function ExtractionStage({ state, onRetry, onContinue }: ExtractionStageProps) {
+function ExtractionStage({ state, onRetry, onContinue, onBack }: ExtractionStageProps) {
   return (
     <div className="space-y-5">
       {state.status === 'extracting' && (
@@ -331,7 +351,7 @@ function ExtractionStage({ state, onRetry, onContinue }: ExtractionStageProps) {
             </button>
             <button
               type="button"
-              onClick={onContinue}
+              onClick={onBack}
               className="inline-flex cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50"
             >
               Ir para a compra
@@ -341,19 +361,7 @@ function ExtractionStage({ state, onRetry, onContinue }: ExtractionStageProps) {
       )}
 
       {state.status === 'success' && (
-        <>
-          <ExtractionPreview data={state.data} />
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onContinue}
-              className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
-            >
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              <span>Ir para a compra</span>
-            </button>
-          </div>
-        </>
+        <ExtractionPreview data={state.data} onContinue={onContinue} onBack={onBack} />
       )}
     </div>
   )
