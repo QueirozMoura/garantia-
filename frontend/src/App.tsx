@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout.tsx'
 import { Dashboard } from './pages/Dashboard.tsx'
 import { Purchases } from './pages/Purchases.tsx'
+import { AddPurchase } from './pages/AddPurchase.tsx'
 import { Login } from './pages/Login.tsx'
 import { Register } from './pages/Register.tsx'
 import { RequireAuth, RequireGuest } from './components/auth/RouteGuards.tsx'
@@ -41,6 +42,16 @@ function App() {
           <RequireAuth>
             <AppLayout activeNavId="compras">
               <Purchases />
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/purchases/new"
+        element={
+          <RequireAuth>
+            <AppLayout activeNavId="compras">
+              <AddPurchase />
             </AppLayout>
           </RequireAuth>
         }

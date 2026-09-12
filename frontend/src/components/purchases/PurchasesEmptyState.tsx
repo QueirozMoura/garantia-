@@ -1,6 +1,9 @@
+import { useNavigate } from 'react-router-dom'
 import { ShoppingBag, Plus } from 'lucide-react'
 
 export function PurchasesEmptyState() {
+  const navigate = useNavigate()
+
   return (
     <div className="rounded-2xl border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -17,9 +20,9 @@ export function PurchasesEmptyState() {
       </p>
 
       <div className="mt-6 flex justify-center">
-        {/* Botão visual: a criação de compras será implementada na próxima etapa. */}
         <button
           type="button"
+          onClick={() => navigate('/purchases/new')}
           className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />

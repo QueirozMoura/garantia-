@@ -1,5 +1,10 @@
 import type { DashboardResponse } from '../types/dashboard.ts'
-import type { Purchase, PurchasesResponse } from '../types/purchase.ts'
+import type {
+  CreatePurchaseInput,
+  CreatePurchaseResponse,
+  Purchase,
+  PurchasesResponse,
+} from '../types/purchase.ts'
 import type {
   AuthUser,
   LoginCredentials,
@@ -144,6 +149,18 @@ export async function getDashboard(): Promise<DashboardResponse['dashboard']> {
 export async function getPurchases(): Promise<Purchase[]> {
   const data = await request<PurchasesResponse>('/purchases')
   return data.purchases
+}
+
+/**
+ * Cadastra uma nova compra do usuário logado:
+ * POST /purchases — responde 201 com `{ purchase }`.
+ */
+export async function createPurchase(input: CreatePurchaseInput): Promise<Purchase> {
+  const data = await request<CreatePurchaseResponse>('/purchases', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return data.purchase
 }
 
 /**

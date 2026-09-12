@@ -23,3 +23,27 @@ export interface Purchase {
 export interface PurchasesResponse {
   purchases: Purchase[]
 }
+
+/**
+ * Corpo aceito por POST /purchases (createPurchaseSchema no backend).
+ *
+ * `price` é enviado como número — o backend usa `z.coerce.number()` e rejeita
+ * o objeto se houver chaves desconhecidas (`z.strictObject`).
+ * `purchaseDate` deve ser a string "YYYY-MM-DD".
+ * `brand`, `model`, `serialNumber` e `store` são opcionais.
+ */
+export interface CreatePurchaseInput {
+  productName: string
+  brand?: string | null
+  model?: string | null
+  serialNumber?: string | null
+  store?: string | null
+  purchaseDate: string
+  price: number
+  category: string
+}
+
+/** Resposta de POST /purchases: 201 `{ purchase }`. */
+export interface CreatePurchaseResponse {
+  purchase: Purchase
+}
