@@ -1,14 +1,78 @@
+import { useCallback, useEffect, useState } from 'react'
 import { ShoppingBag, ShieldCheck, AlertTriangle, Receipt } from 'lucide-react'
-import { DASHBOARD_MOCK } from '../data/dashboard.mock.ts'
 import { SummaryCard } from '../components/dashboard/SummaryCard.tsx'
 import { ExpiringWarrantyCard } from '../components/dashboard/ExpiringWarrantyCard.tsx'
 import { RecentPurchases } from '../components/dashboard/RecentPurchases.tsx'
 import { GuaranteeTip } from '../components/dashboard/GuaranteeTip.tsx'
 import { DashboardActions } from '../components/dashboard/DashboardActions.tsx'
+import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx'
+import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
+import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
+import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
+import { formatCurrencyBRL } from '../lib/formatters.ts'
+import type { DashboardResponse } from '../types/dashboard.ts'
+
+type DashboardData = DashboardResponse['dashboard']
+
+type FetchState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string; isAuthError: boolean }
+  | { status: 'success'; data: DashboardData }
+
+const GREETING = 'Bom dia, Gustavo'
+const SUBTITLE = 'Acompanhe suas compras e garantias em um só lugar.'
+
+function isEmptyDashboard(data: DashboardData): boolean {
+  const { summary, expiringWarranties, recentPurchases } = data
+  return (
+    summary.totalPurchases === 0 &&
+    summary.totalWarranties === 0 &&
+    summary.activeWarranties === 0 &&
+    expiringWarranties.length === 0 &&
+    recentPurchases.length === 0
+  )
+}
 
 export function Dashboard() {
-  const { greeting, subtitle, summary, expiringWarranties, recentPurchases, tip } =
-    DASHBOARD_MOCK
+  const [state, setState] = useState<FetchState>({ status: 'loading' })
+
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let isActive = true
+    const load = async () => {
+      try {
+        const data = await getDashboard()
+        if (isActive) setState({ status: 'success', data })
+      } catch (error) {
+        if (!isActive) return
+        if (error instanceof AuthenticationError) {
+          setState({
+            status: 'error',
+            message: 'Você precisa estar autenticado para visualizar seus dados.',
+            isAuthError: true,
+          })
+          return
+        }
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar seus dados. Tente novamente em instantes.'
+        setState({ status: 'error', message, isAuthError: false })
+      }
+    }
+
+    void load()
+
+    return () => {
+      isActive = false
+    }
+  }, [reloadKey])
+
+  const handleRetry = useCallback(() => {
+    setState({ status: 'loading' })
+    setReloadKey((key) => key + 1)
+  }, [])
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -16,41 +80,65 @@ export function Dashboard() {
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {greeting}
+            {GREETING}
           </h2>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500">{SUBTITLE}</p>
         </div>
         <DashboardActions />
       </section>
 
+      {state.status === 'loading' && <DashboardSkeleton />}
+
+      {state.status === 'error' && (
+        <DashboardErrorState
+          message={state.message}
+          isAuthError={state.isAuthError}
+          onRetry={handleRetry}
+        />
+      )}
+
+      {state.status === 'success' &&
+        (isEmptyDashboard(state.data) ? (
+          <DashboardEmptyState />
+        ) : (
+          <DashboardContent data={state.data} />
+        ))}
+    </div>
+  )
+}
+
+function DashboardContent({ data }: { data: DashboardData }) {
+  const { summary, expiringWarranties, recentPurchases } = data
+  return (
+    <>
       {/* 2. Grid de 4 Cards de Resumo */}
       <section
         aria-label="Indicadores principais"
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <SummaryCard
-          title={summary.totalPurchases.label}
-          value={summary.totalPurchases.value}
-          subtitle={summary.totalPurchases.change}
+          title="Compras cadastradas"
+          value={String(summary.totalPurchases)}
+          subtitle="Total de itens registrados"
           icon={ShoppingBag}
         />
         <SummaryCard
-          title={summary.activeWarranties.label}
-          value={summary.activeWarranties.value}
-          subtitle={summary.activeWarranties.subtitle}
+          title="Garantias ativas"
+          value={String(summary.activeWarranties)}
+          subtitle={`${summary.totalWarranties} garantias no total`}
           icon={ShieldCheck}
         />
         <SummaryCard
-          title={summary.expiringSoon.label}
-          value={summary.expiringSoon.value}
-          subtitle={summary.expiringSoon.subtitle}
+          title="Vencendo em breve"
+          value={String(expiringWarranties.length)}
+          subtitle="Próximos 30 dias"
           icon={AlertTriangle}
           variant="warning"
         />
         <SummaryCard
-          title={summary.totalSpent.label}
-          value={summary.totalSpent.value}
-          subtitle={summary.totalSpent.subtitle}
+          title="Total gasto"
+          value={formatCurrencyBRL(summary.totalSpent)}
+          subtitle="Em bens sob garantia"
           icon={Receipt}
         />
       </section>
@@ -68,9 +156,9 @@ export function Dashboard() {
           className="space-y-6 lg:col-span-1"
         >
           <ExpiringWarrantyCard warranties={expiringWarranties} />
-          <GuaranteeTip title={tip.title} content={tip.content} />
+          <GuaranteeTip />
         </section>
       </div>
-    </div>
+    </>
   )
 }

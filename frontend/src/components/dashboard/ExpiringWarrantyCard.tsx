@@ -1,5 +1,6 @@
 import { Clock, ShieldAlert } from 'lucide-react'
-import type { ExpiringWarranty } from '../../data/dashboard.mock.ts'
+import type { ExpiringWarranty } from '../../types/dashboard.ts'
+import { formatDateBR } from '../../lib/formatters.ts'
 
 export interface ExpiringWarrantyCardProps {
   warranties: ExpiringWarranty[]
@@ -25,56 +26,65 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
         </div>
       </div>
 
-      {/* Warranties List */}
-      <div className="mt-5 divide-y divide-slate-100">
-        {warranties.map((item) => {
-          const isUrgent = item.daysRemaining <= 15
-          return (
-            <div
-              key={item.id}
-              className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+      {/* Warranties List or Empty */}
+      {warranties.length === 0 ? (
+        <div className="mt-5 rounded-lg bg-slate-50 px-4 py-6 text-center">
+          <p className="text-xs text-slate-500">
+            Nenhuma garantia vencendo nos próximos 30 dias.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 divide-y divide-slate-100">
+          {warranties.map((item) => {
+            const isUrgent = item.daysRemaining <= 15
+            const brandModel = [item.brand, item.model].filter(Boolean).join(' ')
+
+            return (
+              <div
+                key={item.purchaseId}
+                className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm text-slate-900">
                       {item.productName}
                     </p>
-                    {item.category && (
-                      <span className="hidden rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 sm:inline">
-                        {item.category}
-                      </span>
+                    {brandModel && (
+                      <p className="mt-0.5 text-xs text-slate-500">{brandModel}</p>
                     )}
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Garantia até{' '}
+                      <span className="font-medium text-slate-600">
+                        {formatDateBR(item.endDate)}
+                      </span>
+                    </p>
                   </div>
-                  {item.brandModel && (
-                    <p className="mt-0.5 text-xs text-slate-500">{item.brandModel}</p>
-                  )}
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Garantia até{' '}
-                    <span className="font-medium text-slate-600">{item.expiresAt}</span>
-                  </p>
-                </div>
 
-                {/* Badge com dias restantes */}
-                <span
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    isUrgent
-                      ? 'bg-amber-100/80 text-amber-900 ring-1 ring-amber-500/30'
-                      : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  {isUrgent ? (
-                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-700" />
-                  ) : (
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                  )}
-                  <span>{item.daysRemaining} dias restantes</span>
-                </span>
+                  {/* Badge com dias restantes */}
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      isUrgent
+                        ? 'bg-amber-100/80 text-amber-900 ring-1 ring-amber-500/30'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {isUrgent ? (
+                      <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-700" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    )}
+                    <span>
+                      {item.daysRemaining <= 0
+                        ? 'Vence hoje'
+                        : `${item.daysRemaining} dias restantes`}
+                    </span>
+                  </span>
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

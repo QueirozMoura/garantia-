@@ -1,5 +1,6 @@
 import { ShoppingBag, Store, Calendar } from 'lucide-react'
-import type { RecentPurchase } from '../../data/dashboard.mock.ts'
+import type { RecentPurchase } from '../../types/dashboard.ts'
+import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 
 export interface RecentPurchasesProps {
   purchases: RecentPurchase[]
@@ -47,7 +48,9 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {purchases.map((purchase) => {
-              const isExpiring = purchase.warrantyStatus === 'expiring'
+              const brandModel = [purchase.brand, purchase.model]
+                .filter(Boolean)
+                .join(' ')
               return (
                 <tr key={purchase.id} className="transition-colors hover:bg-slate-50/60">
                   <td className="px-3.5 py-3.5 lg:px-5 font-medium text-slate-900">
@@ -55,28 +58,33 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
                         <ShoppingBag className="h-3.5 w-3.5" />
                       </div>
-                      <span className="truncate">{purchase.productName}</span>
+                      <div className="min-w-0">
+                        <span className="block truncate">{purchase.productName}</span>
+                        {brandModel && (
+                          <span className="block truncate text-[11px] text-slate-400">
+                            {brandModel}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-3 py-3.5 lg:px-4 text-slate-600">
-                    <span className="truncate block">{purchase.store}</span>
+                    <span className="truncate block">{purchase.store ?? '-'}</span>
                   </td>
                   <td className="px-3 py-3.5 lg:px-4 text-slate-500 whitespace-nowrap">
-                    {purchase.purchaseDate}
+                    {formatDateBR(purchase.purchaseDate)}
                   </td>
                   <td className="px-3 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap lg:px-4">
-                    {purchase.amount}
+                    {formatCurrencyBRL(purchase.price)}
                   </td>
                   <td className="px-3 py-3.5 text-right whitespace-nowrap lg:px-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] lg:text-xs font-medium ${
-                        isExpiring
-                          ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-600/20'
-                          : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20'
-                      }`}
-                    >
-                      {purchase.warrantyLabel}
-                    </span>
+                    {purchase.category ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] lg:text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20">
+                        {purchase.category}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">-</span>
+                    )}
                   </td>
                 </tr>
               )
@@ -88,7 +96,7 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
       {/* Mobile Card List (shown only on mobile) */}
       <div className="divide-y divide-slate-100 sm:hidden">
         {purchases.map((purchase) => {
-          const isExpiring = purchase.warrantyStatus === 'expiring'
+          const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
           return (
             <div key={purchase.id} className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
@@ -96,37 +104,38 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                     <ShoppingBag className="h-4 w-4" />
                   </div>
-                  <p className="truncate text-sm font-semibold text-slate-900">
-                    {purchase.productName}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {purchase.productName}
+                    </p>
+                    {brandModel && (
+                      <p className="truncate text-xs text-slate-400">{brandModel}</p>
+                    )}
+                  </div>
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900">
-                  {purchase.amount}
+                  {formatCurrencyBRL(purchase.price)}
                 </p>
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
                 <div className="flex items-center gap-1.5 truncate">
                   <Store className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">{purchase.store}</span>
+                  <span className="truncate">{purchase.store ?? '-'}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{purchase.purchaseDate}</span>
+                  <span>{formatDateBR(purchase.purchaseDate)}</span>
                 </div>
               </div>
 
-              <div className="pt-1">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    isExpiring
-                      ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-600/20'
-                      : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20'
-                  }`}
-                >
-                  {purchase.warrantyLabel}
-                </span>
-              </div>
+              {purchase.category && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20">
+                    {purchase.category}
+                  </span>
+                </div>
+              )}
             </div>
           )
         })}
