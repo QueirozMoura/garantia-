@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Loader2,
   RefreshCw,
+  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -15,12 +16,14 @@ import {
   uploadPurchaseDocument,
   deleteDocument,
   getDocumentFile,
+  extractDocument,
   AuthenticationError,
   ApiError,
 } from '../../lib/api.ts'
 import { useAuth } from '../../contexts/auth-context.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
-import type { Document, DocumentType } from '../../types/document.ts'
+import type { Document, DocumentExtraction, DocumentType } from '../../types/document.ts'
+import { DocumentExtractionPanel } from './DocumentExtractionPanel.tsx'
 
 type FetchState =
   | { status: 'loading' }
@@ -31,6 +34,23 @@ const FALLBACK_ERROR = 'Não foi possível carregar os documentos.'
 const FALLBACK_UPLOAD_ERROR = 'Não foi possível enviar o documento.'
 const FALLBACK_DELETE_ERROR = 'Não foi possível excluir o documento.'
 const FALLBACK_VIEW_ERROR = 'Não foi possível abrir o documento.'
+const FALLBACK_EXTRACT_ERROR = 'Não foi possível analisar o documento. Tente novamente.'
+
+/** Mensagens amigáveis por código de erro da extração por IA. */
+const EXTRACT_ERROR_MESSAGES: Record<string, string> = {
+  AI_PROVIDER_NOT_CONFIGURED: 'Não foi possível usar a leitura por IA no momento.',
+  AI_PROVIDER_REQUEST_FAILED:
+    'Não conseguimos analisar este documento agora. Tente novamente.',
+  AI_INVALID_RESPONSE: 'A IA não conseguiu interpretar este documento corretamente.',
+}
+
+/** Traduz um erro da extração em uma mensagem amigável (sem detalhes internos). */
+const extractErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError && error.code && EXTRACT_ERROR_MESSAGES[error.code]) {
+    return EXTRACT_ERROR_MESSAGES[error.code]
+  }
+  return FALLBACK_EXTRACT_ERROR
+}
 
 /** Limite do backend (10 MB). Validação básica só para evitar round-trip. */
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -82,6 +102,8 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
   const [showForm, setShowForm] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [extractingId, setExtractingId] = useState<string | null>(null)
+  const [extraction, setExtraction] = useState<DocumentExtraction | null>(null)
 
   const handleAuthError = useCallback(() => {
     setUser(null)
@@ -160,6 +182,27 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
     [deletingId, handleAuthError],
   )
 
+  const handleExtract = useCallback(
+    async (document: Document) => {
+      if (extractingId) return
+      setExtractingId(document.id)
+      setActionError(null)
+      try {
+        const data = await extractDocument(document.id)
+        setExtraction(data)
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          handleAuthError()
+          return
+        }
+        setActionError(extractErrorMessage(error))
+      } finally {
+        setExtractingId(null)
+      }
+    },
+    [extractingId, handleAuthError],
+  )
+
   const documents = state.status === 'success' ? state.documents : []
 
   return (
@@ -221,7 +264,10 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
                 document={document}
                 isDeleting={deletingId === document.id}
                 isBusy={deletingId !== null}
+                isExtracting={extractingId === document.id}
+                isExtractBusy={extractingId !== null}
                 onDelete={handleDelete}
+                onExtract={handleExtract}
                 onAuthError={handleAuthError}
                 onViewError={setActionError}
               />
@@ -229,6 +275,10 @@ export function PurchaseDocumentsSection({ purchaseId }: PurchaseDocumentsSectio
           </ul>
         )}
       </div>
+
+      {extraction && (
+        <DocumentExtractionPanel data={extraction} onClose={() => setExtraction(null)} />
+      )}
     </section>
   )
 }
@@ -310,7 +360,10 @@ interface DocumentItemProps {
   document: Document
   isDeleting: boolean
   isBusy: boolean
+  isExtracting: boolean
+  isExtractBusy: boolean
   onDelete: (document: Document) => void
+  onExtract: (document: Document) => void
   onAuthError: () => void
   onViewError: (message: string) => void
 }
@@ -319,12 +372,16 @@ function DocumentItem({
   document,
   isDeleting,
   isBusy,
+  isExtracting,
+  isExtractBusy,
   onDelete,
+  onExtract,
   onAuthError,
   onViewError,
 }: DocumentItemProps) {
   const [isViewing, setIsViewing] = useState(false)
   const isImage = document.mimeType.startsWith('image/')
+  const canExtract = document.type === 'INVOICE'
 
   const handleView = async () => {
     if (isViewing) return
@@ -382,7 +439,23 @@ function DocumentItem({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+        {canExtract && (
+          <button
+            type="button"
+            onClick={() => onExtract(document)}
+            disabled={isExtractBusy}
+            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-xs transition-colors hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isExtracting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            <span>{isExtracting ? 'Analisando...' : 'Ler nota com IA'}</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleView}

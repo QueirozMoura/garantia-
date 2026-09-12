@@ -15,6 +15,8 @@ import type {
 } from '../types/warranty.ts'
 import type {
   Document,
+  DocumentExtraction,
+  DocumentExtractionResponse,
   DocumentResponse,
   DocumentType,
   DocumentWithPurchase,
@@ -320,6 +322,22 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await request<void>(`/documents/${encodeURIComponent(documentId)}`, {
     method: 'DELETE',
   })
+}
+
+/**
+ * Solicita à IA a extração dos dados de uma nota fiscal do usuário logado:
+ * POST /documents/:documentId/extract — responde 200 com `{ data }`.
+ *
+ * Sem body: o documento é identificado pela URL e a autorização/regra de
+ * negócio ficam no backend. Retorna apenas o payload útil da extração; erros
+ * (401, 403, 404, 400, 503, 502...) seguem o tratamento padrão do `request`.
+ */
+export async function extractDocument(documentId: string): Promise<DocumentExtraction> {
+  const data = await request<DocumentExtractionResponse>(
+    `/documents/${encodeURIComponent(documentId)}/extract`,
+    { method: 'POST' },
+  )
+  return data.data
 }
 
 /**

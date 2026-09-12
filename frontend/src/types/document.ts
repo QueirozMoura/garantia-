@@ -58,3 +58,26 @@ export interface DocumentsListResponse {
 export interface DocumentResponse {
   document: Document
 }
+
+/**
+ * Dados extraídos de uma nota fiscal pela IA (POST /documents/:documentId/extract).
+ *
+ * Todos os campos podem ser `null` quando a IA não conseguiu identificar o
+ * valor. `purchaseDate` chega como string "YYYY-MM-DD" (ou null); `price` e
+ * `warrantyMonths` são números ou null. O frontend não deve inventar valores.
+ */
+export interface DocumentExtraction {
+  productName: string | null
+  brand: string | null
+  model: string | null
+  purchaseDate: string | null
+  price: number | null
+  store: string | null
+  invoiceNumber: string | null
+  warrantyMonths: number | null
+}
+
+/** Envelope de POST /documents/:documentId/extract: `{ data }`. */
+export interface DocumentExtractionResponse {
+  data: DocumentExtraction
+}
