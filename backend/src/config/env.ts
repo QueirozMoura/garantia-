@@ -21,7 +21,7 @@ if (!accessTokenSecret || !refreshTokenSecret) {
 export const env = {
   port,
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  clientUrl: process.env.CLIENT_URL ?? 'http://localhost:3000',
+  clientUrl: process.env.CLIENT_URL ?? 'http://localhost:5173',
   databaseUrl,
   accessTokenSecret,
   refreshTokenSecret,
