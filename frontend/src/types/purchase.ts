@@ -43,7 +43,20 @@ export interface CreatePurchaseInput {
   category: string
 }
 
+/**
+ * Corpo aceito por PUT /purchases/:id (updatePurchaseSchema no backend).
+ *
+ * Mesmas regras do create (`z.strictObject`), com todos os campos opcionais —
+ * o backend aceita atualização parcial. Usamos a mesma forma do create na
+ * edição (envia todos os campos preenchidos).
+ */
+export type UpdatePurchaseInput = CreatePurchaseInput
 /** Resposta de POST /purchases: 201 `{ purchase }`. */
 export interface CreatePurchaseResponse {
+  purchase: Purchase
+}
+
+/** Resposta de PUT /purchases/:id: 200 `{ purchase }`. */
+export interface UpdatePurchaseResponse {
   purchase: Purchase
 }

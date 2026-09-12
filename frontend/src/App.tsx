@@ -3,6 +3,7 @@ import { AppLayout } from './layouts/AppLayout.tsx'
 import { Dashboard } from './pages/Dashboard.tsx'
 import { Purchases } from './pages/Purchases.tsx'
 import { AddPurchase } from './pages/AddPurchase.tsx'
+import { EditPurchase } from './pages/EditPurchase.tsx'
 import { PurchaseDetails } from './pages/PurchaseDetails.tsx'
 import { Warranties } from './pages/Warranties.tsx'
 import { Documents } from './pages/Documents.tsx'
@@ -56,6 +57,16 @@ function App() {
           <RequireAuth>
             <AppLayout activeNavId="compras">
               <AddPurchase />
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/purchases/:id/edit"
+        element={
+          <RequireAuth>
+            <AppLayout activeNavId="compras">
+              <EditPurchase />
             </AppLayout>
           </RequireAuth>
         }

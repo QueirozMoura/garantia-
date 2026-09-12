@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft, CheckCircle } from 'lucide-react'
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
+import { ShoppingBag, ArrowLeft, CheckCircle, Pencil } from 'lucide-react'
 import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetailsSkeleton.tsx'
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
@@ -23,12 +23,16 @@ const FALLBACK_ERROR = 'Não foi possível carregar a compra. Tente novamente.'
 export function PurchaseDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Incrementado após uma extração confirmada para recarregar a seção de garantia.
   const [warrantyReloadKey, setWarrantyReloadKey] = useState(0)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  // Mensagem de sucesso vinda da edição (flash) ou da extração confirmada.
+  const flashMessage =
+    (location.state as { flashMessage?: string } | null)?.flashMessage ?? null
+  const [successMessage, setSuccessMessage] = useState<string | null>(flashMessage)
 
   useEffect(() => {
     if (!id) return
@@ -98,13 +102,25 @@ export function PurchaseDetails() {
           </p>
         </div>
 
-        <Link
-          to="/purchases"
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>Voltar para compras</span>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {currentState.status === 'success' && (
+            <Link
+              to={`/purchases/${currentState.purchase.id}/edit`}
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              <span>Editar compra</span>
+            </Link>
+          )}
+
+          <Link
+            to="/purchases"
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Voltar para compras</span>
+          </Link>
+        </div>
       </section>
 
       {currentState.status === 'loading' && <PurchaseDetailsSkeleton />}

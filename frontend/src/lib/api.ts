@@ -5,6 +5,8 @@ import type {
   CreatePurchaseResponse,
   Purchase,
   PurchasesResponse,
+  UpdatePurchaseInput,
+  UpdatePurchaseResponse,
 } from '../types/purchase.ts'
 import type {
   CreateWarrantyInput,
@@ -192,6 +194,27 @@ export async function createPurchase(input: CreatePurchaseInput): Promise<Purcha
     method: 'POST',
     body: JSON.stringify(input),
   })
+  return data.purchase
+}
+
+/**
+ * Atualiza uma compra do usuário logado:
+ * PUT /purchases/:id — responde 200 com `{ purchase }`.
+ *
+ * Envia somente os campos da compra (sem userId). 404 (PURCHASE_NOT_FOUND)
+ * quando não existe; 403 (PURCHASE_ACCESS_DENIED) quando é de outro usuário.
+ */
+export async function updatePurchase(
+  id: string,
+  input: UpdatePurchaseInput,
+): Promise<Purchase> {
+  const data = await request<UpdatePurchaseResponse>(
+    `/purchases/${encodeURIComponent(id)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    },
+  )
   return data.purchase
 }
 
