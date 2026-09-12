@@ -16,6 +16,22 @@ const warrantySelect = {
 
 type WarrantyResult = Prisma.WarrantyGetPayload<{ select: typeof warrantySelect }>;
 
+// General listing returns the warranty plus the basic purchase info the client
+// needs to identify the product. Only public purchase fields are selected.
+const listWarrantySelect = {
+  ...warrantySelect,
+  purchase: {
+    select: {
+      id: true,
+      productName: true,
+      brand: true,
+      model: true,
+      purchaseDate: true,
+      category: true,
+    },
+  },
+} satisfies Prisma.WarrantySelect;
+
 const getOwnedPurchase = async (userId: string, purchaseId: string) => {
   const purchase = await prisma.purchase.findUnique({
     where: { id: purchaseId },
@@ -74,6 +90,21 @@ export const createWarranty = async (
 
 export const getWarranty = async (userId: string, purchaseId: string): Promise<WarrantyResult> =>
   getOwnedWarranty(userId, purchaseId);
+
+/**
+ * Lists every warranty owned by the authenticated user, with the related
+ * purchase summary attached.
+ *
+ * Ownership is enforced in the database query (`purchase: { userId }`), never
+ * by fetching all rows and filtering in JavaScript. The earliest `endDate`
+ * comes first; ties are broken by the most recent `createdAt`.
+ */
+export const listWarranties = async (userId: string) =>
+  prisma.warranty.findMany({
+    where: { purchase: { userId } },
+    orderBy: [{ endDate: 'asc' }, { createdAt: 'desc' }],
+    select: listWarrantySelect,
+  });
 
 export const updateWarranty = async (
   userId: string,

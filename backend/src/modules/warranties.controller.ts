@@ -29,6 +29,15 @@ export const create: RequestHandler = async (request, response, next) => {
   }
 };
 
+export const list: RequestHandler = async (request, response, next) => {
+  try {
+    const warranties = await warrantiesService.listWarranties(getUserId(request));
+    response.json({ warranties });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const get: RequestHandler = async (request, response, next) => {
   try {
     const warranty = await warrantiesService.getWarranty(

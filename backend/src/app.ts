@@ -8,6 +8,7 @@ import authRoutes from './modules/auth.routes.js';
 import purchaseRoutes from './modules/purchases.routes.js';
 import dashboardRoutes from './modules/dashboard.routes.js';
 import documentsByIdRoutes from './modules/documents-by-id.routes.js';
+import warrantiesListRoutes from './modules/warranties-list.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js';
 import routes from './routes/index.js';
 
@@ -29,6 +30,7 @@ app.use('/auth', authRoutes);
 app.use('/purchases', purchaseRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/documents', documentsByIdRoutes);
+app.use('/warranties', warrantiesListRoutes);
 app.use(routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
