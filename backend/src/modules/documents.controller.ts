@@ -52,6 +52,15 @@ export const list: RequestHandler = async (request, response, next) => {
   }
 };
 
+export const listAll: RequestHandler = async (request, response, next) => {
+  try {
+    const documents = await documentsService.listAllDocuments(getUserId(request));
+    response.json({ documents });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const download: RequestHandler = async (request, response, next) => {
   try {
     const { document, buffer } = await documentsService.getDocumentFile(

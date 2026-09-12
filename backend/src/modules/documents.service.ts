@@ -24,6 +24,23 @@ const documentSelect = {
 
 type DocumentResult = Prisma.DocumentGetPayload<{ select: typeof documentSelect }>;
 
+// General listing returns the document plus the basic purchase info the client
+// needs to identify the product. Only public purchase fields are selected, so
+// internal fields such as userId and price are never leaked.
+const listDocumentSelect = {
+  ...documentSelect,
+  purchase: {
+    select: {
+      id: true,
+      productName: true,
+      brand: true,
+      model: true,
+      purchaseDate: true,
+      category: true,
+    },
+  },
+} satisfies Prisma.DocumentSelect;
+
 const getOwnedPurchase = async (userId: string, purchaseId: string) => {
   let purchase;
 
@@ -145,6 +162,21 @@ export const listDocuments = async (userId: string, purchaseId: string) => {
     select: documentSelect,
   });
 };
+
+/**
+ * Lists every document owned by the authenticated user, with the related
+ * purchase summary attached.
+ *
+ * Ownership is enforced in the database query (`purchase: { userId }`), never
+ * by fetching all rows and filtering in JavaScript. The most recently added
+ * documents come first; ties are broken deterministically by `id asc`.
+ */
+export const listAllDocuments = async (userId: string) =>
+  prisma.document.findMany({
+    where: { purchase: { userId } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+    select: listDocumentSelect,
+  });
 
 export const getOwnedDocumentForAI = async (userId: string, documentId: string) => {
   const document = await getOwnedDocument(userId, documentId);
