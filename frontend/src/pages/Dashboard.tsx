@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ShoppingBag, ShieldCheck, AlertTriangle, Receipt } from 'lucide-react'
 import { SummaryCard } from '../components/dashboard/SummaryCard.tsx'
 import { ExpiringWarrantyCard } from '../components/dashboard/ExpiringWarrantyCard.tsx'
@@ -8,7 +9,12 @@ import { DashboardActions } from '../components/dashboard/DashboardActions.tsx'
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx'
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
-import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
+import {
+  getDashboard,
+  AuthenticationError,
+  ApiError,
+  clearStoredAccessToken,
+} from '../lib/api.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
 import type { DashboardResponse } from '../types/dashboard.ts'
 
@@ -34,6 +40,7 @@ function isEmptyDashboard(data: DashboardData): boolean {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
 
   const [reloadKey, setReloadKey] = useState(0)
@@ -47,11 +54,9 @@ export function Dashboard() {
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          setState({
-            status: 'error',
-            message: 'Você precisa estar autenticado para visualizar seus dados.',
-            isAuthError: true,
-          })
+          // Token inválido/expirado: limpa e volta ao login.
+          clearStoredAccessToken()
+          navigate('/login', { replace: true })
           return
         }
         const message =
@@ -67,7 +72,7 @@ export function Dashboard() {
     return () => {
       isActive = false
     }
-  }, [reloadKey])
+  }, [reloadKey, navigate])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })

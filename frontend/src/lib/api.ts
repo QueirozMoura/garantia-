@@ -1,4 +1,8 @@
 import type { DashboardResponse } from '../types/dashboard.ts'
+import type { LoginCredentials, LoginResponse } from '../types/auth.ts'
+
+/** Chave de armazenamento do access token. O Dashboard depende desta chave. */
+const ACCESS_TOKEN_KEY = 'access_token'
 
 export const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') ||
@@ -23,23 +27,49 @@ export class AuthenticationError extends ApiError {
   }
 }
 
+/** Formato de erro retornado pelo backend: { error: { message, code } }. */
+interface ApiErrorBody {
+  error?: {
+    message?: string
+    code?: string
+  }
+}
+
 /**
- * Obtém o token de acesso armazenado (ex: localStorage).
+ * Obtém o token de acesso armazenado.
  * Não inventa ou cria token fake. Retorna null se não houver.
  */
 export function getStoredAccessToken(): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem('access_token')
+  return localStorage.getItem(ACCESS_TOKEN_KEY)
+}
+
+/** Persiste o access token para as próximas chamadas autenticadas. */
+export function setStoredAccessToken(token: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(ACCESS_TOKEN_KEY, token)
+}
+
+/** Remove o access token armazenado. */
+export function clearStoredAccessToken(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+}
+
+interface RequestOptions extends RequestInit {
+  /** Envia o cookie HttpOnly de refresh token. Padrão: true. */
+  withCredentials?: boolean
 }
 
 /**
  * Realiza uma requisição HTTP autenticada quando houver token disponível.
  */
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  const { withCredentials = true, ...init } = options
   const url = `${API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
-  const headers = new Headers(options.headers || {})
+  const headers = new Headers(init.headers || {})
 
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+  if (!headers.has('Content-Type') && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -51,37 +81,44 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   let response: Response
   try {
     response = await fetch(url, {
-      ...options,
+      ...init,
       headers,
+      credentials: withCredentials ? 'include' : 'same-origin',
     })
   } catch {
     throw new ApiError(
-      'Não foi possível conectar ao servidor. Verifique sua conexão.',
+      'Não foi possível conectar ao servidor. Tente novamente.',
       0,
       'NETWORK_ERROR',
     )
   }
 
-  if (response.status === 401) {
-    throw new AuthenticationError('Sessão expirada ou não autenticada.')
-  }
-
   if (!response.ok) {
-    let errorMessage = `Erro na requisição (${response.status})`
+    let message = `Erro na requisição (${response.status})`
+    let code: string | undefined
     try {
-      const errorJson = await response.json()
-      if (errorJson && typeof errorJson.error === 'string') {
-        errorMessage = errorJson.error
-      } else if (errorJson && typeof errorJson.message === 'string') {
-        errorMessage = errorJson.message
+      const body = (await response.json()) as ApiErrorBody
+      if (typeof body?.error?.message === 'string') {
+        message = body.error.message
+      }
+      if (typeof body?.error?.code === 'string') {
+        code = body.error.code
       }
     } catch {
-      // Ignora erro de parse se resposta não for JSON
+      // Resposta sem corpo JSON: mantém a mensagem genérica.
     }
-    throw new ApiError(errorMessage, response.status)
+
+    if (response.status === 401) {
+      throw new AuthenticationError(message)
+    }
+    throw new ApiError(message, response.status, code)
   }
 
-  return response.json() as Promise<T>
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  return (await response.json()) as T
 }
 
 /**
@@ -91,4 +128,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export async function getDashboard(): Promise<DashboardResponse['dashboard']> {
   const data = await request<DashboardResponse>('/dashboard')
   return data.dashboard
+}
+
+/**
+ * Autentica o usuário e armazena o access token.
+ * POST /auth/login — o refresh token permanece em cookie HttpOnly.
+ */
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  const data = await request<LoginResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+  setStoredAccessToken(data.accessToken)
+  return data
 }
