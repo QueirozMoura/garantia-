@@ -38,6 +38,11 @@ const purchaseFields = {
 // preventing mass assignment of internal control fields.
 export const createPurchaseSchema = z.strictObject(purchaseFields);
 
+// Route param validation: only canonical UUIDs may reach the service/Prisma layer.
+// Keeps invalid ids (e.g. "not-a-uuid") from being interpreted as a UUID by the
+// database driver, which would otherwise surface as an internal error.
+export const purchaseIdSchema = z.string().uuid();
+
 export const updatePurchaseSchema = z
   .strictObject(purchaseFields)
   .partial()

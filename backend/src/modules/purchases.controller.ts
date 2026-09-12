@@ -1,7 +1,11 @@
 import type { RequestHandler } from 'express';
 
 import { badRequest } from '../utils/http-error.js';
-import { createPurchaseSchema, updatePurchaseSchema } from './purchases.schemas.js';
+import {
+  createPurchaseSchema,
+  purchaseIdSchema,
+  updatePurchaseSchema,
+} from './purchases.schemas.js';
 import * as purchasesService from './purchases.service.js';
 
 const getUserId = (request: Parameters<RequestHandler>[0]) => request.userId as string;
@@ -11,6 +15,11 @@ const getPurchaseId = (request: Parameters<RequestHandler>[0]) => {
 
   if (typeof id !== 'string' || id.length === 0) {
     throw badRequest('Purchase id is required', 'PURCHASE_ID_REQUIRED');
+  }
+
+  // Reject non-UUID ids here so they never reach the service/Prisma layer.
+  if (!purchaseIdSchema.safeParse(id).success) {
+    throw badRequest('Invalid purchase ID', 'INVALID_PURCHASE_ID');
   }
 
   return id;
