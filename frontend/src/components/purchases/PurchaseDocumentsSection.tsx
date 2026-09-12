@@ -245,29 +245,31 @@ export function PurchaseDocumentsSection({
     [extractingId, handleAuthError],
   )
 
-  const handleConfirm = useCallback(async () => {
-    if (!extraction || isConfirming) return
-    setIsConfirming(true)
-    setConfirmError(null)
-    try {
-      const result = await confirmDocumentExtraction(
-        extraction.documentId,
-        extraction.data,
-      )
-      // Fecha o painel e propaga os dados atualizados para a página (sem F5).
-      setExtraction(null)
-      onPurchaseUpdated?.(result)
-    } catch (error) {
-      if (error instanceof AuthenticationError) {
-        handleAuthError()
-        return
+  const handleConfirm = useCallback(
+    async (editedData: DocumentExtraction) => {
+      if (!extraction || isConfirming) return
+      setIsConfirming(true)
+      setConfirmError(null)
+      try {
+        // Envia exatamente os dados revisados/editados pelo usuário.
+        const result = await confirmDocumentExtraction(extraction.documentId, editedData)
+        // Fecha o painel e propaga os dados atualizados para a página (sem F5).
+        setExtraction(null)
+        onPurchaseUpdated?.(result)
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          handleAuthError()
+          return
+        }
+        // Mantém o painel aberto (com os valores editados pelo usuário) para
+        // que ele possa corrigir e tentar de novo.
+        setConfirmError(confirmErrorMessage(error))
+      } finally {
+        setIsConfirming(false)
       }
-      // Mantém o painel aberto e os dados extraídos intactos para tentar de novo.
-      setConfirmError(confirmErrorMessage(error))
-    } finally {
-      setIsConfirming(false)
-    }
-  }, [extraction, isConfirming, onPurchaseUpdated, handleAuthError])
+    },
+    [extraction, isConfirming, onPurchaseUpdated, handleAuthError],
+  )
 
   const documents = state.status === 'success' ? state.documents : []
 
