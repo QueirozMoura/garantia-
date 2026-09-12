@@ -1,15 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, RefreshCw, ShieldCheck, ShieldPlus, ShieldX } from 'lucide-react'
+import {
+  AlertCircle,
+  RefreshCw,
+  ShieldCheck,
+  ShieldPlus,
+  ShieldX,
+  Trash2,
+} from 'lucide-react'
 import {
   getPurchaseWarranty,
   createPurchaseWarranty,
+  deletePurchaseWarranty,
   AuthenticationError,
   ApiError,
 } from '../../lib/api.ts'
 import { useAuth } from '../../contexts/auth-context.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
 import type { Warranty } from '../../types/warranty.ts'
+import { DeleteWarrantyDialog } from './DeleteWarrantyDialog.tsx'
 
 type FetchState =
   | { status: 'loading' }
@@ -18,6 +27,16 @@ type FetchState =
 
 const FALLBACK_ERROR = 'Não foi possível carregar a garantia. Tente novamente.'
 const FALLBACK_SAVE_ERROR = 'Não foi possível salvar a garantia. Tente novamente.'
+const FALLBACK_DELETE_ERROR = 'Não foi possível excluir a garantia. Tente novamente.'
+
+/** Mensagens amigáveis por status HTTP do DELETE da garantia. */
+const deleteWarrantyErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return 'Você não tem permissão para excluir esta garantia.'
+    if (error.status === 404) return 'Esta garantia não foi encontrada.'
+  }
+  return FALLBACK_DELETE_ERROR
+}
 
 export interface PurchaseWarrantySectionProps {
   purchaseId: string
@@ -34,6 +53,9 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -70,6 +92,30 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
     setShowForm(false)
   }, [])
 
+  /** Executa a exclusão somente quando o usuário confirma no modal. */
+  const handleDelete = useCallback(async () => {
+    if (isDeleting) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deletePurchaseWarranty(purchaseId)
+      // Sucesso: fecha o modal e volta ao estado vazio, sem recarregar a página.
+      setIsDeleteOpen(false)
+      setState({ status: 'success', warranty: null })
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        // Token inválido/expirado: segue o padrão global e volta ao login.
+        setUser(null)
+        navigate('/login', { replace: true })
+        return
+      }
+      // Mantém o modal aberto para o usuário tentar novamente.
+      setDeleteError(deleteWarrantyErrorMessage(error))
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [purchaseId, isDeleting, navigate, setUser])
+
   return (
     <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
       <h3 className="text-base font-semibold text-slate-900">Garantia</h3>
@@ -82,7 +128,13 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
         )}
 
         {state.status === 'success' && state.warranty && (
-          <WarrantyCard warranty={state.warranty} />
+          <WarrantyCard
+            warranty={state.warranty}
+            onDelete={() => {
+              setDeleteError(null)
+              setIsDeleteOpen(true)
+            }}
+          />
         )}
 
         {state.status === 'success' && !state.warranty && !showForm && (
@@ -101,6 +153,16 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
           />
         )}
       </div>
+
+      {state.status === 'success' && state.warranty && isDeleteOpen && (
+        <DeleteWarrantyDialog
+          warranty={state.warranty}
+          onClose={() => setIsDeleteOpen(false)}
+          onConfirm={handleDelete}
+          isDeleting={isDeleting}
+          errorMessage={deleteError}
+        />
+      )}
     </section>
   )
 }
@@ -127,7 +189,13 @@ function WarrantySkeleton() {
 }
 
 /** Card da garantia existente. */
-function WarrantyCard({ warranty }: { warranty: Warranty }) {
+function WarrantyCard({
+  warranty,
+  onDelete,
+}: {
+  warranty: Warranty
+  onDelete: () => void
+}) {
   const active = isWarrantyActive(warranty.endDate)
 
   return (
@@ -160,6 +228,17 @@ function WarrantyCard({ warranty }: { warranty: Warranty }) {
         <WarrantyItem label="Início" value={formatDateBR(warranty.startDate)} />
         <WarrantyItem label="Término" value={formatDateBR(warranty.endDate)} />
       </dl>
+
+      <div className="flex justify-end border-t border-slate-100 pt-5">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:text-sm"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <span>Excluir garantia</span>
+        </button>
+      </div>
     </div>
   )
 }

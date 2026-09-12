@@ -287,6 +287,21 @@ export async function createPurchaseWarranty(
 }
 
 /**
+ * Exclui a garantia de uma compra do usuário logado:
+ * DELETE /purchases/:purchaseId/warranty — responde 204 sem corpo.
+ *
+ * Sem body (a garantia é identificada pelo `purchaseId` na rota). O `request`
+ * já trata 204 sem tentar ler JSON; 401 (AuthenticationError), 403
+ * (PURCHASE_ACCESS_DENIED), 404 (WARRANTY_NOT_FOUND/PURCHASE_NOT_FOUND) e 500
+ * viram ApiError para a camada de UI exibir mensagem amigável.
+ */
+export async function deletePurchaseWarranty(purchaseId: string): Promise<void> {
+  await request<void>(`/purchases/${encodeURIComponent(purchaseId)}/warranty`, {
+    method: 'DELETE',
+  })
+}
+
+/**
  * Lista os documentos vinculados a uma compra do usuário logado:
  * GET /purchases/:purchaseId/documents — responde 200 com `{ documents }`.
  */
