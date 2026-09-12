@@ -27,6 +27,10 @@ const deleteErrorMessage = (error: unknown) => {
   if (error instanceof ApiError) {
     if (error.status === 403) return 'Você não tem permissão para excluir esta compra.'
     if (error.status === 404) return 'Esta compra não foi encontrada.'
+    // Compra com garantia: o backend responde 400 PURCHASE_HAS_DEPENDENCIES.
+    if (error.status === 400 && error.code === 'PURCHASE_HAS_DEPENDENCIES') {
+      return 'Esta compra possui uma garantia e não pode ser excluída enquanto ela existir.'
+    }
   }
   // 400/500 e demais erros caem na mensagem genérica amigável.
   return FALLBACK_DELETE_ERROR
