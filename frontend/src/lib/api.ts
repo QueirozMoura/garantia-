@@ -6,6 +6,11 @@ import type {
   PurchasesResponse,
 } from '../types/purchase.ts'
 import type {
+  CreateWarrantyInput,
+  Warranty,
+  WarrantyResponse,
+} from '../types/warranty.ts'
+import type {
   AuthUser,
   LoginCredentials,
   LoginResponse,
@@ -174,6 +179,51 @@ export async function createPurchase(input: CreatePurchaseInput): Promise<Purcha
     body: JSON.stringify(input),
   })
   return data.purchase
+}
+
+/**
+ * Busca a garantia de uma compra do usuário logado:
+ * GET /purchases/:purchaseId/warranty — responde 200 com `{ warranty }`.
+ *
+ * Ausência de garantia é um estado normal: o backend responde 404 com
+ * `code: WARRANTY_NOT_FOUND`, então essa função devolve `null`. Qualquer outro
+ * erro (403, 404 de compra, 401, 500, rede) continua sendo propagado.
+ */
+export async function getPurchaseWarranty(purchaseId: string): Promise<Warranty | null> {
+  try {
+    const data = await request<WarrantyResponse>(
+      `/purchases/${encodeURIComponent(purchaseId)}/warranty`,
+    )
+    return data.warranty
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 404 &&
+      error.code === 'WARRANTY_NOT_FOUND'
+    ) {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * Cadastra a garantia de uma compra do usuário logado:
+ * POST /purchases/:purchaseId/warranty — responde 201 com `{ warranty }`.
+ * As datas devem ser strings "YYYY-MM-DD" (enviadas sem conversão de fuso).
+ */
+export async function createPurchaseWarranty(
+  purchaseId: string,
+  input: CreateWarrantyInput,
+): Promise<Warranty> {
+  const data = await request<WarrantyResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/warranty`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  return data.warranty
 }
 
 /**

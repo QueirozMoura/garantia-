@@ -4,6 +4,7 @@ import { ShoppingBag, ArrowLeft } from 'lucide-react'
 import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetailsSkeleton.tsx'
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
+import { PurchaseWarrantySection } from '../components/purchases/PurchaseWarrantySection.tsx'
 import { getPurchase, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
@@ -102,6 +103,10 @@ export function PurchaseDetails() {
 
       {currentState.status === 'success' && (
         <PurchaseDetailsContent purchase={currentState.purchase} />
+      )}
+
+      {currentState.status === 'success' && (
+        <PurchaseWarrantySection purchaseId={currentState.purchase.id} />
       )}
     </div>
   )
