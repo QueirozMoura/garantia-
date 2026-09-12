@@ -9,6 +9,8 @@ import type {
   CreateWarrantyInput,
   Warranty,
   WarrantyResponse,
+  WarrantyWithPurchase,
+  WarrantiesResponse,
 } from '../types/warranty.ts'
 import type {
   Document,
@@ -185,6 +187,15 @@ export async function createPurchase(input: CreatePurchaseInput): Promise<Purcha
     body: JSON.stringify(input),
   })
   return data.purchase
+}
+
+/**
+ * Lista todas as garantias do usuário logado, com os dados básicos da compra
+ * relacionada: GET /warranties — responde 200 com `{ warranties }`.
+ */
+export async function getWarranties(): Promise<WarrantyWithPurchase[]> {
+  const data = await request<WarrantiesResponse>('/warranties')
+  return data.warranties
 }
 
 /**

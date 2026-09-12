@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard.tsx'
 import { Purchases } from './pages/Purchases.tsx'
 import { AddPurchase } from './pages/AddPurchase.tsx'
 import { PurchaseDetails } from './pages/PurchaseDetails.tsx'
+import { Warranties } from './pages/Warranties.tsx'
 import { Login } from './pages/Login.tsx'
 import { Register } from './pages/Register.tsx'
 import { RequireAuth, RequireGuest } from './components/auth/RouteGuards.tsx'
@@ -63,6 +64,16 @@ function App() {
           <RequireAuth>
             <AppLayout activeNavId="compras">
               <PurchaseDetails />
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/warranties"
+        element={
+          <RequireAuth>
+            <AppLayout activeNavId="garantias">
+              <Warranties />
             </AppLayout>
           </RequireAuth>
         }

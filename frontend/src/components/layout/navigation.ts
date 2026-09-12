@@ -19,7 +19,7 @@ export interface NavItem {
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'compras', label: 'Minhas compras', icon: ShoppingBag, path: '/purchases' },
-  { id: 'garantias', label: 'Garantias', icon: ShieldCheck },
+  { id: 'garantias', label: 'Garantias', icon: ShieldCheck, path: '/warranties' },
   { id: 'documentos', label: 'Documentos', icon: FileText },
   { id: 'alertas', label: 'Alertas', icon: Bell },
 ]
@@ -27,7 +27,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
 export const BOTTOM_NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'compras', label: 'Compras', icon: ShoppingBag, path: '/purchases' },
-  { id: 'garantias', label: 'Garantias', icon: ShieldCheck },
+  { id: 'garantias', label: 'Garantias', icon: ShieldCheck, path: '/warranties' },
   { id: 'documentos', label: 'Documentos', icon: FileText },
 ]
 

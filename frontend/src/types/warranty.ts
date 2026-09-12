@@ -21,6 +21,29 @@ export interface WarrantyResponse {
 }
 
 /**
+ * Dados básicos da compra relacionados a uma garantia, retornados pela
+ * listagem geral (GET /warranties). Apenas campos públicos são expostos.
+ */
+export interface WarrantyPurchase {
+  id: string
+  productName: string
+  brand: string | null
+  model: string | null
+  purchaseDate: string
+  category: string
+}
+
+/** Garantia acompanhada da compra relacionada (GET /warranties). */
+export interface WarrantyWithPurchase extends Warranty {
+  purchase: WarrantyPurchase
+}
+
+/** Envelope de GET /warranties: `{ warranties }`. */
+export interface WarrantiesResponse {
+  warranties: WarrantyWithPurchase[]
+}
+
+/**
  * Corpo aceito por POST /purchases/:purchaseId/warranty (createWarrantySchema).
  *
  * As datas devem ser enviadas como strings "YYYY-MM-DD" — o backend usa
