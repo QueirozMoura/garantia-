@@ -10,6 +10,7 @@ import type {
 } from '../types/purchase.ts'
 import type {
   CreateWarrantyInput,
+  UpdateWarrantyInput,
   Warranty,
   WarrantyResponse,
   WarrantyWithPurchase,
@@ -280,6 +281,27 @@ export async function createPurchaseWarranty(
     `/purchases/${encodeURIComponent(purchaseId)}/warranty`,
     {
       method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  return data.warranty
+}
+
+/**
+ * Atualiza a garantia de uma compra do usuário logado:
+ * PUT /purchases/:purchaseId/warranty — responde 200 com `{ warranty }`.
+ *
+ * O body é enviado enxuto (apenas os campos editáveis), nunca a `Warranty`
+ * inteira, para não mandar `id`/`purchaseId`/timestamps.
+ */
+export async function updatePurchaseWarranty(
+  purchaseId: string,
+  input: UpdateWarrantyInput,
+): Promise<Warranty> {
+  const data = await request<WarrantyResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/warranty`,
+    {
+      method: 'PUT',
       body: JSON.stringify(input),
     },
   )

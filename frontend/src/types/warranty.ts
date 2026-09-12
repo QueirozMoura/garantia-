@@ -66,3 +66,13 @@ export interface CreateWarrantyInput {
   startDate: string
   endDate: string
 }
+
+/**
+ * Corpo aceito por PUT /purchases/:purchaseId/warranty (updateWarrantySchema).
+ *
+ * Todos os campos são opcionais, mas pelo menos um deve ser informado. O envio
+ * usa sempre a forma completa (`durationMonths`/`startDate`/`endDate`), pois a
+ * edição parte de uma garantia existente e manda o estado final do formulário.
+ * As datas vão como "YYYY-MM-DD" (o backend materializa em meia-noite UTC).
+ */
+export type UpdateWarrantyInput = Partial<CreateWarrantyInput>
