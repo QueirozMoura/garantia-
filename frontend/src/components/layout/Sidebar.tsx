@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 import { MAIN_NAV_ITEMS, SETTINGS_NAV_ITEM, type NavItem } from './navigation.ts'
 
 interface SidebarProps {
@@ -56,22 +57,29 @@ interface NavItemButtonProps {
 
 function NavItemButton({ item, isActive }: NavItemButtonProps) {
   const Icon = item.icon
+  const className = `group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+    isActive
+      ? 'bg-emerald-50 text-emerald-700 font-semibold'
+      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+  }`
+  const iconClassName = `h-5 w-5 shrink-0 transition-colors ${
+    isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'
+  }`
+
+  // Itens sem rota ainda não possuem página: permanecem como botão não navegável.
+  if (!item.path) {
+    return (
+      <button type="button" className={className}>
+        <Icon className={iconClassName} />
+        <span className="truncate">{item.label}</span>
+      </button>
+    )
+  }
+
   return (
-    <button
-      type="button"
-      className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-        isActive
-          ? 'bg-emerald-50 text-emerald-700 font-semibold'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-      }`}
-      aria-current={isActive ? 'page' : undefined}
-    >
-      <Icon
-        className={`h-5 w-5 shrink-0 transition-colors ${
-          isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'
-        }`}
-      />
+    <NavLink to={item.path} className={className}>
+      <Icon className={iconClassName} />
       <span className="truncate">{item.label}</span>
-    </button>
+    </NavLink>
   )
 }

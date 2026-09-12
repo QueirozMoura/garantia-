@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout.tsx'
 import { Dashboard } from './pages/Dashboard.tsx'
+import { Purchases } from './pages/Purchases.tsx'
 import { Login } from './pages/Login.tsx'
 import { Register } from './pages/Register.tsx'
 import { RequireAuth, RequireGuest } from './components/auth/RouteGuards.tsx'
@@ -30,6 +31,16 @@ function App() {
           <RequireAuth>
             <AppLayout activeNavId="dashboard">
               <Dashboard />
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/purchases"
+        element={
+          <RequireAuth>
+            <AppLayout activeNavId="compras">
+              <Purchases />
             </AppLayout>
           </RequireAuth>
         }

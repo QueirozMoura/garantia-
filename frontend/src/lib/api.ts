@@ -1,4 +1,5 @@
 import type { DashboardResponse } from '../types/dashboard.ts'
+import type { Purchase, PurchasesResponse } from '../types/purchase.ts'
 import type {
   AuthUser,
   LoginCredentials,
@@ -134,6 +135,15 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 export async function getDashboard(): Promise<DashboardResponse['dashboard']> {
   const data = await request<DashboardResponse>('/dashboard')
   return data.dashboard
+}
+
+/**
+ * Lista as compras do usuário logado, das mais recentes para as mais antigas:
+ * GET /purchases — a resposta é `{ purchases }`.
+ */
+export async function getPurchases(): Promise<Purchase[]> {
+  const data = await request<PurchasesResponse>('/purchases')
+  return data.purchases
 }
 
 /**

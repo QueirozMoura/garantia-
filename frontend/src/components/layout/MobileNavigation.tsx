@@ -1,3 +1,4 @@
+import { NavLink } from 'react-router-dom'
 import { BOTTOM_NAV_ITEMS, type NavItem } from './navigation.ts'
 
 interface MobileNavigationProps {
@@ -28,18 +29,25 @@ interface MobileNavItemButtonProps {
 
 function MobileNavItemButton({ item, isActive }: MobileNavItemButtonProps) {
   const Icon = item.icon
+  const className = `flex w-full flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+    isActive ? 'text-emerald-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+  }`
+  const iconClassName = `h-5 w-5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`
+
+  // Itens sem rota ainda não possuem página: permanecem como botão não navegável.
+  if (!item.path) {
+    return (
+      <button type="button" className={className}>
+        <Icon className={iconClassName} />
+        <span className="truncate">{item.label}</span>
+      </button>
+    )
+  }
+
   return (
-    <button
-      type="button"
-      className={`flex w-full flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-        isActive
-          ? 'text-emerald-600 font-semibold'
-          : 'text-slate-500 hover:text-slate-900'
-      }`}
-      aria-current={isActive ? 'page' : undefined}
-    >
-      <Icon className={`h-5 w-5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+    <NavLink to={item.path} className={className}>
+      <Icon className={iconClassName} />
       <span className="truncate">{item.label}</span>
-    </button>
+    </NavLink>
   )
 }
