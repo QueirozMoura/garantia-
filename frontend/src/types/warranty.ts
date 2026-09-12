@@ -15,6 +15,17 @@ export interface Warranty {
   updatedAt: string
 }
 
+/**
+ * Resumo da garantia embutido na listagem de compras (GET /purchases).
+ *
+ * É um subconjunto público de `Warranty` — sem `purchaseId`/timestamps — usado
+ * para derivar o status na própria lista, evitando uma chamada por compra.
+ */
+export type WarrantySummary = Pick<
+  Warranty,
+  'id' | 'durationMonths' | 'startDate' | 'endDate'
+>
+
 /** Envelope de GET/POST/PUT /purchases/:purchaseId/warranty: `{ warranty }`. */
 export interface WarrantyResponse {
   warranty: Warranty

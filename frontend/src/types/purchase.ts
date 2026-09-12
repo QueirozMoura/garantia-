@@ -1,3 +1,5 @@
+import type { WarrantySummary } from './warranty.ts'
+
 /**
  * Tipos da resposta real de GET /purchases.
  *
@@ -15,6 +17,11 @@ export interface Purchase {
   purchaseDate: string
   price: string // Decimal serializado: "0.00"
   category: string
+  /**
+   * Garantia já embutida pelo GET /purchases, ou `null` quando a compra não
+   * possui garantia. O status é derivado no frontend — não há chamada por item.
+   */
+  warranty: WarrantySummary | null
   createdAt: string
   updatedAt: string
 }

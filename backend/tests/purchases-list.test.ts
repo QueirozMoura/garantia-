@@ -45,8 +45,8 @@ const createWarranty = async (purchaseId: string, startDate: Date, endDate: Date
 const getPurchases = (token: string) =>
   api().get('/purchases').set('Authorization', `Bearer ${token}`);
 
-// The purchase fields that existed before warranty was embedded. They must keep
-// being returned exactly as before.
+// The full set of fields the listing must expose: every pre-existing Purchase
+// field plus the embedded warranty summary. Any extra (or missing) key fails.
 const purchaseFields = [
   'brand',
   'category',
@@ -245,6 +245,31 @@ describe('GET /purchases', () => {
     expect(response.status).toBe(200);
     expect(response.body.purchases).toHaveLength(1);
     expect(response.body.purchases[0].productName).toBe('Minha compra');
+    expect(response.body.purchases[0].warranty).toBeNull();
+    expect(JSON.stringify(response.body)).not.toContain('Compra alheia');
+  });
+
+  it('ignora userId vindo do corpo da requisição (ownership segue request.userId)', async () => {
+    const { token: tokenA, user: userA } = await createUserWithToken();
+    const { user: userB } = await createUserWithToken();
+
+    await createPurchase(userA.id, { productName: 'Minha compra' });
+    const purchaseB = await createPurchase(userB.id, { productName: 'Compra alheia' });
+    await createWarranty(
+      purchaseB.id,
+      new Date('2026-09-10T00:00:00.000Z'),
+      new Date('2028-09-10T00:00:00.000Z'),
+    );
+
+    const response = await api()
+      .get('/purchases')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ userId: userB.id });
+
+    expect(response.status).toBe(200);
+    expect(response.body.purchases).toHaveLength(1);
+    expect(response.body.purchases[0].productName).toBe('Minha compra');
+    expect(response.body.purchases[0].warranty).toBeNull();
     expect(JSON.stringify(response.body)).not.toContain('Compra alheia');
   });
 
