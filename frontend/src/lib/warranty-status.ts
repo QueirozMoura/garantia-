@@ -66,3 +66,30 @@ export function getWarrantyStatus(
 
   return { status: 'active', daysRemaining }
 }
+
+/**
+ * Status exibido na LISTAGEM de compras, onde a garantia pode simplesmente não
+ * existir (`null`). Estende o status de garantia com o estado "Sem garantia",
+ * em vez de criar uma segunda regra de negócio paralela.
+ */
+export type PurchaseWarrantyStatus = WarrantyStatus | 'none'
+
+/** Campos mínimos para derivar o status — serve a `Warranty` e a `WarrantySummary`. */
+type WarrantyDates = Pick<Warranty, 'startDate' | 'endDate'>
+
+/**
+ * Status da garantia de uma compra a partir do `warranty` embutido no
+ * GET /purchases. Quando `warranty` é `null`, devolve "none" sem nenhuma
+ * requisição adicional.
+ *
+ * Toda a regra de datas vem de `getWarrantyStatus`, centralizada neste módulo.
+ */
+export function getPurchaseWarrantyStatus(
+  warranty: WarrantyDates | null | undefined,
+  now: Date = new Date(),
+): { status: PurchaseWarrantyStatus; daysRemaining: number } {
+  if (!warranty) {
+    return { status: 'none', daysRemaining: 0 }
+  }
+  return getWarrantyStatus(warranty, now)
+}

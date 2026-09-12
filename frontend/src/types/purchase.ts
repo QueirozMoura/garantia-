@@ -18,8 +18,12 @@ export interface Purchase {
   price: string // Decimal serializado: "0.00"
   category: string
   /**
-   * Garantia já embutida pelo GET /purchases, ou `null` quando a compra não
-   * possui garantia. O status é derivado no frontend — não há chamada por item.
+   * Garantia embutida pelo GET /purchases — `null` quando a compra não possui
+   * garantia. O status é derivado no frontend: não há chamada por item.
+   *
+   * Presente apenas na LISTAGEM: `GET /purchases/:id`, `POST` e `PUT` mantêm o
+   * contrato anterior e não devolvem este campo. Por isso os consumidores que
+   * usam essas respostas tratam `warranty` como possivelmente ausente.
    */
   warranty: WarrantySummary | null
   createdAt: string

@@ -3,7 +3,7 @@ import {
   ALL_CATEGORIES,
   ALL_WARRANTIES,
   SORT_OPTIONS,
-  WARRANTY_FILTER_AVAILABLE,
+  WARRANTY_OPTIONS,
   type PurchaseFilters,
   type PurchaseSort,
 } from './purchase-filters.ts'
@@ -30,9 +30,8 @@ const SELECT_CLASS =
  * Componente controlado e "burro": só reflete e reporta o estado, sem chamar a
  * API. Os dados já estão em memória, então filtrar/ordenar é local.
  *
- * `GET /purchases` não devolve nenhuma informação de garantia, portanto o
- * controle "Garantia" aparece desabilitado com a explicação — em vez de oferecer
- * opções que não teriam como ser avaliadas com os dados disponíveis.
+ * O controle "Garantia" filtra pelo status derivado do campo `warranty` que o
+ * próprio `GET /purchases` já devolve — nenhuma opção aqui dispara requisição.
  */
 export function PurchasesToolbar({
   filters,
@@ -123,17 +122,15 @@ export function PurchasesToolbar({
               name="purchases-warranty"
               value={filters.warranty}
               onChange={(event) => onChange({ warranty: event.target.value })}
-              disabled={!WARRANTY_FILTER_AVAILABLE}
-              aria-describedby="purchases-warranty-hint"
-              className={`${SELECT_CLASS} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500`}
+              className={SELECT_CLASS}
             >
               <option value={ALL_WARRANTIES}>Todas</option>
+              {WARRANTY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
-            {!WARRANTY_FILTER_AVAILABLE && (
-              <p id="purchases-warranty-hint" className="mt-1.5 text-xs text-slate-400">
-                Indisponível na listagem.
-              </p>
-            )}
           </div>
 
           <div className="min-w-0 lg:w-44">

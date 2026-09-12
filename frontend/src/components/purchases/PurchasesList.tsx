@@ -2,6 +2,11 @@ import { ShoppingBag, Store, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Purchase } from '../../types/purchase.ts'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
+import { getPurchaseWarrantyStatus } from '../../lib/warranty-status.ts'
+import {
+  PURCHASE_WARRANTY_BADGE_CLASSES,
+  PURCHASE_WARRANTY_LABELS,
+} from '../warranties/warranty-presentation.ts'
 
 export interface PurchasesListProps {
   purchases: Purchase[]
@@ -31,6 +36,31 @@ function categoryLabel(purchase: Purchase): string | null {
     : null
 }
 
+/**
+ * Texto do status de garantia para a listagem. Só acrescenta a duração quando
+ * existe garantia — "Sem garantia" não tem duração a mostrar.
+ */
+function warrantyLabel(purchase: Purchase): string {
+  const { status } = getPurchaseWarrantyStatus(purchase.warranty)
+  const label = PURCHASE_WARRANTY_LABELS[status]
+  if (!purchase.warranty) return label
+  return `${label} \u00b7 ${purchase.warranty.durationMonths} ${
+    purchase.warranty.durationMonths === 1 ? 'm\u00eas' : 'meses'
+  }`
+}
+
+/** Badge de status reutilizado na tabela e no card mobile. */
+function WarrantyBadge({ purchase }: { purchase: Purchase }) {
+  const { status } = getPurchaseWarrantyStatus(purchase.warranty)
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 lg:text-xs ${PURCHASE_WARRANTY_BADGE_CLASSES[status]}`}
+    >
+      {warrantyLabel(purchase)}
+    </span>
+  )
+}
+
 export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
   const count = purchases.length
   const isFiltered = typeof totalCount === 'number' && totalCount !== count
@@ -58,22 +88,27 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
 
       {/* Desktop Table (hidden on mobile/small screens) */}
       <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-left text-xs lg:text-sm text-slate-600">
+        {/* Produto absorve a folga (`w-full` + `min-w` nas demais) para que as
+            seis colunas continuem legíveis sem apertar as badges. */}
+        <table className="w-full min-w-[46rem] text-left text-xs text-slate-600 lg:text-sm">
           <thead className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
             <tr>
-              <th scope="col" className="px-3.5 py-3 lg:px-5">
+              <th scope="col" className="w-full px-3.5 py-3 lg:px-5">
                 Produto
               </th>
-              <th scope="col" className="px-3 py-3 lg:px-4">
+              <th scope="col" className="px-3 py-3 whitespace-nowrap lg:px-4">
                 Loja
               </th>
-              <th scope="col" className="px-3 py-3 lg:px-4">
+              <th scope="col" className="px-3 py-3 whitespace-nowrap lg:px-4">
                 Data
               </th>
-              <th scope="col" className="px-3 py-3 text-right lg:px-4">
+              <th scope="col" className="px-3 py-3 text-right whitespace-nowrap lg:px-4">
                 Valor
               </th>
-              <th scope="col" className="px-3 py-3 lg:px-4">
+              <th scope="col" className="px-3 py-3 whitespace-nowrap lg:px-4">
+                Garantia
+              </th>
+              <th scope="col" className="px-3 py-3 whitespace-nowrap lg:px-4">
                 Categoria
               </th>
             </tr>
@@ -124,6 +159,9 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
                   </td>
                   <td className="px-3 py-3.5 text-right text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums lg:px-4">
                     {formatCurrencyBRL(purchase.price)}
+                  </td>
+                  <td className="px-3 py-3.5 whitespace-nowrap lg:px-4">
+                    <WarrantyBadge purchase={purchase} />
                   </td>
                   <td className="px-3 py-3.5 whitespace-nowrap lg:px-4">
                     {category && (
@@ -192,11 +230,15 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
                 )}
               </div>
 
-              {category && (
-                <span className="mt-3 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-900/10">
-                  {category}
-                </span>
-              )}
+              {/* Garantia e categoria dividem a última linha, sem criar outra. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <WarrantyBadge purchase={purchase} />
+                {category && (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-900/10">
+                    {category}
+                  </span>
+                )}
+              </div>
             </Link>
           )
         })}

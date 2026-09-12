@@ -1,11 +1,16 @@
 import type { Purchase } from '../../types/purchase.ts'
+import {
+  getPurchaseWarrantyStatus,
+  type PurchaseWarrantyStatus,
+} from '../../lib/warranty-status.ts'
 
 /**
  * Busca, filtros e ordenação da listagem de compras.
  *
  * Tudo acontece no frontend sobre os dados que `GET /purchases` já retornou:
  * nenhuma função aqui dispara requisição, e o array recebido NUNCA é mutado —
- * sempre trabalhamos sobre uma cópia.
+ * sempre trabalhamos sobre uma cópia. O status de garantia é derivado do campo
+ * `warranty` que o próprio GET /purchases já devolve.
  */
 
 /** Opções de ordenação expostas no controle "Ordenar". */
@@ -18,6 +23,17 @@ export const ALL_CATEGORIES = 'all'
 export const ALL_WARRANTIES = 'all'
 /** Ordenação padrão — a mesma ordem em que a API entrega (mais recentes). */
 export const DEFAULT_SORT: PurchaseSort = 'recent'
+
+/**
+ * Opções do filtro "Garantia". Os valores são exatamente os status derivados
+ * pelo helper central (`warranty-status.ts`), sem estados inventados aqui.
+ */
+export const WARRANTY_OPTIONS: { value: PurchaseWarrantyStatus; label: string }[] = [
+  { value: 'active', label: 'Ativa' },
+  { value: 'expiring', label: 'Vencendo em breve' },
+  { value: 'expired', label: 'Expirada' },
+  { value: 'none', label: 'Sem garantia' },
+]
 
 export const SORT_OPTIONS: { value: PurchaseSort; label: string }[] = [
   { value: 'recent', label: 'Mais recentes' },
@@ -46,19 +62,6 @@ export const EMPTY_FILTERS: PurchaseFilters = {
   warranty: ALL_WARRANTIES,
   sort: DEFAULT_SORT,
 }
-
-/**
- * Status de garantia que a listagem de compras CONSEGUE determinar.
- *
- * `GET /purchases` não devolve nenhuma informação de garantia (nem status, nem
- * datas), então o único estado determinável sem alterar o backend é a AUSÊNCIA
- * de garantia — que também não é afirmável a partir da lista, já que não há como
- * distinguir "sem garantia" de "tem garantia cujos dados não vieram".
- *
- * Por isso o filtro de garantia expõe apenas "Todas" como opção funcional.
- * Ver `WARRANTY_FILTER_AVAILABLE`.
- */
-export const WARRANTY_FILTER_AVAILABLE = false
 
 /** Normaliza texto para comparação: sem espaços nas pontas, minúsculo. */
 const normalize = (value: string) => value.trim().toLowerCase()
@@ -126,6 +129,12 @@ export function applyPurchaseFilters(
   const filtered = purchases.filter((purchase) => {
     if (!matchesQuery(purchase, normalizedQuery)) return false
     if (filters.category !== ALL_CATEGORIES && purchase.category !== filters.category) {
+      return false
+    }
+    if (
+      filters.warranty !== ALL_WARRANTIES &&
+      getPurchaseWarrantyStatus(purchase.warranty).status !== filters.warranty
+    ) {
       return false
     }
     return true
