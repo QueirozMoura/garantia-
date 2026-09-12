@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck, Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
 import { authenticate, LoginFormError } from '../services/auth.ts'
+import { useAuth } from '../contexts/auth-context.ts'
 
 interface LocationState {
   from?: { pathname?: string }
@@ -12,6 +13,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { setUser } = useAuth()
   const redirectTo =
     (location.state as LocationState | null)?.from?.pathname ?? '/dashboard'
 
@@ -45,7 +47,8 @@ export function Login() {
 
     setIsSubmitting(true)
     try {
-      await authenticate({ email: email.trim(), password })
+      const { user } = await authenticate({ email: email.trim(), password })
+      setUser(user)
       navigate(redirectTo, { replace: true })
     } catch (error) {
       const message =

@@ -9,12 +9,8 @@ import { DashboardActions } from '../components/dashboard/DashboardActions.tsx'
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx'
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
-import {
-  getDashboard,
-  AuthenticationError,
-  ApiError,
-  clearStoredAccessToken,
-} from '../lib/api.ts'
+import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
+import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
 import type { DashboardResponse } from '../types/dashboard.ts'
 
@@ -25,7 +21,6 @@ type FetchState =
   | { status: 'error'; message: string; isAuthError: boolean }
   | { status: 'success'; data: DashboardData }
 
-const GREETING = 'Bom dia, Gustavo'
 const SUBTITLE = 'Acompanhe suas compras e garantias em um só lugar.'
 
 function isEmptyDashboard(data: DashboardData): boolean {
@@ -41,6 +36,8 @@ function isEmptyDashboard(data: DashboardData): boolean {
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const { user, setUser } = useAuth()
+  const greetingName = user?.name?.trim() || user?.email?.trim() || ''
   const [state, setState] = useState<FetchState>({ status: 'loading' })
 
   const [reloadKey, setReloadKey] = useState(0)
@@ -54,8 +51,8 @@ export function Dashboard() {
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          // Token inválido/expirado: limpa e volta ao login.
-          clearStoredAccessToken()
+          // Token inválido/expirado: encerra a sessão global e volta ao login.
+          setUser(null)
           navigate('/login', { replace: true })
           return
         }
@@ -72,7 +69,7 @@ export function Dashboard() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate])
+  }, [reloadKey, navigate, setUser])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -85,7 +82,7 @@ export function Dashboard() {
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {GREETING}
+            {greetingName ? `Bom dia, ${greetingName}` : 'Bom dia'}
           </h2>
           <p className="mt-1 text-sm text-slate-500">{SUBTITLE}</p>
         </div>

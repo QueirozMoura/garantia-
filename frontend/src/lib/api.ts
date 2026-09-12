@@ -1,5 +1,5 @@
 import type { DashboardResponse } from '../types/dashboard.ts'
-import type { LoginCredentials, LoginResponse } from '../types/auth.ts'
+import type { AuthUser, LoginCredentials, LoginResponse } from '../types/auth.ts'
 
 /** Chave de armazenamento do access token. O Dashboard depende desta chave. */
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -141,4 +141,21 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   })
   setStoredAccessToken(data.accessToken)
   return data
+}
+
+/**
+ * Busca o usuário autenticado a partir do access token:
+ * GET /auth/me — a resposta é { user }.
+ */
+export async function getMe(): Promise<AuthUser> {
+  const data = await request<{ user: AuthUser }>('/auth/me')
+  return data.user
+}
+
+/**
+ * Encerra a sessão no backend (limpa o cookie HttpOnly de refresh).
+ * POST /auth/logout — responde 204. Não lida com o access token local.
+ */
+export async function logout(): Promise<void> {
+  await request<void>('/auth/logout', { method: 'POST' })
 }

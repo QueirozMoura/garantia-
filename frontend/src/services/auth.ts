@@ -1,11 +1,13 @@
 import {
   login,
+  getMe,
+  logout as logoutRequest,
   getStoredAccessToken,
   clearStoredAccessToken,
   AuthenticationError,
   ApiError,
 } from '../lib/api.ts'
-import type { LoginCredentials, LoginResponse } from '../types/auth.ts'
+import type { AuthUser, LoginCredentials, LoginResponse } from '../types/auth.ts'
 
 /** Erro de autenticação já traduzido para exibição amigável no formulário. */
 export class LoginFormError extends Error {
@@ -52,12 +54,38 @@ export async function authenticate(
   }
 }
 
-/** Verifica se existe um access token para considerar o usuário autenticado. */
-export function isAuthenticated(): boolean {
+/** Verifica se existe um access token armazenado (não valida no backend). */
+export function hasStoredSession(): boolean {
   return Boolean(getStoredAccessToken())
 }
 
-/** Encerra a sessão local removendo o access token. */
-export function logout(): void {
-  clearStoredAccessToken()
+/**
+ * Busca o usuário autenticado em GET /auth/me.
+ * Em caso de 401 limpa o access token e retorna null (sem expor erro ao usuário).
+ */
+export async function fetchCurrentUser(): Promise<AuthUser | null> {
+  try {
+    return await getMe()
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      clearStoredAccessToken()
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * Encerra a sessão: notifica o backend (POST /auth/logout) e, mesmo em caso de
+ * falha de rede, limpa o access token localmente. O cookie de refresh HttpOnly
+ * é removido pelo backend — nunca é tocado pelo JavaScript.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await logoutRequest()
+  } catch {
+    // Falha de rede no logout não deve prender o usuário na área autenticada.
+  } finally {
+    clearStoredAccessToken()
+  }
 }
