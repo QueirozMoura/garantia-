@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react'
 import type { DocumentExtraction } from '../../types/document.ts'
 import { isValidPurchaseDate, TEXT_MAX, validatePriceValue } from './purchase-form.ts'
 import { NOT_IDENTIFIED } from './purchase-document.ts'
@@ -11,6 +11,11 @@ export interface ExtractionPreviewProps {
   onContinue: (reviewed: DocumentExtraction) => void
   /** Volta para a etapa anterior sem salvar/recriar nada. */
   onBack: () => void
+  /**
+   * `true` enquanto outra requisição do fluxo está em andamento. Bloqueia o
+   * "Continuar" (sem chamar API) e mostra o loading no botão.
+   */
+  isSubmitting?: boolean
 }
 
 /**
@@ -108,6 +113,17 @@ const validate = (values: FormValues): FieldErrors => {
 }
 
 const hasErrors = (errors: FieldErrors) => Object.keys(errors).length > 0
+/** Id do input de cada campo, para associar erro/foco ao campo correto. */
+const REVIEW_FIELD_IDS: Record<keyof FormValues, string> = {
+  productName: 'review-product',
+  brand: 'review-brand',
+  model: 'review-model',
+  purchaseDate: 'review-date',
+  price: 'review-price',
+  store: 'review-store',
+  warrantyMonths: 'review-warranty',
+}
+
 /**
  * Etapa de revisão dos dados extraídos da nota fiscal.
  *
@@ -116,9 +132,24 @@ const hasErrors = (errors: FieldErrors) => Object.keys(errors).length > 0
  * ao "Continuar", os dados revisados são repassados ao fluxo (próxima etapa).
  * O `invoiceNumber` é somente leitura e nunca é enviado.
  */
-export function ExtractionPreview({ data, onContinue, onBack }: ExtractionPreviewProps) {
+export function ExtractionPreview({
+  data,
+  onContinue,
+  onBack,
+  isSubmitting = false,
+}: ExtractionPreviewProps) {
   const [values, setValues] = useState<FormValues>(() => toFormValues(data))
   const [errors, setErrors] = useState<FieldErrors>({})
+  // Guarda síncrona: o "Continuar" não chama API, mas evita navegação
+  // duplicada em dois cliques rápidos.
+  const isContinuingRef = useRef(false)
+  // Campo destacado com erro, para mover o foco após a validação falhar.
+  const firstErrorField = Object.keys(errors)[0] as keyof FormValues | undefined
+  useEffect(() => {
+    if (firstErrorField) {
+      document.getElementById(REVIEW_FIELD_IDS[firstErrorField])?.focus()
+    }
+  }, [firstErrorField])
 
   const update = (field: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }))
@@ -131,10 +162,13 @@ export function ExtractionPreview({ data, onContinue, onBack }: ExtractionPrevie
   }
 
   const handleContinue = () => {
+    if (isContinuingRef.current || isSubmitting) return
     const nextErrors = validate(values)
     setErrors(nextErrors)
     if (hasErrors(nextErrors)) return
     // Apenas prepara os dados revisados localmente para a próxima etapa.
+    // Nenhuma chamada de API acontece aqui.
+    isContinuingRef.current = true
     onContinue(toPayload(values))
   }
 
@@ -211,6 +245,9 @@ export function ExtractionPreview({ data, onContinue, onBack }: ExtractionPrevie
             <input
               id="review-warranty"
               name="warrantyMonths"
+              aria-describedby={
+                errors.warrantyMonths ? 'review-warranty-error' : undefined
+              }
               type="number"
               inputMode="numeric"
               step="1"
@@ -228,7 +265,9 @@ export function ExtractionPreview({ data, onContinue, onBack }: ExtractionPrevie
             <span className="shrink-0 text-sm text-slate-500">meses</span>
           </div>
           {errors.warrantyMonths && (
-            <p className="mt-1.5 text-xs text-red-600">{errors.warrantyMonths}</p>
+            <p id="review-warranty-error" className="mt-1.5 text-xs text-red-600">
+              {errors.warrantyMonths}
+            </p>
           )}
         </div>
 
@@ -274,10 +313,15 @@ export function ExtractionPreview({ data, onContinue, onBack }: ExtractionPrevie
         <button
           type="button"
           onClick={handleContinue}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
+          disabled={isSubmitting}
+          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <span>Continuar</span>
+          {isSubmitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{isSubmitting ? 'Aguarde...' : 'Continuar'}</span>
         </button>
       </div>
     </div>
@@ -323,13 +367,18 @@ function ReviewField({
         placeholder={placeholder}
         inputMode={inputMode}
         aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
         className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
           error
             ? 'border-red-300 focus-visible:border-red-400'
             : 'border-slate-300 focus-visible:border-emerald-500'
         }`}
       />
-      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

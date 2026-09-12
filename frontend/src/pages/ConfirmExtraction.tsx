@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Loader2, SearchX } from 'lucide-react'
 import { confirmDocumentExtraction, AuthenticationError, ApiError } from '../lib/api.ts'
@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import { NOT_IDENTIFIED } from '../components/purchases/purchase-document.ts'
 import { validatePriceValue } from '../components/purchases/purchase-form.ts'
+import { PurchaseFlowStepper } from '../components/purchases/PurchaseFlowStepper.tsx'
 import type { DocumentExtraction } from '../types/document.ts'
 
 /**
@@ -21,9 +22,16 @@ interface ConfirmationState {
 
 const FALLBACK_ERROR = 'Não foi possível aplicar os dados. Tente novamente.'
 
-/** Mensagens amigáveis por status HTTP do PATCH (sem detalhes internos). */
+/**
+ * Mensagens amigáveis por status HTTP do PATCH. Nunca expõe stack, Prisma,
+ * SQL, Axios/fetch, nomes de exceção nem a mensagem crua do backend (que pode
+ * ser "Something went wrong" / "Validation failed").
+ */
 const confirmErrorMessage = (error: unknown) => {
   if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+    }
     if (error.status === 400) {
       return 'Não foi possível aplicar os dados. Verifique as informações e tente novamente.'
     }
@@ -59,6 +67,12 @@ export function ConfirmExtraction() {
   const [error, setError] = useState<string | null>(null)
   // Guarda síncrona contra duplo clique/duas requisições PATCH simultâneas.
   const isConfirmingRef = useRef(false)
+  const errorRef = useRef<HTMLDivElement>(null)
+
+  // Após um erro, leva o foco ao alerta para leitores de tela e teclado.
+  useEffect(() => {
+    if (error) errorRef.current?.focus()
+  }, [error])
 
   const summary = useMemo(() => {
     if (!reviewed) return []
@@ -166,6 +180,8 @@ export function ConfirmExtraction() {
         </p>
       </section>
 
+      <PurchaseFlowStepper current="confirm" />
+
       <div className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
         <dl className="grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {summary.map((item) => (
@@ -193,8 +209,10 @@ export function ConfirmExtraction() {
 
         {error && (
           <div
+            ref={errorRef}
             role="alert"
-            className="mt-5 flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700"
+            tabIndex={-1}
+            className="mt-5 flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
           >
             <AlertCircle
               className="h-4 w-4 shrink-0 translate-y-0.5"

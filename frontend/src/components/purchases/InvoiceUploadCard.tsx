@@ -1,5 +1,12 @@
 import { useRef } from 'react'
-import { AlertCircle, FileText, Image as ImageIcon, Upload, X } from 'lucide-react'
+import {
+  AlertCircle,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  Upload,
+  X,
+} from 'lucide-react'
 import {
   ACCEPTED_MIME_TYPES,
   formatFileSize,
@@ -15,6 +22,8 @@ export interface InvoiceUploadCardProps {
   onFileChange: (file: File | null, error: string | null) => void
   /** Desabilita as ações enquanto a compra/upload está em andamento. */
   disabled?: boolean
+  /** Texto do estado de carregamento exibido no lugar da seleção. */
+  loadingLabel?: string
 }
 
 /**
@@ -29,8 +38,12 @@ export function InvoiceUploadCard({
   fileError,
   onFileChange,
   disabled = false,
+  loadingLabel,
 }: InvoiceUploadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const isLoading = disabled && Boolean(loadingLabel)
+  // Bloqueia diálogo de arquivo e remoção enquanto qualquer requisição corre.
+  const isLocked = disabled || isLoading
 
   const openPicker = () => {
     if (disabled) return
@@ -82,12 +95,26 @@ export function InvoiceUploadCard({
         aria-label="Selecionar nota fiscal"
       />
 
-      {!file && (
+      {isLoading && (
+        <div
+          role="status"
+          aria-busy="true"
+          className="mt-5 flex items-center gap-2.5 rounded-lg border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-700"
+        >
+          <Loader2
+            className="h-4 w-4 shrink-0 animate-spin text-emerald-600"
+            aria-hidden="true"
+          />
+          <span>{loadingLabel}</span>
+        </div>
+      )}
+
+      {!file && !isLoading && (
         <div className="mt-5">
           <button
             type="button"
             onClick={openPicker}
-            disabled={disabled}
+            disabled={isLocked}
             className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             <Upload className="h-4 w-4" aria-hidden="true" />
@@ -104,6 +131,15 @@ export function InvoiceUploadCard({
           <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
             Nota fiscal selecionada
           </p>
+          {isLoading && (
+            <p
+              role="status"
+              className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-emerald-700"
+            >
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <span>{loadingLabel}</span>
+            </p>
+          )}
           <div className="mt-3 flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
               {isImage ? (
@@ -124,7 +160,7 @@ export function InvoiceUploadCard({
             <button
               type="button"
               onClick={openPicker}
-              disabled={disabled}
+              disabled={isLocked}
               className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
             >
               <Upload className="h-3.5 w-3.5" aria-hidden="true" />
@@ -133,7 +169,7 @@ export function InvoiceUploadCard({
             <button
               type="button"
               onClick={remove}
-              disabled={disabled}
+              disabled={isLocked}
               className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />

@@ -5,6 +5,7 @@ import { PurchaseForm } from '../components/purchases/PurchaseForm.tsx'
 import { EMPTY_PURCHASE_FIELDS } from '../components/purchases/purchase-form.ts'
 import { InvoiceUploadCard } from '../components/purchases/InvoiceUploadCard.tsx'
 import { ExtractionPreview } from '../components/purchases/ExtractionPreview.tsx'
+import { PurchaseFlowStepper } from '../components/purchases/PurchaseFlowStepper.tsx'
 import {
   documentNameFromFileName,
   extractFriendlyMessage,
@@ -20,9 +21,52 @@ import { useAuth } from '../contexts/auth-context.ts'
 import type { CreatePurchaseInput } from '../types/purchase.ts'
 import type { DocumentExtraction } from '../types/document.ts'
 
-const FALLBACK_ERROR = 'Não foi possível cadastrar a compra. Tente novamente.'
-const FALLBACK_DOCUMENT_ERROR =
-  'Sua compra foi criada, mas não conseguimos anexar a nota fiscal.'
+/**
+ * Mensagem amigável para falha ao criar a compra (sem detalhes internos).
+ * Nunca reaproveita `error.message` cru: o backend pode responder com textos
+ * técnicos (ex.: "Something went wrong", "Validation failed").
+ */
+const createErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+    }
+    if (error.status === 400) {
+      return 'Confira os dados da compra e tente novamente.'
+    }
+    if (error.status === 403) {
+      return 'Você não tem permissão para cadastrar compras.'
+    }
+  }
+  return 'Não foi possível cadastrar a compra. Tente novamente.'
+}
+
+/** Mensagem amigável para falha no upload da nota fiscal (compra preservada). */
+const uploadErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return 'A compra foi criada, mas não conseguimos anexar a nota fiscal: falha de conexão. Tente novamente.'
+    }
+    if (error.status === 400) {
+      return 'A compra foi criada, mas o arquivo da nota não foi aceito. Envie um PDF, JPG ou PNG de até 10 MB.'
+    }
+    if (error.status === 403) {
+      return 'A compra foi criada, mas você não tem permissão para anexar documentos a ela.'
+    }
+    if (error.status === 404) {
+      return 'A compra foi criada, mas não a encontramos para anexar a nota fiscal. Volte para as suas compras.'
+    }
+  }
+  return 'A compra foi criada, mas não conseguimos anexar a nota fiscal. Tente novamente.'
+}
+
+/**
+ * Etapa de submissão em andamento. Modela explicitamente cada requisição do
+ * fluxo para: (1) bloquear ações concorrentes e (2) mostrar o texto correto.
+ * `idle` = nada em andamento; `creating` = POST /purchases;
+ * `uploading` = POST /purchases/:id/documents; `extracting` = POST /extract.
+ */
+type SubmissionState = 'idle' | 'creating' | 'uploading' | 'extracting'
 
 /**
  * Estado da análise por IA, iniciada somente depois que a nota foi anexada.
@@ -48,8 +92,11 @@ export function AddPurchase() {
       invoiceNumber?: string | null
     } | null) ?? null
   const [formError, setFormError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submission, setSubmission] = useState<SubmissionState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
+  // Guarda síncrona contra duplo disparo de POST /purchases: `isSubmitting`
+  // (estado React) não é atualizado a tempo em dois cliques no mesmo tick.
+  const isSubmittingRef = useRef(false)
   // Compra já criada quando o upload da nota fiscal falha. Guardar o id
   // permite tentar o upload novamente SEM recriar a compra (sem duplicar).
   // Também é restaurado ao voltar da confirmação.
@@ -74,10 +121,15 @@ export function AddPurchase() {
   // Guarda síncrona contra duplo disparo de /extract (evita chamadas duplicadas).
   const isExtractingRef = useRef(false)
 
+  // Etapa destacada no stepper: após a compra criada, o fluxo é da IA.
+  const currentStep =
+    extraction.status === 'extracting' ? 'review' : createdPurchaseId ? 'upload' : 'form'
+
   async function handleSubmit(payload: CreatePurchaseInput) {
-    if (isSubmitting || isSuccess) return
+    // Guarda síncrona: dois cliques no mesmo tick não disparam dois POST.
+    if (isSubmittingRef.current || isSuccess) return
+    isSubmittingRef.current = true
     setFormError(null)
-    setIsSubmitting(true)
 
     // Se a compra já foi criada numa tentativa anterior, não cria de novo:
     // apenas tenta anexar a nota fiscal novamente (evita duplicar a compra).
@@ -85,6 +137,9 @@ export function AddPurchase() {
       await attachInvoice(createdPurchaseId)
       return
     }
+
+    // Estado explícito: o botão mostra "Salvando compra..." durante o POST.
+    setSubmission('creating')
 
     let purchaseId: string
     try {
@@ -96,10 +151,11 @@ export function AddPurchase() {
         navigate('/login', { replace: true })
         return
       }
-      // Compra NÃO criada: nenhum upload é feito. Erro amigável + retry.
-      const message = error instanceof ApiError ? error.message : FALLBACK_ERROR
-      setFormError(message)
-      setIsSubmitting(false)
+      // Compra NÃO criada: nenhum upload é feito. Os dados digitados são
+      // preservados (o formulário continua montado) e o botão volta ao normal.
+      setFormError(createErrorMessage(error))
+      setSubmission('idle')
+      isSubmittingRef.current = false
       return
     }
 
@@ -123,6 +179,7 @@ export function AddPurchase() {
       finishSuccess()
       return
     }
+    setSubmission('uploading')
     try {
       const document = await uploadPurchaseDocument(
         purchaseId,
@@ -132,7 +189,8 @@ export function AddPurchase() {
       )
       // Nota anexada: inicia a análise por IA (sem salvar nada na compra).
       setDocumentId(document.id)
-      setIsSubmitting(false)
+      isSubmittingRef.current = false
+      setSubmission('idle')
       await runExtraction(document.id)
     } catch (error) {
       if (error instanceof AuthenticationError) {
@@ -140,9 +198,10 @@ export function AddPurchase() {
         navigate('/login', { replace: true })
         return
       }
-      // Compra mantida; usuário pode tentar anexar novamente sem recriar.
-      setFormError(FALLBACK_DOCUMENT_ERROR)
-      setIsSubmitting(false)
+      // Compra mantida; o retry refaz SOMENTE o upload (não recria a compra).
+      setFormError(uploadErrorMessage(error))
+      setSubmission('idle')
+      isSubmittingRef.current = false
     }
   }
 
@@ -155,6 +214,7 @@ export function AddPurchase() {
     // Guarda síncrona: ignora cliques repetidos enquanto uma análise corre.
     if (isExtractingRef.current) return
     isExtractingRef.current = true
+    setSubmission('extracting')
     setExtraction({ status: 'extracting' })
     try {
       const data = await extractDocument(targetDocumentId)
@@ -172,6 +232,7 @@ export function AddPurchase() {
       })
     } finally {
       isExtractingRef.current = false
+      setSubmission('idle')
     }
   }
 
@@ -181,6 +242,8 @@ export function AddPurchase() {
    */
   function finishSuccess() {
     setIsSuccess(true)
+    setSubmission('idle')
+    isSubmittingRef.current = false
     navigate('/purchases', { replace: true })
   }
   return (
@@ -205,6 +268,12 @@ export function AddPurchase() {
           <span>Voltar</span>
         </button>
       </section>
+
+      {/* Indicador de progresso — apenas no fluxo com nota fiscal. O fluxo
+          manual (sem nota) não exibe stepper para continuar simples. */}
+      {(invoiceFile || createdPurchaseId) && (
+        <PurchaseFlowStepper current={currentStep} />
+      )}
 
       {/* Enquanto a IA analisa (ou após o resultado), a etapa de cadastro é
           substituída pelo estado da análise — a compra e a nota já existem. */}
@@ -233,6 +302,7 @@ export function AddPurchase() {
             // Volta ao estado anterior sem criar compra/documento/extração.
             setExtraction({ status: 'idle' })
           }}
+          canContinue={submission === 'idle'}
         />
       ) : (
         <>
@@ -244,7 +314,10 @@ export function AddPurchase() {
               setInvoiceFile(nextFile)
               setInvoiceError(error)
             }}
-            disabled={isSubmitting || isSuccess}
+            disabled={submission !== 'idle' || isSuccess}
+            loadingLabel={
+              submission === 'creating' ? 'Salvando compra...' : 'Anexando nota fiscal...'
+            }
           />
 
           {/* Divisor com alternativa manual */}
@@ -273,10 +346,7 @@ export function AddPurchase() {
                 className="mb-5 flex items-start gap-2.5 rounded-lg border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800"
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  {FALLBACK_DOCUMENT_ERROR} A compra foi salva; você pode tentar anexar a
-                  nota novamente.
-                </span>
+                <span>{formError}</span>
               </div>
             )}
 
@@ -285,8 +355,11 @@ export function AddPurchase() {
               submitLabel={
                 createdPurchaseId ? 'Tentar anexar nota novamente' : 'Salvar compra'
               }
+              submittingLabel={
+                createdPurchaseId ? 'Anexando nota fiscal...' : 'Salvando compra...'
+              }
               formError={createdPurchaseId ? null : formError}
-              isSubmitting={isSubmitting}
+              isSubmitting={submission !== 'idle'}
               isSuccess={isSuccess}
               onSubmit={handleSubmit}
               onCancel={() => navigate('/purchases')}
@@ -303,19 +376,30 @@ interface ExtractionStageProps {
   onRetry: () => void
   onContinue: (reviewed: DocumentExtraction) => void
   onBack: () => void
+  /** `false` enquanto uma requisição está em andamento (bloqueia a revisão). */
+  canContinue: boolean
 }
 
 /**
  * Etapa pós-upload: análise da nota pela IA, revisão do resultado e retry.
  * Nada aqui é salvo na compra — a revisão vive apenas no estado local.
  */
-function ExtractionStage({ state, onRetry, onContinue, onBack }: ExtractionStageProps) {
+function ExtractionStage({
+  state,
+  onRetry,
+  onContinue,
+  onBack,
+  canContinue,
+}: ExtractionStageProps) {
+  const isBusy = state.status === 'extracting'
+
   return (
     <div className="space-y-5">
-      {state.status === 'extracting' && (
+      {isBusy && (
         <div
           role="status"
           aria-busy="true"
+          aria-live="polite"
           className="flex items-start gap-3 rounded-xl border-slate-200 bg-white p-5 sm:p-6"
         >
           <Loader2
@@ -324,10 +408,10 @@ function ExtractionStage({ state, onRetry, onContinue, onBack }: ExtractionStage
           />
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-slate-900">
-              Analisando sua nota fiscal
+              Analisando sua nota fiscal...
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Estamos identificando os dados da sua compra.
+              Estamos identificando os dados da compra. Isso pode levar alguns segundos.
             </p>
           </div>
         </div>
@@ -360,7 +444,7 @@ function ExtractionStage({ state, onRetry, onContinue, onBack }: ExtractionStage
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50"
+              className="inline-flex cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
             >
               Ir para a compra
             </button>
@@ -369,7 +453,12 @@ function ExtractionStage({ state, onRetry, onContinue, onBack }: ExtractionStage
       )}
 
       {state.status === 'success' && (
-        <ExtractionPreview data={state.data} onContinue={onContinue} onBack={onBack} />
+        <ExtractionPreview
+          data={state.data}
+          onContinue={onContinue}
+          onBack={onBack}
+          isSubmitting={!canContinue}
+        />
       )}
     </div>
   )
