@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env.js';
+import alertsListRoutes from './modules/alerts-list.routes.js';
 import authRoutes from './modules/auth.routes.js';
 import purchaseRoutes from './modules/purchases.routes.js';
 import dashboardRoutes from './modules/dashboard.routes.js';
@@ -33,6 +34,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/documents', documentsListRoutes);
 app.use('/documents', documentsByIdRoutes);
 app.use('/warranties', warrantiesListRoutes);
+app.use('/alerts', alertsListRoutes);
 app.use(routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
