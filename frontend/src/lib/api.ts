@@ -34,6 +34,7 @@ import type {
   RegisterCredentials,
   RegisterResponse,
 } from '../types/auth.ts'
+import type { Assistance, AssistanceResponse } from '../types/assistance.ts'
 
 /** Chave de armazenamento do access token. O Dashboard depende desta chave. */
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -321,6 +322,31 @@ export async function deletePurchaseWarranty(purchaseId: string): Promise<void> 
   await request<void>(`/purchases/${encodeURIComponent(purchaseId)}/warranty`, {
     method: 'DELETE',
   })
+}
+
+/**
+ * Solicita assistência para uma compra do usuário logado:
+ * POST /purchases/:purchaseId/assistance — responde 200 com `{ assistance }`.
+ *
+ * O endpoint é stateless (não persiste nada): verifica a compra e a situação da
+ * garantia e devolve o resultado já pronto — portanto nenhum GET adicional é
+ * necessário depois do POST. O `problem` é enviado já normalizado (`trim`); o
+ * backend revalida entre 5 e 2000 caracteres. 401 → AuthenticationError,
+ * 403 (PURCHASE_ACCESS_DENIED), 404 (PURCHASE_NOT_FOUND), 400
+ * (VALIDATION_ERROR) e 500/rede viram ApiError para a UI tratar.
+ */
+export async function prepareAssistance(
+  purchaseId: string,
+  problem: string,
+): Promise<Assistance> {
+  const data = await request<AssistanceResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/assistance`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ problem }),
+    },
+  )
+  return data.assistance
 }
 
 /**

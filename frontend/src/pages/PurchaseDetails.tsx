@@ -5,6 +5,7 @@ import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetails
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
 import { PurchaseWarrantySection } from '../components/purchases/PurchaseWarrantySection.tsx'
+import { PurchaseAssistanceSection } from '../components/purchases/PurchaseAssistanceSection.tsx'
 import { PurchaseDocumentsSection } from '../components/purchases/PurchaseDocumentsSection.tsx'
 import { DeletePurchaseDialog } from '../components/purchases/DeletePurchaseDialog.tsx'
 import { getPurchase, deletePurchase, AuthenticationError, ApiError } from '../lib/api.ts'
@@ -90,6 +91,15 @@ export function PurchaseDetails() {
     setState({ status: 'loading' })
     setReloadKey((key) => key + 1)
   }, [])
+
+  /**
+   * Sessão inválida/expirada (401) detectada por uma seção interna (ex.: a
+   * assistência): encerra a sessão global e volta ao login, como no load.
+   */
+  const handleAuthError = useCallback(() => {
+    setUser(null)
+    navigate('/login', { replace: true })
+  }, [navigate, setUser])
 
   /**
    * Aplica na tela o resultado da confirmação de uma extração, usando os dados
@@ -213,6 +223,13 @@ export function PurchaseDetails() {
         <PurchaseWarrantySection
           key={warrantyReloadKey}
           purchaseId={currentState.purchase.id}
+        />
+      )}
+
+      {currentState.status === 'success' && (
+        <PurchaseAssistanceSection
+          purchaseId={currentState.purchase.id}
+          onAuthError={handleAuthError}
         />
       )}
 
