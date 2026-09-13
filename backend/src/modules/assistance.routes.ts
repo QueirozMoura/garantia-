@@ -1,6 +1,10 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../middlewares/auth.js';
+import {
+  assistanceAnalyzeRateLimiter,
+  assistanceMessageRateLimiter,
+} from '../middlewares/rate-limit.js';
 import * as assistanceController from './assistance.controller.js';
 
 // Nested router mounted at `/purchases/:purchaseId/assistance`, mirroring the
@@ -9,7 +13,9 @@ const router = Router({ mergeParams: true });
 
 router.use(requireAuth);
 router.post('/', assistanceController.prepare);
-router.post('/analyze', assistanceController.analyze);
-router.post('/message', assistanceController.generateMessage);
+// IA: rate limit por usuário autenticado, depois do requireAuth e antes do
+// controller, para bloquear a chamada ao provider de IA.
+router.post('/analyze', assistanceAnalyzeRateLimiter, assistanceController.analyze);
+router.post('/message', assistanceMessageRateLimiter, assistanceController.generateMessage);
 
 export default router;

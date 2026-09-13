@@ -18,6 +18,19 @@ if (!accessTokenSecret || !refreshTokenSecret) {
   throw new Error('ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET are required');
 }
 
+// Optional positive-integer override; `undefined` means "use the module default".
+const positiveIntFromEnv = (name: string): number | undefined => {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return undefined;
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+
+  return value;
+};
+
 export const env = {
   port,
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -31,4 +44,6 @@ export const env = {
   aiApiKey: process.env.AI_API_KEY,
   aiApiUrl: process.env.AI_API_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,
+  rateLimitAuthMax: positiveIntFromEnv('RATE_LIMIT_AUTH_MAX'),
+  rateLimitAiMax: positiveIntFromEnv('RATE_LIMIT_AI_MAX'),
 } as const;
