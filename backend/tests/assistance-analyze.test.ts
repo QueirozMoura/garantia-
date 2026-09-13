@@ -57,6 +57,10 @@ let nextResponse: ProviderResponse = {
     recommendedAction: 'Procure assistência técnica autorizada.',
     safetyNote: 'Evite desmontar o equipamento.',
     warrantyGuidance: 'Consulte os canais autorizados.',
+    requiredDocuments: [
+      'Nota fiscal ou comprovante de compra',
+      'Documento de garantia, se disponível',
+    ],
   },
 };
 
@@ -66,6 +70,10 @@ const validAnalysis = {
   recommendedAction: 'Procure assistência técnica autorizada.',
   safetyNote: 'Evite desmontar o equipamento.',
   warrantyGuidance: 'Consulte os canais autorizados.',
+  requiredDocuments: [
+    'Nota fiscal ou comprovante de compra',
+    'Documento de garantia, se disponível',
+  ],
 };
 
 type ApiClient = ReturnType<typeof import('./helpers/http.js').api>;
@@ -283,9 +291,129 @@ describe('POST /purchases/:purchaseId/assistance/analyze', () => {
 
     expect(response.status).toBe(200);
     expect(Object.keys(response.body.analysis).sort()).toEqual(
-      ['possibleCauses', 'recommendedAction', 'safetyNote', 'summary', 'warrantyGuidance'].sort(),
+      [
+        'possibleCauses',
+        'recommendedAction',
+        'requiredDocuments',
+        'safetyNote',
+        'summary',
+        'warrantyGuidance',
+      ].sort(),
     );
     expect(response.body.analysis.possibleCauses).toHaveLength(2);
+  });
+
+  it('resposta válida com requiredDocuments → 200 preservando os documentos', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: {
+        ...validAnalysis,
+        requiredDocuments: [
+          'Nota fiscal ou comprovante de compra',
+          'Comprovante de pagamento',
+          'Número de série ou etiqueta do produto',
+        ],
+      },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(200);
+    expect(response.body.analysis.requiredDocuments).toEqual([
+      'Nota fiscal ou comprovante de compra',
+      'Comprovante de pagamento',
+      'Número de série ou etiqueta do produto',
+    ]);
+  });
+
+  it('requiredDocuments vazio → 503 AI_INVALID_RESPONSE', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: { ...validAnalysis, requiredDocuments: [] },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('requiredDocuments ausente → 503 AI_INVALID_RESPONSE', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: {
+        summary: validAnalysis.summary,
+        possibleCauses: validAnalysis.possibleCauses,
+        recommendedAction: validAnalysis.recommendedAction,
+        safetyNote: validAnalysis.safetyNote,
+        warrantyGuidance: validAnalysis.warrantyGuidance,
+      },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('mais de 5 documentos → 503 AI_INVALID_RESPONSE', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: {
+        ...validAnalysis,
+        requiredDocuments: ['Doc 1', 'Doc 2', 'Doc 3', 'Doc 4', 'Doc 5', 'Doc 6'],
+      },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('item vazio em requiredDocuments → 503 AI_INVALID_RESPONSE', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: {
+        ...validAnalysis,
+        requiredDocuments: ['Nota fiscal ou comprovante de compra', '   '],
+      },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('item acima de 200 caracteres em requiredDocuments → 503 AI_INVALID_RESPONSE', async () => {
+    const { user, token } = await createUserWithToken();
+    const purchase = await createPurchase(user.id);
+
+    nextResponse = {
+      kind: 'value',
+      value: { ...validAnalysis, requiredDocuments: ['a'.repeat(201)] },
+    };
+
+    const response = await postAnalyze(purchase.id, token, { problem: validProblem });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
   });
 
   it('resposta da IA inválida (schema incompatível) → 503 AI_INVALID_RESPONSE', async () => {
@@ -306,7 +434,10 @@ describe('POST /purchases/:purchaseId/assistance/analyze', () => {
     const { user, token } = await createUserWithToken();
     const purchase = await createPurchase(user.id);
 
-    nextResponse = { kind: 'value', value: { ...validAnalysis, possibleCauses: [] } };
+    nextResponse = {
+      kind: 'value',
+      value: { ...validAnalysis, possibleCauses: [] },
+    };
 
     const response = await postAnalyze(purchase.id, token, { problem: validProblem });
 

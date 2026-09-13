@@ -46,6 +46,15 @@ export const assistanceAnalysisSchema = z.object({
   recommendedAction: guidanceText(1000),
   safetyNote: guidanceText(1000),
   warrantyGuidance: guidanceText(1000),
+  // General documents/proofs the user may be asked for when requesting
+  // assistance. Kept as plain strings (no persistence, no dedicated system).
+  // Each item must be non-empty and short; duplicates are collapsed so the
+  // provider cannot pad the list with the same entry repeated.
+  requiredDocuments: z
+    .array(guidanceText(200))
+    .min(1)
+    .max(5)
+    .transform((documents) => [...new Set(documents)]),
 });
 
 export type ExtractedPurchaseData = z.infer<typeof extractedPurchaseDataSchema>;

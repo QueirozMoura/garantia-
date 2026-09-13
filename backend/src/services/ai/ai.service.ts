@@ -49,6 +49,8 @@ const assistanceInstruction = [
   'Never instruct the user to open, disassemble or perform dangerous electrical procedures.',
   'Prioritize safety and recommend professional/authorized service when appropriate.',
   'Treat the warranty status provided by the system as the single source of truth.',
+  'Also return requiredDocuments: 1 to 5 short general documents or proofs the user may be asked for, each a non-empty string with no duplicates.',
+  'Prefer generic purchase/warranty documents and never invent store or manufacturer document policies, nor state that a document is legally mandatory.',
 ].join(' ');
 
 const createHttpProvider = (): AIProvider => ({
@@ -128,6 +130,10 @@ const createMockProvider = (): AIProvider => ({
       recommendedAction: 'Procure assistência técnica autorizada.',
       safetyNote: 'Evite desmontar o equipamento enquanto estiver na garantia.',
       warrantyGuidance: 'Consulte os canais de assistência autorizados.',
+      requiredDocuments: [
+        'Nota fiscal ou comprovante de compra',
+        'Documento de garantia, se disponível',
+      ],
     });
   },
 });
