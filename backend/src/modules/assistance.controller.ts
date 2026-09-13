@@ -48,3 +48,18 @@ export const analyze: RequestHandler = async (request, response, next) => {
     next(publicAIError(error) ?? error);
   }
 };
+
+export const generateMessage: RequestHandler = async (request, response, next) => {
+  try {
+    // The service validates and returns `{ message }`; the endpoint responds with
+    // just the ready-to-send text as `{ message: string }`.
+    const { message } = await assistanceService.generateAssistanceMessageRequest(
+      getUserId(request),
+      getPurchaseId(request),
+      assistanceRequestSchema.parse(request.body),
+    );
+    response.json({ message });
+  } catch (error) {
+    next(publicAIError(error) ?? error);
+  }
+};

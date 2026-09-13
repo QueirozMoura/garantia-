@@ -26,9 +26,13 @@ export interface AiAssistanceInput {
   problem: string;
 }
 
+// The assistance message is generated from exactly the same context the analysis
+// uses (purchase summary, backend-computed warranty status and reported problem),
+// so it reuses AiAssistanceInput instead of duplicating the shape.
 export interface AIProvider {
   extractPurchaseData(document: AiDocumentInput): Promise<unknown>;
   analyzeAssistance(input: AiAssistanceInput): Promise<unknown>;
+  generateAssistanceMessage(input: AiAssistanceInput): Promise<unknown>;
 }
 
 export class AIProviderNotConfiguredError extends Error {

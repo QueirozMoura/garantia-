@@ -1,8 +1,12 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../config/prisma.js';
-import { analyzeAssistance as runAnalysis, getAIProvider } from '../services/ai/ai.service.js';
-import type { AssistanceAnalysis } from '../services/ai/ai.schemas.js';
+import {
+  analyzeAssistance as runAnalysis,
+  generateAssistanceMessage as runMessageGeneration,
+  getAIProvider,
+} from '../services/ai/ai.service.js';
+import type { AssistanceAnalysis, AssistanceMessage } from '../services/ai/ai.schemas.js';
 import { forbidden, notFound } from '../utils/http-error.js';
 import type { AssistanceRequestInput } from './assistance.schemas.js';
 
@@ -115,6 +119,37 @@ export const analyzeAssistanceRequest = async (
   const warrantyStatus = resolveWarrantyStatus(warranty, today);
 
   return runAnalysis(getAIProvider(), {
+    productName: publicPurchase.productName,
+    brand: publicPurchase.brand,
+    model: publicPurchase.model,
+    store: publicPurchase.store,
+    purchaseDate: publicPurchase.purchaseDate.toISOString().slice(0, 10),
+    warrantyStatus,
+    warrantyStartDate: warranty ? warranty.startDate.toISOString().slice(0, 10) : null,
+    warrantyEndDate: warranty ? warranty.endDate.toISOString().slice(0, 10) : null,
+    problem: input.problem,
+  });
+};
+
+/**
+ * Generates a ready-to-send assistance message for one of the authenticated
+ * user's purchases.
+ *
+ * It shares the exact same context as the analysis: the backend computes the
+ * warranty status (single query with the nested warranty, no N+1) and sends it
+ * to the AI as the source of truth. Stateless: nothing is persisted.
+ */
+export const generateAssistanceMessageRequest = async (
+  userId: string,
+  purchaseId: string,
+  input: AssistanceRequestInput,
+  now: Date = new Date(),
+): Promise<AssistanceMessage> => {
+  const { publicPurchase, warranty } = await loadOwnedPurchase(userId, purchaseId);
+  const today = startOfTodayUtc(now);
+  const warrantyStatus = resolveWarrantyStatus(warranty, today);
+
+  return runMessageGeneration(getAIProvider(), {
     productName: publicPurchase.productName,
     brand: publicPurchase.brand,
     model: publicPurchase.model,

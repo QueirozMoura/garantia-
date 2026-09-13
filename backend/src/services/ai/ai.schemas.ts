@@ -57,5 +57,14 @@ export const assistanceAnalysisSchema = z.object({
     .transform((documents) => [...new Set(documents)]),
 });
 
+// Ready-to-send assistance message produced by the AI. A single free-text field
+// the user can copy and send to a technical service or manufacturer. Required
+// and non-empty: an empty or too-short answer is treated as an invalid provider
+// response, never rendered as a broken message.
+export const assistanceMessageSchema = z.object({
+  message: z.string().trim().min(20).max(2000),
+});
+
 export type ExtractedPurchaseData = z.infer<typeof extractedPurchaseDataSchema>;
 export type AssistanceAnalysis = z.infer<typeof assistanceAnalysisSchema>;
+export type AssistanceMessage = z.infer<typeof assistanceMessageSchema>;

@@ -10,5 +10,6 @@ const router = Router({ mergeParams: true });
 router.use(requireAuth);
 router.post('/', assistanceController.prepare);
 router.post('/analyze', assistanceController.analyze);
+router.post('/message', assistanceController.generateMessage);
 
 export default router;

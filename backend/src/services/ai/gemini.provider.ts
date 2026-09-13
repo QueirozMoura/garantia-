@@ -42,6 +42,19 @@ Rules:
 - requiredDocuments rules: return at least 1 and at most 5 items; every item must be a non-empty string; avoid duplicates; use prudent wording such as "pode ser solicitado" (may be requested) when appropriate; never state that a document is legally mandatory.
 - Never invent documents specific to a particular store or manufacturer, and never invent store or manufacturer policies or document requirements.`;
 
+const assistanceMessagePrompt = `You write a single ready-to-send assistance message in Brazilian Portuguese. You receive a purchase summary, the warranty status already computed by the system, and the problem reported by the user. Return only one JSON object with exactly this field: message.
+
+Rules:
+- Return only the JSON object, with no Markdown fences or any additional text, and it must be valid JSON compatible with the requested schema.
+- message: a polite, professional, natural and short text the user can copy and send to a technical service, a manufacturer or a support channel. Write it in Brazilian Portuguese.
+- Identify the product (name, and brand/model when available) only when there is enough information. Never invent details that are absent.
+- You may mention the purchase date and, when provided, the warranty situation. Never invent warranty rules, nor store or manufacturer policies.
+- Warranty guidance: for ACTIVE you may state the product is within the registered warranty; for EXPIRED never claim coverage; for UPCOMING you may mention the warranty has not started yet; for NONE never invent a warranty.
+- Never state that assistance will be approved and never state that a repair will be free.
+- Preserve the meaning of the problem reported by the user. You may fix small wording issues to make the message natural, but never change its meaning, never turn a possible cause into a diagnosis and never add symptoms the user did not report.
+- The warranty status provided by the system is the single source of truth. Do not recalculate, override or contradict it.
+- message must be a non-empty string between 20 and 2000 characters.`;
+
 const supportedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
 export class GeminiProvider implements AIProvider {
@@ -100,6 +113,37 @@ export class GeminiProvider implements AIProvider {
         contents: [
           {
             text: `${assistancePrompt}\n\nInput data (JSON):\n${JSON.stringify(input)}`,
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0,
+        },
+      });
+
+      if (!response.text) throw new AIProviderInvalidResponseError();
+
+      try {
+        return JSON.parse(response.text);
+      } catch {
+        throw new AIProviderInvalidResponseError();
+      }
+    } catch (error) {
+      if (error instanceof AIProviderInvalidResponseError) throw error;
+
+      const requestError = new AIProviderRequestError();
+      requestError.cause = error;
+      throw requestError;
+    }
+  }
+
+  async generateAssistanceMessage(input: AiAssistanceInput): Promise<unknown> {
+    try {
+      const response = await this.client.models.generateContent({
+        model: MODEL,
+        contents: [
+          {
+            text: `${assistanceMessagePrompt}\n\nInput data (JSON):\n${JSON.stringify(input)}`,
           },
         ],
         config: {

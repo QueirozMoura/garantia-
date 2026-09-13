@@ -12,8 +12,10 @@ import {
 } from './ai.provider.js';
 import {
   assistanceAnalysisSchema,
+  assistanceMessageSchema,
   extractedPurchaseDataSchema,
   type AssistanceAnalysis,
+  type AssistanceMessage,
   type ExtractedPurchaseData,
 } from './ai.schemas.js';
 
@@ -51,6 +53,22 @@ const assistanceInstruction = [
   'Treat the warranty status provided by the system as the single source of truth.',
   'Also return requiredDocuments: 1 to 5 short general documents or proofs the user may be asked for, each a non-empty string with no duplicates.',
   'Prefer generic purchase/warranty documents and never invent store or manufacturer document policies, nor state that a document is legally mandatory.',
+].join(' ');
+
+// The model must answer only with JSON matching the message schema. The safety
+// guardrails are stated here as well, so the http provider (not just Gemini)
+// carries the same rules.
+const assistanceMessageInstruction = [
+  'You write a single ready-to-send assistance message in Brazilian Portuguese that the user can copy and send to a technical service, a manufacturer or a support channel.',
+  'Return only a JSON object with exactly one field, message, with no Markdown fences or extra text.',
+  'The message must be polite, professional, natural, short and ready to copy and send.',
+  'Identify the product when there is enough information (brand and/or model); never invent details that are absent.',
+  'You may mention the purchase date and, when provided, the warranty situation; never invent warranty rules and never invent store or manufacturer policies.',
+  'Warranty rules: for ACTIVE you may state the product is within the registered warranty; for EXPIRED never claim coverage; for UPCOMING you may mention the warranty has not started yet; for NONE never invent a warranty.',
+  'Never state that assistance will be approved and never state that a repair will be free.',
+  'Preserve the meaning of the problem reported by the user; you may fix small wording issues but never change its meaning, turn a possible cause into a diagnosis or add symptoms the user did not report.',
+  'Treat the warranty status provided by the system as the single source of truth.',
+  'message must be a non-empty string between 20 and 2000 characters.',
 ].join(' ');
 
 const createHttpProvider = (): AIProvider => ({
@@ -114,6 +132,34 @@ const createHttpProvider = (): AIProvider => ({
 
     return parseJsonObject(payload.data ?? payload);
   },
+
+  async generateAssistanceMessage(input: AiAssistanceInput) {
+    if (!env.aiApiUrl || !env.aiApiKey) {
+      throw new AIProviderNotConfiguredError();
+    }
+
+    const response = await fetch(env.aiApiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.aiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        instruction: assistanceMessageInstruction,
+        assistance: input,
+      }),
+    }).catch(() => {
+      throw new AIProviderRequestError();
+    });
+
+    if (!response.ok) throw new AIProviderRequestError();
+
+    const payload = (await response.json().catch(() => {
+      throw new AIProviderInvalidResponseError();
+    })) as { data?: unknown };
+
+    return parseJsonObject(payload.data ?? payload);
+  },
 });
 
 const createMockProvider = (): AIProvider => ({
@@ -134,6 +180,15 @@ const createMockProvider = (): AIProvider => ({
         'Nota fiscal ou comprovante de compra',
         'Documento de garantia, se disponível',
       ],
+    });
+  },
+
+  async generateAssistanceMessage(input) {
+    void input;
+    return assistanceMessageSchema.parse({
+      message:
+        'Olá, gostaria de solicitar assistência técnica para o meu produto. ' +
+        'Poderiam me orientar sobre como proceder?',
     });
   },
 });
@@ -177,6 +232,26 @@ export const analyzeAssistance = async (
   try {
     const result = await provider.analyzeAssistance(input);
     return assistanceAnalysisSchema.parse(parseJsonObject(result));
+  } catch (error) {
+    if (isKnownAIProviderError(error)) throw error;
+
+    throw new AIProviderInvalidResponseError();
+  }
+};
+
+/**
+ * Asks the AI for a ready-to-send assistance message and validates the answer
+ * against the message schema. Any schema mismatch (including missing or
+ * out-of-range message) is surfaced as an invalid-response error, never as
+ * invented fallback text.
+ */
+export const generateAssistanceMessage = async (
+  provider: AIProvider,
+  input: AiAssistanceInput,
+): Promise<AssistanceMessage> => {
+  try {
+    const result = await provider.generateAssistanceMessage(input);
+    return assistanceMessageSchema.parse(parseJsonObject(result));
   } catch (error) {
     if (isKnownAIProviderError(error)) throw error;
 
