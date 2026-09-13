@@ -99,13 +99,76 @@ export function clearStoredAccessToken(): void {
 interface RequestOptions extends RequestInit {
   /** Envia o cookie HttpOnly de refresh token. Padrão: true. */
   withCredentials?: boolean
+  /**
+   * Uso interno: marca a própria chamada de refresh. Uma requisição marcada não
+   * tenta renovar a sessão ao receber 401, evitando recursão/loop infinito.
+   */
+  isRefreshRequest?: boolean
+  /** Uso interno: garante no máximo um retry após um 401. */
+  isRetry?: boolean
+}
+
+/** Resposta de POST /auth/refresh: apenas um novo access token é retornado. */
+interface RefreshResponse {
+  accessToken: string
+}
+
+/**
+ * Promise de refresh em andamento. Enquanto existir, todas as requisições que
+ * receberem 401 aguardam ESTA mesma promise, em vez de disparar um novo POST
+ * /auth/refresh. Garante um único refresh por expiração (sem corridas).
+ */
+let refreshPromise: Promise<string> | null = null
+/**
+ * Renova o access token via POST /auth/refresh usando o cookie HttpOnly.
+ *
+ * - Não lê nem armazena o refresh token em JavaScript (ele só existe no cookie).
+ * - A chamada usa `withCredentials` para enviar o cookie.
+ * - É marcada com `isRefreshRequest` para nunca entrar no fluxo de retry, o que
+ *   impede a recursão 401 → refresh → 401 → refresh.
+ *
+ * Falhas de rede/5xx e 401 são propagadas como erro: o chamador trata como
+ * sessão expirada e o AuthContext segue o fluxo atual de logout/redirect.
+ */
+const performRefresh = async (): Promise<string> => {
+  const data = await request<RefreshResponse>('/auth/refresh', {
+    method: 'POST',
+    withCredentials: true,
+    isRefreshRequest: true,
+  })
+  setStoredAccessToken(data.accessToken)
+  return data.accessToken
+}
+
+/**
+ * Compartilha uma única promise de refresh entre chamadas concorrentes.
+ * Quando ela resolve ou rejeita, é limpa para permitir um novo refresh caso o
+ * token volte a expirar depois.
+ */
+const refreshAccessToken = (): Promise<string> => {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
 }
 
 /**
  * Realiza uma requisição HTTP autenticada quando houver token disponível.
+ *
+ * Em um 401 numa request autenticada, tenta renovar a sessão UMA vez via
+ * /auth/refresh e repete a request original com o novo token. Se a renovação
+ * falhar (ou o retry voltar a falhar com 401), propaga o erro de autenticação
+ * para que o AuthContext encerre a sessão como já fazia.
  */
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { withCredentials = true, ...init } = options
+  const {
+    withCredentials = true,
+    isRefreshRequest = false,
+    isRetry = false,
+    ...init
+  } = options
   const url = `${API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
   const headers = new Headers(init.headers || {})
 
@@ -149,6 +212,28 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     if (response.status === 401) {
+      // O próprio refresh nunca se renova: 401 aqui é sessão expirada de fato.
+      // Também nunca renovamos numa request que já é o retry (máximo 1 retry).
+      if (!isRefreshRequest && !isRetry) {
+        try {
+          await refreshAccessToken()
+        } catch {
+          // Refresh falhou (401/5xx/rede): encerra a sessão como antes.
+          clearStoredAccessToken()
+          throw new AuthenticationError(message)
+        }
+
+        // Refresh OK: repete a request original UMA única vez com o novo token.
+        // `withCredentials` e os demais campos de `init` são reenviados; o body
+        // (string JSON ou FormData) também é reaproveitado sem re-serialização.
+        return request<T>(endpoint, {
+          ...init,
+          withCredentials,
+          isRefreshRequest,
+          isRetry: true,
+        })
+      }
+
       throw new AuthenticationError(message)
     }
     throw new ApiError(message, response.status, code)
@@ -510,22 +595,37 @@ export async function confirmDocumentExtraction(
  */
 export async function getDocumentFile(documentId: string): Promise<Blob> {
   const url = `${API_URL}/documents/${encodeURIComponent(documentId)}`
-  const headers = new Headers()
 
-  const token = getStoredAccessToken()
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+  const fetchBlob = async (): Promise<Response> => {
+    const headers = new Headers()
+    const token = getStoredAccessToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+
+    try {
+      return await fetch(url, { headers, credentials: 'include' })
+    } catch {
+      throw new ApiError(
+        'Não foi possível conectar ao servidor. Tente novamente.',
+        0,
+        'NETWORK_ERROR',
+      )
+    }
   }
 
-  let response: Response
-  try {
-    response = await fetch(url, { headers, credentials: 'include' })
-  } catch {
-    throw new ApiError(
-      'Não foi possível conectar ao servidor. Tente novamente.',
-      0,
-      'NETWORK_ERROR',
-    )
+  let response = await fetchBlob()
+
+  // Mesmo fluxo de refresh do `request()`: em 401, renova UMA vez (compartilhando
+  // a promise de refresh) e reenvia o download com o novo token.
+  if (response.status === 401) {
+    try {
+      await refreshAccessToken()
+    } catch {
+      clearStoredAccessToken()
+      throw new AuthenticationError()
+    }
+    response = await fetchBlob()
   }
 
   if (!response.ok) {
