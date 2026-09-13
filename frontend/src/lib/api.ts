@@ -34,7 +34,12 @@ import type {
   RegisterCredentials,
   RegisterResponse,
 } from '../types/auth.ts'
-import type { Assistance, AssistanceResponse } from '../types/assistance.ts'
+import type {
+  Assistance,
+  AssistanceAnalysis,
+  AssistanceAnalysisResponse,
+  AssistanceResponse,
+} from '../types/assistance.ts'
 
 /** Chave de armazenamento do access token. O Dashboard depende desta chave. */
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -347,6 +352,30 @@ export async function prepareAssistance(
     },
   )
   return data.assistance
+}
+
+/**
+ * Gera a orientação com IA para um problema de assistência:
+ * POST /purchases/:purchaseId/assistance/analyze — responde 200 com `{ analysis }`.
+ *
+ * Chamado somente depois que a preparação (`prepareAssistance`) foi bem-sucedida
+ * e usando EXATAMENTE o mesmo `problem`. O backend é stateless e devolve o texto
+ * pronto — nenhum GET adicional é feito depois. Segue o mesmo mecanismo de
+ * autenticação/erros do restante da API: 401 → AuthenticationError; 400/403/404
+ * e 500/rede viram ApiError para a UI exibir mensagem amigável.
+ */
+export async function analyzeAssistance(
+  purchaseId: string,
+  problem: string,
+): Promise<AssistanceAnalysis> {
+  const data = await request<AssistanceAnalysisResponse>(
+    `/purchases/${encodeURIComponent(purchaseId)}/assistance/analyze`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ problem }),
+    },
+  )
+  return data.analysis
 }
 
 /**

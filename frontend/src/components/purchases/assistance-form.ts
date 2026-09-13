@@ -44,3 +44,16 @@ export function assistanceErrorMessage(error: unknown): string {
   // 500, erro de rede e demais casos caem na mensagem genérica amigável.
   return FALLBACK_ERROR
 }
+
+const FALLBACK_ANALYSIS_ERROR =
+  'Não foi possível gerar a orientação agora. Verifique sua conexão e tente novamente.'
+
+/**
+ * Mensagem amigável para a falha da análise com IA. Não expõe código/stack do
+ * backend: qualquer erro (400/403/404/500/rede) recai na mesma orientação de
+ * tentar novamente. 401 é tratado antes (fluxo de autenticação global), por isso
+ * não recebe o erro — a orientação é sempre a mesma para o usuário.
+ */
+export function analysisErrorMessage(): string {
+  return FALLBACK_ANALYSIS_ERROR
+}

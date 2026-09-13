@@ -1,28 +1,39 @@
-import { useCallback, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   AlertCircle,
   CalendarClock,
   CheckCircle,
   Clock,
   LifeBuoy,
+  Lightbulb,
+  ListChecks,
   Loader2,
   RefreshCw,
   Send,
+  ShieldAlert,
   ShieldCheck,
   ShieldQuestion,
   ShieldX,
+  Sparkles,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { prepareAssistance, AuthenticationError } from '../../lib/api.ts'
+import {
+  analyzeAssistance,
+  prepareAssistance,
+  AuthenticationError,
+} from '../../lib/api.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
 import type {
   Assistance,
+  AssistanceAnalysis,
   AssistancePurchase,
   AssistanceWarrantyStatus,
 } from '../../types/assistance.ts'
 import {
   PROBLEM_MAX_LENGTH,
   PROBLEM_MIN_LENGTH,
+  analysisErrorMessage,
   assistanceErrorMessage,
   validateProblem,
 } from './assistance-form.ts'
@@ -84,6 +95,16 @@ type SectionState =
   | { status: 'error'; message: string }
   | { status: 'success'; assistance: Assistance }
 
+/**
+ * Estado da análise com IA, independente da preparação. Assim o status da
+ * garantia continua visível enquanto a IA carrega (ou se ela falhar).
+ */
+type AnalysisState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'success'; analysis: AssistanceAnalysis }
+
 export interface PurchaseAssistanceSectionProps {
   purchaseId: string
   /** Token inválido/expirado (401): segue o fluxo de autenticação global. */
@@ -93,34 +114,67 @@ export interface PurchaseAssistanceSectionProps {
 /**
  * Seção "Precisa de assistência?" da página de detalhes da compra.
  *
- * Estado inicial: apenas o formulário — nenhum POST automático. Ao enviar, faz
- * exatamente um POST /purchases/:purchaseId/assistance e apresenta o resultado
- * já retornado (sem GET adicional). O retry repete a mesma solicitação com o
- * mesmo problema. Nada é persistido localmente: recarregar a página volta ao
- * formulário, o que é esperado porque o backend é stateless.
+ * Estado inicial: apenas o formulário — nenhum POST automático e nenhuma
+ * chamada no mount (a seção não usa efeitos, então o StrictMode não duplica
+ * nada aqui). Ao enviar, o fluxo é sequencial: POST /assistance e, somente se
+ * ele der certo, POST /assistance/analyze com o MESMO problema. Nunca em
+ * paralelo; nenhum GET adicional. O status da garantia vem do endpoint de
+ * preparação e permanece visível mesmo se a IA falhar. Nada é persistido
+ * localmente: recarregar a página volta ao formulário (backend stateless).
  */
 export function PurchaseAssistanceSection({
   purchaseId,
   onAuthError,
 }: PurchaseAssistanceSectionProps) {
   const [state, setState] = useState<SectionState>({ status: 'form' })
+  const [analysis, setAnalysis] = useState<AnalysisState>({ status: 'idle' })
   const [problem, setProblem] = useState('')
   // Erro de validação só aparece após uma tentativa de envio.
   const [validationError, setValidationError] = useState<string | null>(null)
-  // Guarda síncrona contra duplo clique/duas requisições simultâneas — mesmo
-  // padrão de AddPurchase/ConfirmExtraction (o estado React não atualiza a
-  // tempo em dois cliques no mesmo tick).
+  // Guarda síncrona contra duplo clique/requisições simultâneas — mesmo padrão
+  // de AddPurchase/ConfirmExtraction (o estado React não atualiza a tempo em
+  // dois cliques no mesmo tick). Cobre preparação E análise.
   const isSubmittingRef = useRef(false)
 
   const trimmedLength = problem.trim().length
+  /**
+   * Executa SOMENTE a análise com IA, reaproveitando o problema já enviado.
+   * É usada pelo fluxo principal (depois da preparação) e pelo retry da análise
+   * — que assim NÃO repete o POST de preparação.
+   */
+  const runAnalysis = useCallback(
+    async (trimmedProblem: string) => {
+      setAnalysis({ status: 'loading' })
+      try {
+        const result = await analyzeAssistance(purchaseId, trimmedProblem)
+        setAnalysis({ status: 'success', analysis: result })
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          onAuthError()
+          return
+        }
+        setAnalysis({ status: 'error', message: analysisErrorMessage() })
+      }
+    },
+    [purchaseId, onAuthError],
+  )
 
+  /**
+   * Fluxo principal, estritamente sequencial: prepara (garantia) e, SÓ se isso
+   * der certo, chama a análise com o MESMO problema. Se a preparação falhar, a
+   * IA não é chamada — mantém o erro atual da preparação.
+   */
   const runRequest = useCallback(
     async (rawProblem: string) => {
       isSubmittingRef.current = true
+      setAnalysis({ status: 'idle' })
       setState({ status: 'loading' })
+      const trimmedProblem = rawProblem.trim()
       try {
-        const assistance = await prepareAssistance(purchaseId, rawProblem.trim())
+        const assistance = await prepareAssistance(purchaseId, trimmedProblem)
         setState({ status: 'success', assistance })
+        // Serially, somente após sucesso da preparação (nunca em paralelo).
+        await runAnalysis(trimmedProblem)
       } catch (error) {
         if (error instanceof AuthenticationError) {
           onAuthError()
@@ -131,7 +185,7 @@ export function PurchaseAssistanceSection({
         isSubmittingRef.current = false
       }
     },
-    [purchaseId, onAuthError],
+    [purchaseId, onAuthError, runAnalysis],
   )
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -147,15 +201,34 @@ export function PurchaseAssistanceSection({
     void runRequest(problem)
   }
 
-  /** Retry: repete a MESMA solicitação com o problema já informado. */
+  /** Retry da preparação: repete a solicitação inteira com o problema atual. */
   const handleRetry = () => {
     if (isSubmittingRef.current) return
     void runRequest(problem)
   }
 
-  /** Volta ao formulário mantendo o texto, para o usuário ajustar e reenviar. */
+  /**
+   * Retry da ANÁLISE: chama apenas `/assistance/analyze` com o mesmo problema e
+   * o mesmo purchaseId — sem repetir a preparação (evita chamada desnecessária).
+   * A guarda síncrona evita disparar duas análises em cliques rápidos.
+   */
+  const handleRetryAnalysis = () => {
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
+    void runAnalysis(problem.trim()).finally(() => {
+      isSubmittingRef.current = false
+    })
+  }
+
+  /**
+   * Volta ao formulário inicial: limpa problema, resultado e estados.
+   * Nenhuma chamada à API é feita aqui.
+   */
   const handleNewRequest = () => {
     setState({ status: 'form' })
+    setAnalysis({ status: 'idle' })
+    setProblem('')
+    setValidationError(null)
   }
 
   return (
@@ -169,6 +242,8 @@ export function PurchaseAssistanceSection({
         {state.status === 'success' ? (
           <AssistanceResult
             assistance={state.assistance}
+            analysis={analysis}
+            onRetryAnalysis={handleRetryAnalysis}
             onNewRequest={handleNewRequest}
           />
         ) : (
@@ -299,6 +374,8 @@ function AssistanceErrorState({
 
 interface AssistanceResultProps {
   assistance: Assistance
+  analysis: AnalysisState
+  onRetryAnalysis: () => void
   onNewRequest: () => void
 }
 
@@ -306,8 +383,16 @@ interface AssistanceResultProps {
  * Resultado da solicitação. Usa exatamente o que o backend retornou: o status
  * da garantia, o problema normalizado e as datas (quando existem). Nenhuma data
  * é inventada quando `warranty` é `null`.
+ *
+ * A orientação da IA coexiste com o status da garantia: ele permanece visível
+ * mesmo enquanto a análise carrega ou se ela falhar.
  */
-function AssistanceResult({ assistance, onNewRequest }: AssistanceResultProps) {
+function AssistanceResult({
+  assistance,
+  analysis,
+  onRetryAnalysis,
+  onNewRequest,
+}: AssistanceResultProps) {
   const presentation = STATUS_PRESENTATION[assistance.warrantyStatus]
   const { WarrantyIcon, iconClass, badgeClass } = {
     WarrantyIcon: presentation.icon,
@@ -375,6 +460,8 @@ function AssistanceResult({ assistance, onNewRequest }: AssistanceResultProps) {
         </dl>
       )}
 
+      <AssistanceAnalysisBlock analysis={analysis} onRetry={onRetryAnalysis} />
+
       <div className="flex justify-end border-t border-slate-100 pt-5">
         <button
           type="button"
@@ -385,6 +472,128 @@ function AssistanceResult({ assistance, onNewRequest }: AssistanceResultProps) {
           <span>Nova solicitação</span>
         </button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Área da orientação com IA. Visualmente distinta (fundo esverdeado suave) para
+ * separar do bloco de garantia. Cada estado tem texto próprio — nada depende só
+ * da cor. O texto da IA é exibido exatamente como o backend devolveu.
+ */
+function AssistanceAnalysisBlock({
+  analysis,
+  onRetry,
+}: {
+  analysis: AnalysisState
+  onRetry: () => void
+}) {
+  if (analysis.status === 'idle') return null
+  return (
+    <div className="rounded-xl border-emerald-100 bg-emerald-50/40 p-4 sm:p-5">
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <Sparkles className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+        <span>Orientação para o seu problema</span>
+      </h4>
+
+      {analysis.status === 'loading' && (
+        <p
+          role="status"
+          aria-live="polite"
+          className="mt-4 flex items-center gap-2 text-sm text-slate-600"
+        >
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" aria-hidden="true" />
+          <span>Analisando seu problema...</span>
+        </p>
+      )}
+
+      {analysis.status === 'error' && (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800"
+        >
+          <span className="flex min-w-0 items-start gap-2.5">
+            <AlertCircle
+              className="h-4 w-4 shrink-0 translate-y-0.5"
+              aria-hidden="true"
+            />
+            <span>{analysis.message}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-800 shadow-xs transition-colors hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 sm:text-sm"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            <span>Tentar novamente</span>
+          </button>
+        </div>
+      )}
+
+      {analysis.status === 'success' && (
+        <AssistanceAnalysisContent analysis={analysis.analysis} />
+      )}
+    </div>
+  )
+}
+
+/** Apresenta o resultado estruturado da IA, sem reescrever nenhum texto. */
+function AssistanceAnalysisContent({ analysis }: { analysis: AssistanceAnalysis }) {
+  return (
+    <div className="mt-4 space-y-4">
+      <AnalysisField icon={Lightbulb} label="Resumo">
+        <p className="whitespace-pre-wrap text-sm text-slate-700">{analysis.summary}</p>
+      </AnalysisField>
+
+      {analysis.possibleCauses.length > 0 && (
+        <AnalysisField icon={ListChecks} label="Possíveis causas">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+            {analysis.possibleCauses.map((cause, index) => (
+              <li key={index} className="whitespace-pre-wrap">
+                {cause}
+              </li>
+            ))}
+          </ul>
+        </AnalysisField>
+      )}
+
+      <AnalysisField icon={Wrench} label="O que fazer agora">
+        <p className="whitespace-pre-wrap text-sm text-slate-700">
+          {analysis.recommendedAction}
+        </p>
+      </AnalysisField>
+
+      <AnalysisField icon={ShieldAlert} label="Atenção">
+        <p className="whitespace-pre-wrap text-sm text-slate-700">
+          {analysis.safetyNote}
+        </p>
+      </AnalysisField>
+
+      <AnalysisField icon={ShieldCheck} label="Sobre sua garantia">
+        <p className="whitespace-pre-wrap text-sm text-slate-700">
+          {analysis.warrantyGuidance}
+        </p>
+      </AnalysisField>
+    </div>
+  )
+}
+
+function AnalysisField({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+        <span>{label}</span>
+      </p>
+      <div className="mt-1.5">{children}</div>
     </div>
   )
 }

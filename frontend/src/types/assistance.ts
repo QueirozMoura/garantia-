@@ -58,3 +58,25 @@ export interface AssistanceResponse {
 export interface AssistanceRequestInput {
   problem: string
 }
+
+/**
+ * Orientação gerada pela IA para um problema de assistência
+ * (POST /purchases/:purchaseId/assistance/analyze).
+ *
+ * O texto é exibido exatamente como o backend devolve — o frontend não resume,
+ * não reescreve e não transforma `possibleCauses` em diagnóstico definitivo.
+ * O `warrantyStatus` NÃO vem aqui: a situação da garantia continua sendo a do
+ * endpoint de preparação, que é a fonte da verdade.
+ */
+export interface AssistanceAnalysis {
+  summary: string
+  possibleCauses: string[]
+  recommendedAction: string
+  safetyNote: string
+  warrantyGuidance: string
+}
+
+/** Envelope de POST /purchases/:purchaseId/assistance/analyze: `{ analysis }`. */
+export interface AssistanceAnalysisResponse {
+  analysis: AssistanceAnalysis
+}
