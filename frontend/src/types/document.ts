@@ -25,15 +25,15 @@ export interface Document {
 /**
  * Dados básicos da compra relacionados a um documento, retornados pela
  * listagem geral (GET /documents). Apenas campos públicos são expostos pelo
- * backend — `userId` e `price` nunca são retornados.
+ * backend — `userId`, `price` e `serialNumber` nunca são retornados.
  */
 export interface DocumentPurchase {
   id: string
   productName: string
   brand: string | null
   model: string | null
+  store: string | null
   purchaseDate: string
-  category: string
 }
 
 /** Documento acompanhado da compra relacionada (GET /documents). */
