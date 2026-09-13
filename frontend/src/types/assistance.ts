@@ -74,6 +74,12 @@ export interface AssistanceAnalysis {
   recommendedAction: string
   safetyNote: string
   warrantyGuidance: string
+  /**
+   * Documentos que PODEM ser solicitados para prosseguir com a assistência.
+   * Texto exibido exatamente como o backend devolve: o frontend não acrescenta,
+   * resume nem transforma a recomendação em obrigação.
+   */
+  requiredDocuments: string[]
 }
 
 /** Envelope de POST /purchases/:purchaseId/assistance/analyze: `{ analysis }`. */

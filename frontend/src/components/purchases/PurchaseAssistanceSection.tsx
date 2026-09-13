@@ -4,6 +4,7 @@ import {
   CalendarClock,
   CheckCircle,
   Clock,
+  FileText,
   LifeBuoy,
   Lightbulb,
   ListChecks,
@@ -574,6 +575,20 @@ function AssistanceAnalysisContent({ analysis }: { analysis: AssistanceAnalysis 
           {analysis.warrantyGuidance}
         </p>
       </AnalysisField>
+
+      {/* O título deixa explícito que são documentos que PODEM ser solicitados.
+          A lista usa <ul> semântico e apenas renderiza o que veio do backend. */}
+      {analysis.requiredDocuments.length > 0 && (
+        <AnalysisField icon={FileText} label="Documentos que podem ser solicitados">
+          <ul className="list-disc space-y-1 pl-5 text-sm break-words text-slate-700">
+            {analysis.requiredDocuments.map((document, index) => (
+              <li key={index} className="whitespace-pre-wrap">
+                {document}
+              </li>
+            ))}
+          </ul>
+        </AnalysisField>
+      )}
     </div>
   )
 }
