@@ -8,8 +8,27 @@ export interface AiDocumentInput {
   fileName: string;
 }
 
+// Warranty status is always computed by the backend and passed to the AI as the
+// single source of truth; the model only produces the matching textual guidance.
+export type AiWarrantyStatus = 'ACTIVE' | 'EXPIRED' | 'UPCOMING' | 'NONE';
+
+// Only the fields the model needs to reason about the problem. No ids, prices,
+// serial numbers or other internal data are included.
+export interface AiAssistanceInput {
+  productName: string;
+  brand: string | null;
+  model: string | null;
+  store: string | null;
+  purchaseDate: string;
+  warrantyStatus: AiWarrantyStatus;
+  warrantyStartDate: string | null;
+  warrantyEndDate: string | null;
+  problem: string;
+}
+
 export interface AIProvider {
   extractPurchaseData(document: AiDocumentInput): Promise<unknown>;
+  analyzeAssistance(input: AiAssistanceInput): Promise<unknown>;
 }
 
 export class AIProviderNotConfiguredError extends Error {

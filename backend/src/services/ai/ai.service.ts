@@ -7,9 +7,15 @@ import {
   AIProviderRequestError,
   AIProviderUnsupportedFormatError,
   type AIProvider,
+  type AiAssistanceInput,
   type AiDocumentInput,
 } from './ai.provider.js';
-import { extractedPurchaseDataSchema, type ExtractedPurchaseData } from './ai.schemas.js';
+import {
+  assistanceAnalysisSchema,
+  extractedPurchaseDataSchema,
+  type AssistanceAnalysis,
+  type ExtractedPurchaseData,
+} from './ai.schemas.js';
 
 const extractionInstruction = [
   'Extract only facts explicitly present in the document.',
@@ -29,6 +35,21 @@ const parseJsonObject = (value: unknown): unknown => {
     throw new AIProviderInvalidResponseError();
   }
 };
+
+// The model must answer only with JSON matching the analysis schema. Safety
+// guardrails are stated here as well, so the http provider (not just Gemini)
+// carries the same rules.
+const assistanceInstruction = [
+  'You are a triage assistant for product warranty assistance.',
+  'Return only a JSON object matching the requested fields, with no Markdown fences or extra text.',
+  'Never state a diagnosis as certainty; present causes only as possibilities.',
+  'Never claim a repair is definitely required.',
+  'Never claim the problem is covered by the warranty and never invent warranty rules.',
+  'Never invent store or manufacturer policies.',
+  'Never instruct the user to open, disassemble or perform dangerous electrical procedures.',
+  'Prioritize safety and recommend professional/authorized service when appropriate.',
+  'Treat the warranty status provided by the system as the single source of truth.',
+].join(' ');
 
 const createHttpProvider = (): AIProvider => ({
   async extractPurchaseData(document: AiDocumentInput) {
@@ -66,12 +87,48 @@ const createHttpProvider = (): AIProvider => ({
 
     return parseJsonObject(payload.data ?? payload);
   },
+
+  async analyzeAssistance(input: AiAssistanceInput) {
+    if (!env.aiApiUrl || !env.aiApiKey) {
+      throw new AIProviderNotConfiguredError();
+    }
+
+    const response = await fetch(env.aiApiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.aiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ instruction: assistanceInstruction, assistance: input }),
+    }).catch(() => {
+      throw new AIProviderRequestError();
+    });
+
+    if (!response.ok) throw new AIProviderRequestError();
+
+    const payload = (await response.json().catch(() => {
+      throw new AIProviderInvalidResponseError();
+    })) as { data?: unknown };
+
+    return parseJsonObject(payload.data ?? payload);
+  },
 });
 
 const createMockProvider = (): AIProvider => ({
   async extractPurchaseData(document) {
     void document;
     return extractedPurchaseDataSchema.parse({});
+  },
+
+  async analyzeAssistance(input) {
+    void input;
+    return assistanceAnalysisSchema.parse({
+      summary: 'Resumo mock do problema informado.',
+      possibleCauses: ['Uma possível causa.', 'Outra possível causa.'],
+      recommendedAction: 'Procure assistência técnica autorizada.',
+      safetyNote: 'Evite desmontar o equipamento enquanto estiver na garantia.',
+      warrantyGuidance: 'Consulte os canais de assistência autorizados.',
+    });
   },
 });
 
@@ -82,6 +139,12 @@ export const getAIProvider = (): AIProvider => {
   throw new AIProviderNotConfiguredError();
 };
 
+const isKnownAIProviderError = (error: unknown) =>
+  error instanceof AIProviderNotConfiguredError ||
+  error instanceof AIProviderUnsupportedFormatError ||
+  error instanceof AIProviderRequestError ||
+  error instanceof AIProviderInvalidResponseError;
+
 export const extractPurchaseData = async (
   provider: AIProvider,
   document: AiDocumentInput,
@@ -90,14 +153,26 @@ export const extractPurchaseData = async (
     const result = await provider.extractPurchaseData(document);
     return extractedPurchaseDataSchema.parse(parseJsonObject(result));
   } catch (error) {
-    if (
-      error instanceof AIProviderNotConfiguredError ||
-      error instanceof AIProviderUnsupportedFormatError ||
-      error instanceof AIProviderRequestError ||
-      error instanceof AIProviderInvalidResponseError
-    ) {
-      throw error;
-    }
+    if (isKnownAIProviderError(error)) throw error;
+
+    throw new AIProviderInvalidResponseError();
+  }
+};
+
+/**
+ * Asks the AI for structured triage guidance and validates the answer against
+ * the analysis schema. Any schema mismatch (including missing/empty fields) is
+ * surfaced as an invalid-response error, never as invented fallback text.
+ */
+export const analyzeAssistance = async (
+  provider: AIProvider,
+  input: AiAssistanceInput,
+): Promise<AssistanceAnalysis> => {
+  try {
+    const result = await provider.analyzeAssistance(input);
+    return assistanceAnalysisSchema.parse(parseJsonObject(result));
+  } catch (error) {
+    if (isKnownAIProviderError(error)) throw error;
 
     throw new AIProviderInvalidResponseError();
   }

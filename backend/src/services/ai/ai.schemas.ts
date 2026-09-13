@@ -35,4 +35,18 @@ export const extractedPurchaseDataSchema = z.object({
   warrantyMonths: nullablePositiveInteger,
 });
 
+// Structured triage guidance produced by the AI for an assistance request.
+// Every field is required and non-empty: a partially empty answer is treated as
+// an invalid provider response so the client never renders a broken analysis.
+const guidanceText = (max: number) => z.string().trim().min(1).max(max);
+
+export const assistanceAnalysisSchema = z.object({
+  summary: guidanceText(500),
+  possibleCauses: z.array(guidanceText(300)).min(1).max(3),
+  recommendedAction: guidanceText(1000),
+  safetyNote: guidanceText(1000),
+  warrantyGuidance: guidanceText(1000),
+});
+
 export type ExtractedPurchaseData = z.infer<typeof extractedPurchaseDataSchema>;
+export type AssistanceAnalysis = z.infer<typeof assistanceAnalysisSchema>;

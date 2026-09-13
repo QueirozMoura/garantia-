@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 
+import { publicAIError } from '../services/ai/ai.service.js';
 import { badRequest } from '../utils/http-error.js';
 import { purchaseIdSchema } from './purchases.schemas.js';
 import { assistanceRequestSchema } from './assistance.schemas.js';
@@ -32,5 +33,18 @@ export const prepare: RequestHandler = async (request, response, next) => {
     response.json({ assistance });
   } catch (error) {
     next(error);
+  }
+};
+
+export const analyze: RequestHandler = async (request, response, next) => {
+  try {
+    const analysis = await assistanceService.analyzeAssistanceRequest(
+      getUserId(request),
+      getPurchaseId(request),
+      assistanceRequestSchema.parse(request.body),
+    );
+    response.json({ analysis });
+  } catch (error) {
+    next(publicAIError(error) ?? error);
   }
 };

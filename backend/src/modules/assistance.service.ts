@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../config/prisma.js';
+import { analyzeAssistance as runAnalysis, getAIProvider } from '../services/ai/ai.service.js';
+import type { AssistanceAnalysis } from '../services/ai/ai.schemas.js';
 import { forbidden, notFound } from '../utils/http-error.js';
 import type { AssistanceRequestInput } from './assistance.schemas.js';
 
@@ -46,22 +48,13 @@ const resolveWarrantyStatus = (
 };
 
 /**
- * Prepares an assistance request for one of the authenticated user's purchases.
+ * Loads one purchase of the authenticated user together with its warranty in a
+ * single query (nested relation, no N+1) and enforces ownership.
  *
- * Stateless: nothing is persisted and no AI is involved. It only validates the
- * request and derives the current warranty status (evaluated against UTC today).
- *
- * Ownership is enforced here (never trusted from the client): the purchase is
- * looked up by id, `userId` comes exclusively from `request.userId`, and a
- * missing purchase yields 404 while someone else's purchase yields 403. The
- * warranty is loaded through the nested relation in the same query (no N+1).
+ * Ownership is never trusted from the client: a missing purchase yields 404 and
+ * someone else's purchase yields 403.
  */
-export const prepareAssistance = async (
-  userId: string,
-  purchaseId: string,
-  input: AssistanceRequestInput,
-  now: Date = new Date(),
-) => {
+const loadOwnedPurchase = async (userId: string, purchaseId: string) => {
   const purchase: AssistancePurchase | null = await prisma.purchase.findUnique({
     where: { id: purchaseId },
     select: assistancePurchaseSelect,
@@ -75,9 +68,26 @@ export const prepareAssistance = async (
     throw forbidden('You do not have access to this purchase', 'PURCHASE_ACCESS_DENIED');
   }
 
-  const today = startOfTodayUtc(now);
   const { userId: ownerId, warranty, ...publicPurchase } = purchase;
   void ownerId;
+
+  return { publicPurchase, warranty };
+};
+
+/**
+ * Prepares an assistance request for one of the authenticated user's purchases.
+ *
+ * Stateless: nothing is persisted and no AI is involved. It only validates the
+ * request and derives the current warranty status (evaluated against UTC today).
+ */
+export const prepareAssistance = async (
+  userId: string,
+  purchaseId: string,
+  input: AssistanceRequestInput,
+  now: Date = new Date(),
+) => {
+  const { publicPurchase, warranty } = await loadOwnedPurchase(userId, purchaseId);
+  const today = startOfTodayUtc(now);
 
   return {
     problem: input.problem,
@@ -85,4 +95,34 @@ export const prepareAssistance = async (
     purchase: publicPurchase,
     warranty: warranty ?? null,
   };
+};
+
+/**
+ * Produces the initial AI triage guidance for an assistance request.
+ *
+ * The backend computes the warranty status and sends it to the AI as the single
+ * source of truth; the model only turns it into textual guidance and never
+ * recalculates it. Stateless: nothing is persisted.
+ */
+export const analyzeAssistanceRequest = async (
+  userId: string,
+  purchaseId: string,
+  input: AssistanceRequestInput,
+  now: Date = new Date(),
+): Promise<AssistanceAnalysis> => {
+  const { publicPurchase, warranty } = await loadOwnedPurchase(userId, purchaseId);
+  const today = startOfTodayUtc(now);
+  const warrantyStatus = resolveWarrantyStatus(warranty, today);
+
+  return runAnalysis(getAIProvider(), {
+    productName: publicPurchase.productName,
+    brand: publicPurchase.brand,
+    model: publicPurchase.model,
+    store: publicPurchase.store,
+    purchaseDate: publicPurchase.purchaseDate.toISOString().slice(0, 10),
+    warrantyStatus,
+    warrantyStartDate: warranty ? warranty.startDate.toISOString().slice(0, 10) : null,
+    warrantyEndDate: warranty ? warranty.endDate.toISOString().slice(0, 10) : null,
+    problem: input.problem,
+  });
 };

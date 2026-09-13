@@ -9,5 +9,6 @@ const router = Router({ mergeParams: true });
 
 router.use(requireAuth);
 router.post('/', assistanceController.prepare);
+router.post('/analyze', assistanceController.analyze);
 
 export default router;
