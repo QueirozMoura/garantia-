@@ -1,3 +1,6 @@
+import type { NfeImportInvoice } from '../../types/nfe-import.ts'
+import type { CreatePurchaseInput } from '../../types/purchase.ts'
+
 /**
  * Regras de validação e mensagens amigáveis do fluxo "Importar XML / NF-e".
  *
@@ -86,4 +89,66 @@ export function nfeImportFriendlyMessage(
   if (error.status === 401) return NFE_AUTH_ERROR
   if (error.code && NFE_ERROR_MESSAGES[error.code]) return NFE_ERROR_MESSAGES[error.code]
   return NFE_FALLBACK_ERROR
+}
+/**
+ * Categoria usada ao transformar uma NF-e em compra. O schema atual trata
+ * `category` como texto livre (máx. 100), então usamos um rótulo coerente e
+ * identificável em vez de inventar um enum inexistente.
+ */
+export const NFE_IMPORT_CATEGORY = 'Importado por NF-e'
+
+/** Mensagem amigável para falha ao criar a compra a partir da NF-e. */
+export const NFE_CREATE_ERROR = 'Não foi possível cadastrar a compra. Tente novamente.'
+
+/**
+ * Data de emissão da NF-e (ISO, com ou sem fuso) → "YYYY-MM-DD", formato exigido
+ * por POST /purchases. Usa a data tal como registrada no XML, sem deslocar por
+ * fuso. Retorna `null` quando não é uma data válida.
+ */
+export function nfeIssuedAtToPurchaseDate(issuedAt: string): string | null {
+  const isoDay = /^(\d{4}-\d{2}-\d{2})/.exec(issuedAt)
+  if (!isoDay) return null
+  const candidate = isoDay[1]
+  const parsed = new Date(`${candidate}T00:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime()) || !parsed.toISOString().startsWith(candidate)) {
+    return null
+  }
+  return candidate
+}
+
+/**
+ * Converte os dados de uma NF-e em UMA `CreatePurchaseInput`.
+ *
+ * O modelo atual de `Purchase` representa uma compra/produto individual e não
+ * tem relação de itens de NF-e. Por isso criamos UMA compra:
+ *   - `productName`: descrição do primeiro item (produto principal);
+ *   - `price`: valor total da NF-e;
+ *   - `purchaseDate`: data de emissão;
+ *   - `store`: razão social do emitente;
+ *   - `brand`: nome fantasia do emitente (quando existir); `model`/`serialNumber`
+ *     ficam nulos (a NF-e padrão não os traz — não inventamos valores);
+ *   - `category`: rótulo fixo (`NFE_IMPORT_CATEGORY`).
+ *
+ * Os demais itens permanecem apenas na prévia (não são persistidos) e NÃO viram
+ * uma segunda Purchase. Retorna `null` quando faltam dados mínimos.
+ */
+export function nfeInvoiceToPurchaseInput(
+  invoice: NfeImportInvoice,
+): CreatePurchaseInput | null {
+  const primary = invoice.items[0]
+  if (!primary || !primary.description.trim()) return null
+
+  const purchaseDate = nfeIssuedAtToPurchaseDate(invoice.issuedAt)
+  if (!purchaseDate) return null
+
+  return {
+    productName: primary.description.trim(),
+    brand: invoice.issuer.tradeName?.trim() || null,
+    model: null,
+    serialNumber: null,
+    store: invoice.issuer.name.trim() || null,
+    purchaseDate,
+    price: invoice.total,
+    category: NFE_IMPORT_CATEGORY,
+  }
 }

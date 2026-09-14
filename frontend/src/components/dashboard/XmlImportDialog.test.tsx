@@ -9,8 +9,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { ApiError, importNfeXml } from '../../lib/api.ts'
+import { ApiError, createPurchase, importNfeXml } from '../../lib/api.ts'
 import type { NfeImportInvoice } from '../../types/nfe-import.ts'
+import { NFE_IMPORT_CATEGORY } from './nfe-import.ts'
 import { XmlImportDialog } from './XmlImportDialog.tsx'
 
 vi.mock('../../lib/api.ts', async (importOriginal) => {
@@ -18,10 +19,12 @@ vi.mock('../../lib/api.ts', async (importOriginal) => {
   return {
     ...actual,
     importNfeXml: vi.fn(),
+    createPurchase: vi.fn(),
   }
 })
 
 const mockImport = vi.mocked(importNfeXml)
+const mockCreatePurchase = vi.mocked(createPurchase)
 
 const makeInvoice = (overrides: Partial<NfeImportInvoice> = {}): NfeImportInvoice => ({
   accessKey: '35200114200166000187550010000011000010',
@@ -74,8 +77,23 @@ describe('XmlImportDialog', () => {
   const setup = () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(<XmlImportDialog onClose={onClose} />)
-    return { user, onClose }
+    const onCreated = vi.fn()
+    render(<XmlImportDialog onClose={onClose} onCreated={onCreated} />)
+    return { user, onClose, onCreated }
+  }
+
+  /** Seleciona a fixture e envia, aguardando a prévia. */
+  const uploadAndPreview = async (
+    user: ReturnType<typeof userEvent.setup>,
+    invoice: NfeImportInvoice = makeInvoice(),
+  ) => {
+    mockImport.mockResolvedValue(invoice)
+    await user.upload(
+      screen.getByLabelText('Selecionar arquivo XML da NF-e'),
+      xmlFile('nota-fiscal.xml', 1024),
+    )
+    await user.click(screen.getByRole('button', { name: 'Enviar XML' }))
+    await screen.findByText('NF-e importada')
   }
 
   // 1. Modal abre (renderizado) com foco e aria corretos
@@ -342,22 +360,162 @@ describe('XmlImportDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  // 11. Nenhum endpoint de purchases é chamado nesta etapa
-  it('não chama nenhum endpoint de purchases (somente importNfeXml)', async () => {
-    const api = await import('../../lib/api.ts')
-    const createPurchase = vi.spyOn(api, 'createPurchase')
+  // -------------------------------------------------------------------------
+  // Cadastro da compra a partir da NF-e (etapa de conversão)
+  // -------------------------------------------------------------------------
+  describe('cadastro da compra', () => {
+    it('"Fechar" apenas fecha o modal e não cria compra', async () => {
+      const { user, onClose, onCreated } = setup()
+      await uploadAndPreview(user)
 
-    const { user } = setup()
-    mockImport.mockResolvedValue(makeInvoice())
+      const dialog = screen.getByRole('dialog')
+      const closeAction = within(dialog)
+        .getAllByRole('button', { name: 'Fechar' })
+        .find((button) => button.textContent?.trim() === 'Fechar')
+      await user.click(closeAction as HTMLElement)
 
-    await user.upload(
-      screen.getByLabelText('Selecionar arquivo XML da NF-e'),
-      xmlFile('nota.xml', 512),
-    )
-    await user.click(screen.getByRole('button', { name: 'Enviar XML' }))
-    await screen.findByText('NF-e importada')
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(onCreated).not.toHaveBeenCalled()
+      expect(mockCreatePurchase).not.toHaveBeenCalled()
+    })
 
-    expect(mockImport).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(createPurchase).not.toHaveBeenCalled())
+    it('"Cadastrar compra" chama createPurchase com os dados corretos', async () => {
+      const { user } = setup()
+      mockCreatePurchase.mockResolvedValue({
+        id: 'purchase-1',
+        productName: 'Fone de ouvido fictício',
+        brand: 'Fictícia Exemplo',
+        model: null,
+        serialNumber: null,
+        store: 'Empresa Fictícia Exemplo LTDA',
+        purchaseDate: '2026-02-10T00:00:00.000Z',
+        price: '1389.60',
+        category: NFE_IMPORT_CATEGORY,
+        warranty: null,
+        createdAt: '2026-02-10T00:00:00.000Z',
+        updatedAt: '2026-02-10T00:00:00.000Z',
+      })
+      await uploadAndPreview(user)
+
+      await user.click(screen.getByRole('button', { name: 'Cadastrar compra' }))
+
+      await waitFor(() => expect(mockCreatePurchase).toHaveBeenCalledTimes(1))
+      expect(mockCreatePurchase).toHaveBeenCalledWith({
+        productName: 'Fone de ouvido fictício',
+        brand: 'Fictícia Exemplo',
+        model: null,
+        serialNumber: null,
+        store: 'Empresa Fictícia Exemplo LTDA',
+        purchaseDate: '2026-02-10',
+        price: 1389.6,
+        category: NFE_IMPORT_CATEGORY,
+      })
+    })
+
+    it('loading impede duplo cadastro (um único POST)', async () => {
+      const { user } = setup()
+      let resolve!: (value: unknown) => void
+      mockCreatePurchase.mockImplementation(
+        () =>
+          new Promise((r) => {
+            resolve = r as (value: unknown) => void
+          }) as ReturnType<typeof createPurchase>,
+      )
+      await uploadAndPreview(user)
+
+      const createBtn = screen.getByRole('button', { name: 'Cadastrar compra' })
+      await user.click(createBtn)
+
+      // Durante o cadastro: estado de loading e botões bloqueados.
+      expect(await screen.findByText('Cadastrando...')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cadastrando...' })).toBeDisabled()
+      const dialog = screen.getByRole('dialog')
+      const closeAction = within(dialog)
+        .getAllByRole('button', { name: 'Fechar' })
+        .find((button) => button.textContent?.trim() === 'Fechar')
+      expect(closeAction).toBeDisabled()
+
+      // Cliques extras não disparam outro POST.
+      await user.click(screen.getByRole('button', { name: 'Cadastrando...' }))
+      expect(mockCreatePurchase).toHaveBeenCalledTimes(1)
+
+      resolve({})
+    })
+
+    it('erro de criação mantém o modal aberto e permite tentar novamente', async () => {
+      const { user, onClose, onCreated } = setup()
+      mockCreatePurchase.mockRejectedValueOnce(
+        new ApiError('boom', 500, 'INTERNAL_ERROR'),
+      )
+      await uploadAndPreview(user)
+
+      await user.click(screen.getByRole('button', { name: 'Cadastrar compra' }))
+
+      expect(
+        await screen.findByText('Não foi possível cadastrar a compra. Tente novamente.'),
+      ).toBeInTheDocument()
+      // Prévia continua visível e o modal não fechou.
+      expect(screen.getByText('NF-e importada')).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(onCreated).not.toHaveBeenCalled()
+      // Permite tentar novamente.
+      expect(screen.getByRole('button', { name: 'Cadastrar compra' })).toBeEnabled()
+    })
+
+    it('sucesso fecha o modal e notifica a criação (onCreated)', async () => {
+      const { user, onClose, onCreated } = setup()
+      mockCreatePurchase.mockResolvedValue({
+        id: 'purchase-99',
+      } as unknown as Awaited<ReturnType<typeof createPurchase>>)
+      await uploadAndPreview(user)
+
+      await user.click(screen.getByRole('button', { name: 'Cadastrar compra' }))
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledWith('purchase-99'))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('NF-e com 2 produtos cria exatamente UMA Purchase', async () => {
+      const { user } = setup()
+      mockCreatePurchase.mockResolvedValue({
+        id: 'purchase-2',
+      } as unknown as Awaited<ReturnType<typeof createPurchase>>)
+      // makeInvoice() já traz 2 itens.
+      await uploadAndPreview(user)
+
+      expect(screen.getByText('Fone de ouvido fictício')).toBeInTheDocument()
+      expect(screen.getByText('Cabo USB fictício')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Cadastrar compra' }))
+
+      await waitFor(() => expect(mockCreatePurchase).toHaveBeenCalledTimes(1))
+      // O produto principal é o primeiro item da NF-e.
+      expect(mockCreatePurchase.mock.calls[0][0].productName).toBe(
+        'Fone de ouvido fictício',
+      )
+    })
+
+    it('não inventa Warranty quando o XML não traz garantia', async () => {
+      const api = await import('../../lib/api.ts')
+      const createWarranty = vi.spyOn(api, 'createPurchaseWarranty')
+      const { user } = setup()
+      mockCreatePurchase.mockResolvedValue({
+        id: 'purchase-3',
+      } as unknown as Awaited<ReturnType<typeof createPurchase>>)
+      await uploadAndPreview(user)
+
+      await user.click(screen.getByRole('button', { name: 'Cadastrar compra' }))
+      await waitFor(() => expect(mockCreatePurchase).toHaveBeenCalledTimes(1))
+
+      // O payload não carrega nenhum dado de garantia e nenhum endpoint de
+      // garantia é chamado.
+      const payload = mockCreatePurchase.mock.calls[0][0] as unknown as Record<
+        string,
+        unknown
+      >
+      expect(payload).not.toHaveProperty('warranty')
+      expect(payload).not.toHaveProperty('warrantyMonths')
+      expect(createWarranty).not.toHaveBeenCalled()
+    })
   })
 })

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingBag, ShieldCheck, AlertTriangle, Receipt } from 'lucide-react'
+import {
+  ShoppingBag,
+  ShieldCheck,
+  AlertTriangle,
+  Receipt,
+  CheckCircle2,
+} from 'lucide-react'
 import { SummaryCard } from '../components/dashboard/SummaryCard.tsx'
 import { ExpiringWarrantyCard } from '../components/dashboard/ExpiringWarrantyCard.tsx'
 import { RecentPurchases } from '../components/dashboard/RecentPurchases.tsx'
@@ -43,6 +49,8 @@ export function Dashboard() {
 
   const [reloadKey, setReloadKey] = useState(0)
   const [isXmlImportOpen, setIsXmlImportOpen] = useState(false)
+  // Confirmação exibida após cadastrar uma compra via importação de NF-e.
+  const [importSuccess, setImportSuccess] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -78,6 +86,13 @@ export function Dashboard() {
     setReloadKey((key) => key + 1)
   }, [])
 
+  // Após cadastrar a compra pelo modal de NF-e: revalida a Dashboard (o efeito
+  // roda de novo via reloadKey) e mostra a confirmação de sucesso.
+  const handlePurchaseCreated = useCallback(() => {
+    setImportSuccess(true)
+    setReloadKey((key) => key + 1)
+  }, [])
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* 1. Header do conteúdo com Saudação e Ações Rápidas */}
@@ -90,6 +105,16 @@ export function Dashboard() {
         </div>
         <DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />
       </section>
+
+      {importSuccess && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+        >
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>Compra cadastrada a partir da NF-e com sucesso!</span>
+        </div>
+      )}
 
       {state.status === 'loading' && <DashboardSkeleton />}
 
@@ -108,7 +133,12 @@ export function Dashboard() {
           <DashboardContent data={state.data} />
         ))}
 
-      {isXmlImportOpen && <XmlImportDialog onClose={() => setIsXmlImportOpen(false)} />}
+      {isXmlImportOpen && (
+        <XmlImportDialog
+          onClose={() => setIsXmlImportOpen(false)}
+          onCreated={handlePurchaseCreated}
+        />
+      )}
     </div>
   )
 }

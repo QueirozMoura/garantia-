@@ -5,19 +5,30 @@ import {
   FileUp,
   FileText,
   Loader2,
+  Plus,
   Upload,
   X,
 } from 'lucide-react'
 
-import { ApiError, importNfeXml } from '../../lib/api.ts'
+import { ApiError, createPurchase, importNfeXml } from '../../lib/api.ts'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 import type { NfeImportInvoice } from '../../types/nfe-import.ts'
 import { formatFileSize } from '../purchases/purchase-document.ts'
-import { nfeImportFriendlyMessage, validateNfeFile } from './nfe-import.ts'
+import {
+  NFE_CREATE_ERROR,
+  nfeImportFriendlyMessage,
+  nfeInvoiceToPurchaseInput,
+  validateNfeFile,
+} from './nfe-import.ts'
 
 export interface XmlImportDialogProps {
-  /** Fecha o modal. Ignorado enquanto o upload está em andamento. */
+  /** Fecha o modal. Ignorado enquanto upload/cadastro está em andamento. */
   onClose: () => void
+  /**
+   * Chamado após cadastrar a compra com sucesso, com o id criado. Usado pela
+   * Dashboard para revalidar os dados. O modal fecha em seguida.
+   */
+  onCreated: (purchaseId: string) => void
 }
 
 type DialogState =
@@ -26,6 +37,13 @@ type DialogState =
   | { status: 'uploading'; file: File }
   | { status: 'success'; invoice: NfeImportInvoice }
   | { status: 'error'; message: string }
+
+/**
+ * Resultado do cadastro da compra a partir da NF-e. Vive junto do estado de
+ * sucesso: a prévia continua visível enquanto a compra é criada ou se falhar.
+ */
+type CreateState =
+  { status: 'idle' } | { status: 'creating' } | { status: 'error'; message: string }
 
 /**
  * Importação de XML / NF-e: seleção, envio e prévia dos dados da nota.
@@ -41,18 +59,24 @@ type DialogState =
  * enviando), foco vai para o botão seguro, scroll do body travado e layout
  * responsivo (bottom sheet no mobile com conteúdo rolável).
  */
-export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
+export function XmlImportDialog({ onClose, onCreated }: XmlImportDialogProps) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<DialogState>({ status: 'idle' })
   const [fileError, setFileError] = useState<string | null>(null)
+  const [createState, setCreateState] = useState<CreateState>({ status: 'idle' })
+  // Guarda síncrona contra duplo clique em "Cadastrar compra": o estado React
+  // não é atualizado a tempo em dois cliques no mesmo tick.
+  const isCreatingRef = useRef(false)
 
   const isUploading = state.status === 'uploading'
-
-  // Escape fecha e o foco vai para o botão seguro. Bloqueado durante o upload.
+  const isCreating = createState.status === 'creating'
+  // Qualquer requisição em andamento bloqueia fechar/cancelar e as ações.
+  const isBusy = isUploading || isCreating
+  // Escape fecha e o foco vai para o botão seguro. Bloqueado durante requisições.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isUploading) onClose()
+      if (event.key === 'Escape' && !isBusy) onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
     closeRef.current?.focus()
@@ -62,15 +86,15 @@ export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
       window.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onClose, isUploading])
+  }, [onClose, isBusy])
 
   const handleClose = () => {
-    if (isUploading) return
+    if (isBusy) return
     onClose()
   }
 
   const openPicker = () => {
-    if (isUploading) return
+    if (isBusy) return
     inputRef.current?.click()
   }
 
@@ -116,6 +140,43 @@ export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
     setState({ status: 'idle' })
   }
 
+  /**
+   * Cadastra UMA compra a partir da NF-e usando a API existente (POST /purchases).
+   *
+   * O modelo de Purchase é individual: usamos o primeiro item como produto
+   * principal, o total da NF-e como preço e a data de emissão — os demais itens
+   * ficam apenas na prévia (sem segunda Purchase). Nenhuma garantia é criada:
+   * o XML da NF-e padrão não traz informação de garantia.
+   */
+  const handleCreatePurchase = async () => {
+    if (state.status !== 'success' || isCreatingRef.current) return
+    const input = nfeInvoiceToPurchaseInput(state.invoice)
+    if (!input) {
+      setCreateState({ status: 'error', message: NFE_CREATE_ERROR })
+      return
+    }
+
+    isCreatingRef.current = true
+    setCreateState({ status: 'creating' })
+
+    try {
+      const purchase = await createPurchase(input)
+      // Sucesso: a Dashboard revalida e o modal fecha. O `onCreated` é chamado
+      // primeiro para que a atualização de estado aconteça antes do unmount.
+      onCreated(purchase.id)
+      onClose()
+    } catch (error) {
+      isCreatingRef.current = false
+      const isAuth = error instanceof ApiError && error.status === 401
+      setCreateState({
+        status: 'error',
+        message: isAuth
+          ? 'Sua sessão expirou. Entre novamente para cadastrar a compra.'
+          : NFE_CREATE_ERROR,
+      })
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
@@ -151,7 +212,7 @@ export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
           <button
             type="button"
             onClick={handleClose}
-            disabled={isUploading}
+            disabled={isBusy}
             aria-label="Fechar"
             className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white p-2 text-slate-500 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -162,7 +223,7 @@ export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
         {/* Corpo rolável (mobile incluso) */}
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
           {state.status === 'success' ? (
-            <InvoicePreview invoice={state.invoice} />
+            <InvoicePreview invoice={state.invoice} createState={createState} />
           ) : (
             <UploadForm
               inputRef={inputRef}
@@ -178,14 +239,35 @@ export function XmlImportDialog({ onClose }: XmlImportDialogProps) {
         {/* Ações */}
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end sm:p-6">
           {state.status === 'success' ? (
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={handleClose}
-              className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
-            >
-              Fechar
-            </button>
+            <>
+              <button
+                ref={closeRef}
+                type="button"
+                onClick={handleClose}
+                disabled={isBusy}
+                className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={handleCreatePurchase}
+                disabled={isBusy}
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Cadastrando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>Cadastrar compra</span>
+                  </>
+                )}
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -354,15 +436,30 @@ function UploadForm({
 }
 
 /** Prévia da NF-e processada — somente os dados retornados pela API. */
-function InvoicePreview({ invoice }: { invoice: NfeImportInvoice }) {
+function InvoicePreview({
+  invoice,
+  createState,
+}: {
+  invoice: NfeImportInvoice
+  createState: CreateState
+}) {
   const { issuer } = invoice
-
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm font-medium text-emerald-800">
         <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span>NF-e importada</span>
       </div>
+
+      {createState.status === 'error' && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
+          <span>{createState.message}</span>
+        </div>
+      )}
 
       {/* Dados da NF-e */}
       <div className="rounded-xl border-slate-200 bg-white p-4 sm:p-5">
