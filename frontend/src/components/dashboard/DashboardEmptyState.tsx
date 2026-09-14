@@ -1,8 +1,12 @@
 import { ShoppingBag, Plus, FileUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { XML_IMPORT_UNAVAILABLE_HINT } from './placeholder-actions.ts'
 
-export function DashboardEmptyState() {
+export interface DashboardEmptyStateProps {
+  /** Abre o aviso de funcionalidade em desenvolvimento da importação de XML/NF-e. */
+  onImportXml: () => void
+}
+
+export function DashboardEmptyState({ onImportXml }: DashboardEmptyStateProps) {
   const navigate = useNavigate()
 
   return (
@@ -23,12 +27,10 @@ export function DashboardEmptyState() {
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
-          disabled
-          aria-disabled="true"
-          title={XML_IMPORT_UNAVAILABLE_HINT}
-          className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-400 shadow-xs"
+          onClick={onImportXml}
+          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
         >
-          <FileUp className="h-4 w-4 text-slate-400" aria-hidden="true" />
+          <FileUp className="h-4 w-4 text-emerald-600" aria-hidden="true" />
           <span>Importar XML / NF-e</span>
         </button>
 

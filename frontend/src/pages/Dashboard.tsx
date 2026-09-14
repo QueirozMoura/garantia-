@@ -9,6 +9,7 @@ import { DashboardActions } from '../components/dashboard/DashboardActions.tsx'
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx'
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
+import { XmlImportComingSoonDialog } from '../components/dashboard/XmlImportComingSoonDialog.tsx'
 import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
@@ -41,6 +42,7 @@ export function Dashboard() {
   const [state, setState] = useState<FetchState>({ status: 'loading' })
 
   const [reloadKey, setReloadKey] = useState(0)
+  const [isXmlImportOpen, setIsXmlImportOpen] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -86,7 +88,7 @@ export function Dashboard() {
           </h2>
           <p className="mt-1 text-sm text-slate-500">{SUBTITLE}</p>
         </div>
-        <DashboardActions />
+        <DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />
       </section>
 
       {state.status === 'loading' && <DashboardSkeleton />}
@@ -101,10 +103,14 @@ export function Dashboard() {
 
       {state.status === 'success' &&
         (isEmptyDashboard(state.data) ? (
-          <DashboardEmptyState />
+          <DashboardEmptyState onImportXml={() => setIsXmlImportOpen(true)} />
         ) : (
           <DashboardContent data={state.data} />
         ))}
+
+      {isXmlImportOpen && (
+        <XmlImportComingSoonDialog onClose={() => setIsXmlImportOpen(false)} />
+      )}
     </div>
   )
 }
