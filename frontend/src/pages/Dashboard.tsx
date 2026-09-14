@@ -9,7 +9,7 @@ import { DashboardActions } from '../components/dashboard/DashboardActions.tsx'
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx'
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
-import { XmlImportComingSoonDialog } from '../components/dashboard/XmlImportComingSoonDialog.tsx'
+import { XmlImportDialog } from '../components/dashboard/XmlImportDialog.tsx'
 import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
@@ -108,9 +108,7 @@ export function Dashboard() {
           <DashboardContent data={state.data} />
         ))}
 
-      {isXmlImportOpen && (
-        <XmlImportComingSoonDialog onClose={() => setIsXmlImportOpen(false)} />
-      )}
+      {isXmlImportOpen && <XmlImportDialog onClose={() => setIsXmlImportOpen(false)} />}
     </div>
   )
 }

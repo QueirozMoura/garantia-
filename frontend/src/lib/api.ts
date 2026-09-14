@@ -40,6 +40,7 @@ import type {
   AssistanceAnalysisResponse,
   AssistanceResponse,
 } from '../types/assistance.ts'
+import type { NfeImportInvoice, NfeImportResponse } from '../types/nfe-import.ts'
 
 /** Chave de armazenamento do access token. O Dashboard depende desta chave. */
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -636,6 +637,27 @@ export async function getDocumentFile(documentId: string): Promise<Blob> {
   }
 
   return response.blob()
+}
+
+/**
+ * Envia um XML de NF-e para leitura e extração dos dados:
+ * POST /nfe/import — responde 200 com `{ message, invoice }`.
+ *
+ * Usa FormData com o campo `file` (o Content-Type NÃO é definido manualmente: o
+ * browser gera o boundary de multipart). O endpoint é autenticado e passa pelo
+ * mecanismo de refresh automático do `request`. Nesta etapa nada é persistido:
+ * nenhuma compra/garantia é criada. Erros (400 com código específico, 401, 500)
+ * viram ApiError/AuthenticationError para a UI traduzir em mensagem amigável.
+ */
+export async function importNfeXml(file: File): Promise<NfeImportInvoice> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const data = await request<NfeImportResponse>('/nfe/import', {
+    method: 'POST',
+    body: formData,
+  })
+  return data.invoice
 }
 
 /**
