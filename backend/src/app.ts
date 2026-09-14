@@ -16,6 +16,12 @@ import routes from './routes/index.js';
 
 export const app = express();
 
+// Atrás do proxy reverso do Render (um único hop), o Express precisa confiar no
+// primeiro proxy para resolver `request.ip` a partir do `X-Forwarded-For`. Sem
+// isso, o express-rate-limit recusa o header e lança ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+// Em desenvolvimento local não há proxy, então mantemos o padrão (false).
+app.set('trust proxy', env.nodeEnv === 'production' ? 1 : false);
+
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(
