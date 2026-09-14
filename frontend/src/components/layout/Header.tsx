@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ShieldCheck, LogOut } from 'lucide-react'
+import { Bell, LogOut } from 'lucide-react'
+import { BrandLogo } from '../brand/BrandLogo.tsx'
 import { useAuth } from '../../contexts/auth-context.ts'
 
 interface HeaderProps {
@@ -62,14 +63,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
       {/* Left: Mobile brand / Desktop page title context */}
       <div className="flex items-center gap-3">
         {/* Mobile brand (hidden on md+) */}
-        <div className="flex items-center gap-2 md:hidden">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          </div>
-          <span className="text-base font-bold tracking-tight text-slate-900">
-            Garantia<span className="text-emerald-600">+</span>
-          </span>
-        </div>
+        <BrandLogo size="sm" className="md:hidden" />
 
         {/* Desktop title / context */}
         <div className="hidden md:block">

@@ -1,14 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  ShieldCheck,
-  User,
-  Mail,
-  Lock,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-} from 'lucide-react'
+import { BrandLogo } from '../components/brand/BrandLogo.tsx'
+import { User, Mail, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { registerUser, RegisterFormError } from '../services/auth.ts'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -97,12 +90,7 @@ export function Register() {
       <div className="w-full max-w-md">
         {/* Marca */}
         <div className="mb-8 flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
-            Garantia<span className="text-emerald-600">+</span>
-          </h1>
+          <BrandLogo size="lg" orientation="vertical" className="w-full" />
           <p className="mt-2 max-w-sm text-sm text-slate-500">
             Crie sua conta para começar a acompanhar compras, garantias e documentos em um
             só lugar.

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShieldCheck, Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
+import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
+import { BrandLogo } from '../components/brand/BrandLogo.tsx'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 
@@ -66,12 +67,7 @@ export function Login() {
       <div className="w-full max-w-md">
         {/* Marca */}
         <div className="mb-8 flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
-            Garantia<span className="text-emerald-600">+</span>
-          </h1>
+          <BrandLogo size="lg" orientation="vertical" className="w-full" />
           <p className="mt-2 max-w-sm text-sm text-slate-500">
             Acesse sua conta para acompanhar compras, garantias e documentos em um só
             lugar.

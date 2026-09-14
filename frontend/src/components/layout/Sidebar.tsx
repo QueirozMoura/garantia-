@@ -1,5 +1,5 @@
-import { ShieldCheck } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { BrandLogo } from '../brand/BrandLogo.tsx'
 import { MAIN_NAV_ITEMS, SETTINGS_NAV_ITEM, type NavItem } from './navigation.ts'
 
 interface SidebarProps {
@@ -13,16 +13,8 @@ export function Sidebar({ activeId = 'dashboard' }: SidebarProps) {
       className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-slate-200 bg-white"
     >
       {/* Brand / Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
-          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <div className="flex items-baseline">
-          <span className="text-lg font-bold tracking-tight text-slate-900">
-            Garantia
-          </span>
-          <span className="text-lg font-bold text-emerald-600">+</span>
-        </div>
+      <div className="flex h-16 items-center border-b border-slate-100 px-6">
+        <BrandLogo size="md" />
       </div>
 
       {/* Main navigation list */}
