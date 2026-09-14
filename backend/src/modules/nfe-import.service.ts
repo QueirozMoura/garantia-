@@ -1,127 +1,207 @@
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
+
 import { badRequest } from '../utils/http-error.js';
 
 /**
- * Validação de conteúdo do XML da NF-e.
+ * Leitura e extração dos dados de uma NF-e (padrão brasileiro, modelo 55/65).
  *
- * Esta etapa apenas RECEBE e VALIDA o XML: não há parsing semântico da nota,
- * nenhuma compra/garantia é criada e nenhuma persistência acontece. A validação
- * confirma que o buffer é texto XML bem formado; não confiamos na extensão nem
- * no MIME informados pelo cliente.
+ * O parsing usa `fast-xml-parser` (biblioteca madura, sem dependências
+ * nativas). Segurança do parsing:
+ *   - `processEntities: false` — nenhuma entidade é expandida;
+ *   - `htmlEntities: false` — nenhum mapeamento de entidades HTML;
+ *   - DOCTYPE/ENTITY são rejeitados antes de chegar ao parser (anti-XXE).
+ *
+ * Nada aqui persiste dados, cria compra/garantia ou chama IA: apenas lê o
+ * conteúdo em memória e devolve um objeto normalizado.
  */
+export interface NfeInvoiceItem {
+  code: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+  ncm: string | null;
+}
 
-// Caracteres nulos e de controle (exceto tab 0x09, LF 0x0A e CR 0x0D) não são
-// válidos em XML. Usamos uma varredura por code point em vez de regex para não
-// disparar a regra no-control-regex do ESLint.
-const hasIllegalXmlChars = (value: string): boolean => {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    const isAllowedWhitespace = code === 0x09 || code === 0x0a || code === 0x0d;
-    if (code < 0x20 && !isAllowedWhitespace) return true;
+export interface NfeInvoiceIssuer {
+  name: string;
+  tradeName: string | null;
+  cnpj: string;
+}
+
+export interface NfeInvoice {
+  accessKey: string | null;
+  number: string;
+  series: string;
+  issuedAt: string;
+  issuer: NfeInvoiceIssuer;
+  total: number;
+  items: NfeInvoiceItem[];
+}
+
+type XmlNode = Record<string, unknown>;
+
+const isObject = (value: unknown): value is XmlNode =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Converte um valor extraído pelo parser em string segura. O parser roda com
+ * `parseTagValue: false`/`parseAttributeValue: false`, então os valores são
+ * strings; ainda assim normalizamos números por robustez.
+ */
+const asText = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
-  return false;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+};
+
+/** Retorna o nó filho como objeto, ou `null` se não existir/não for objeto. */
+const child = (node: XmlNode | null, key: string): XmlNode | null => {
+  if (!node) return null;
+  const value = node[key];
+  return isObject(value) ? value : null;
+};
+
+/** Normaliza um campo que pode vir como objeto único ou array (`det`). */
+const asArray = (value: unknown): XmlNode[] => {
+  if (Array.isArray(value)) return value.filter(isObject);
+  if (isObject(value)) return [value];
+  return [];
 };
 
 /**
- * Confere se o texto é XML bem formado usando uma verificação de estrutura de
- * tags (sem parser externo). Cobre os casos que importam aqui: raiz única,
- * tags balanceadas, atributos entre aspas e ausência de lixo fora dos elementos.
+ * Converte um valor monetário/quantidade em número. Aceita ponto ou vírgula
+ * como separador decimal; rejeita valores não numéricos em vez de inventar.
  */
-const isWellFormedXml = (text: string): boolean => {
-  const stack: string[] = [];
-  let hasRoot = false;
-  let index = 0;
-  const length = text.length;
-
-  while (index < length) {
-    const open = text.indexOf('<', index);
-
-    if (open === -1) {
-      // Texto restante fora de tags: só espaços são permitidos.
-      return stack.length === 0 && text.slice(index).trim().length === 0;
-    }
-
-    // Conteúdo de texto entre tags não pode conter `<` "soltos" — o indexOf já
-    // garante isso; apenas checamos que o que sobra não é lixo após o fim.
-    if (open > index) {
-      const between = text.slice(index, open);
-      if (stack.length === 0 && between.trim().length > 0) return false; // lixo antes da raiz
-      if (hasIllegalXmlChars(between)) return false;
-    }
-
-    const close = text.indexOf('>', open);
-    if (close === -1) return false; // tag não terminada
-
-    const inner = text.slice(open + 1, close).trim();
-
-    if (inner.length === 0) return false; // "<>"
-
-    // Declaração XML `<?xml ... ?>` ou processing instruction `<?...?>`.
-    if (inner.startsWith('?')) {
-      if (!inner.endsWith('?')) return false;
-      index = close + 1;
-      continue;
-    }
-
-    // CDATA `<![CDATA[ ... ]]>`, DOCTYPE `<!DOCTYPE ...>` ou comentário.
-    if (inner.startsWith('!')) {
-      if (inner.startsWith('![CDATA[')) {
-        const cdataEnd = text.indexOf(']]>', open + 9);
-        if (cdataEnd === -1) return false;
-        if (stack.length === 0) return false; // CDATA fora de um elemento
-        index = cdataEnd + 3;
-        continue;
-      }
-
-      // DOCTYPE e comentários são apenas pulados (não criam elementos).
-      index = close + 1;
-      continue;
-    }
-
-    if (inner.startsWith('/')) {
-      // Tag de fechamento.
-      const name = inner.slice(1).trim();
-      if (!/^[^\s/]+$/.test(name)) return false; // "</a b>" inválido
-      if (stack.pop() !== name) return false; // fechamento fora de ordem
-      index = close + 1;
-      continue;
-    }
-
-    // Tag de abertura: valida o nome e a forma dos atributos.
-    const selfClosing = inner.endsWith('/');
-    const tagBody = selfClosing ? inner.slice(0, -1).trim() : inner;
-    const nameMatch = /^[^\s/>]+/.exec(tagBody);
-    if (!nameMatch) return false;
-
-    const name = nameMatch[0];
-    if (name.startsWith('?') || name.startsWith('!') || name.startsWith('/')) return false;
-
-    // Atributos precisam estar como nome="valor" (aspas simples ou duplas).
-    const attributes = tagBody.slice(name.length).trim();
-    if (attributes.length > 0) {
-      const attributePattern = /^[^\s=]+="[^"]*"(\s+[^\s=]+="[^"]*")*$/;
-      const singleQuotePattern = /^[^\s=]+='[^']*'(\s+[^\s=]+='[^']*')*$/;
-      if (!attributePattern.test(attributes) && !singleQuotePattern.test(attributes)) return false;
-    }
-
-    if (stack.length === 0) {
-      if (hasRoot) return false; // segunda raiz
-      hasRoot = true;
-    }
-
-    if (!selfClosing) stack.push(name);
-    index = close + 1;
+const asNumber = (value: unknown, field: string): number => {
+  const raw = asText(value);
+  if (raw === null) {
+    throw badRequest(`NF-e field "${field}" is missing or invalid`, 'INVALID_NFE_DATA');
   }
 
-  return hasRoot && stack.length === 0;
+  const parsed = Number(raw.replace(/\s/g, '').replace(',', '.'));
+
+  if (!Number.isFinite(parsed)) {
+    throw badRequest(`NF-e field "${field}" is not a valid number`, 'INVALID_NFE_DATA');
+  }
+
+  return parsed;
+};
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '',
+  // Mantém TODOS os valores como string: evita perder zeros à direita em
+  // preços/quantidades e evita que o CNPJ vire número (perdendo zeros à esquerda).
+  parseTagValue: false,
+  parseAttributeValue: false,
+  trimValues: true,
+  removeNSPrefix: true,
+  // Segurança: sem expansão de entidades (anti-XXE / Billion Laughs).
+  processEntities: false,
+  htmlEntities: false,
+});
+
+/** Rejeita DOCTYPE/ENTITY antes do parser (defesa em profundidade contra XXE). */
+const rejectDoctype = (text: string) => {
+  if (/<!DOCTYPE/i.test(text) || /<!ENTITY/i.test(text)) {
+    throw badRequest('XML with DTD/entity declarations is not supported', 'INVALID_NFE_CONTENT');
+  }
 };
 
 /**
- * Valida o buffer recebido como XML bem formado e retorna o texto.
- *
- * Rejeita arquivo vazio, conteúdo que não é XML e XML malformado — sempre com o
- * padrão de erro da API (`badRequest`).
+ * Navega até o nó `infNFe`, aceitando variações reais da estrutura:
+ *   - `infNFe` como raiz (trecho isolado);
+ *   - `NFe > infNFe` (NF-e sem protocolo);
+ *   - `nfeProc > NFe > infNFe` (NF-e processada, com protocolo).
+ * O parser roda com `removeNSPrefix`, então namespaces já foram removidos.
  */
-export const validateNfeXml = (buffer: Buffer): string => {
+const findInfNFe = (root: XmlNode): XmlNode | null => {
+  const direct = child(root, 'infNFe');
+  if (direct) return direct;
+
+  const fromNfe = child(child(root, 'NFe'), 'infNFe');
+  if (fromNfe) return fromNfe;
+
+  const nfeProc = child(root, 'nfeProc');
+  const fromProc = child(child(nfeProc, 'NFe'), 'infNFe');
+  if (fromProc) return fromProc;
+
+  return null;
+};
+
+const buildIssuer = (infNFe: XmlNode): NfeInvoiceIssuer => {
+  const emit = child(infNFe, 'emit');
+  const name = asText(emit?.xNome);
+  const cnpj = asText(emit?.CNPJ);
+
+  if (!name || !cnpj) {
+    throw badRequest('NF-e issuer (emit) is missing required fields', 'INVALID_NFE_DATA');
+  }
+
+  return { name, tradeName: asText(emit?.xFant), cnpj };
+};
+
+const buildItems = (infNFe: XmlNode): NfeInvoiceItem[] => {
+  const items = asArray(infNFe.det).map((det) => {
+    const prod = child(det, 'prod');
+
+    if (!prod) {
+      throw badRequest('NF-e item is missing its product data', 'INVALID_NFE_DATA');
+    }
+
+    const code = asText(prod.cProd);
+    const description = asText(prod.xProd);
+
+    if (!code || !description) {
+      throw badRequest('NF-e item is missing required fields (cProd/xProd)', 'INVALID_NFE_DATA');
+    }
+
+    return {
+      code,
+      description,
+      quantity: asNumber(prod.qCom, 'qCom'),
+      unit: asText(prod.uCom) ?? '',
+      unitPrice: asNumber(prod.vUnCom, 'vUnCom'),
+      totalPrice: asNumber(prod.vProd, 'vProd'),
+      ncm: asText(prod.NCM),
+    };
+  });
+
+  if (items.length === 0) {
+    throw badRequest('NF-e has no items (det)', 'INVALID_NFE_DATA');
+  }
+
+  return items;
+};
+
+const buildTotal = (infNFe: XmlNode): number => {
+  const icmsTot = child(child(infNFe, 'total'), 'ICMSTot');
+
+  if (icmsTot?.vNF === undefined) {
+    throw badRequest('NF-e total (total.ICMSTot.vNF) is missing', 'INVALID_NFE_DATA');
+  }
+
+  return asNumber(icmsTot.vNF, 'vNF');
+};
+
+/**
+ * Valida o buffer como XML e extrai os dados da NF-e.
+ *
+ * Lança `badRequest` em todos os casos de entrada inválida:
+ *   - arquivo vazio → `EMPTY_NFE_FILE`;
+ *   - conteúdo não é XML bem formado → `INVALID_NFE_CONTENT`;
+ *   - XML válido, mas sem estrutura de NF-e → `UNSUPPORTED_NFE_DOCUMENT`;
+ *   - NF-e reconhecida, mas com dados obrigatórios ausentes/inválidos →
+ *     `INVALID_NFE_DATA`.
+ */
+export const extractNfeInvoice = (buffer: Buffer): NfeInvoice => {
   if (!buffer || buffer.length === 0) {
     throw badRequest('XML file is empty', 'EMPTY_NFE_FILE');
   }
@@ -132,14 +212,63 @@ export const validateNfeXml = (buffer: Buffer): string => {
     throw badRequest('XML file is empty', 'EMPTY_NFE_FILE');
   }
 
-  if (hasIllegalXmlChars(text)) {
+  rejectDoctype(text);
+
+  if (XMLValidator.validate(text) !== true) {
     throw badRequest('File content is not a valid XML', 'INVALID_NFE_CONTENT');
   }
 
-  // A verificação de estrutura já rejeita texto que não começa como XML.
-  if (!isWellFormedXml(text)) {
+  let parsed: unknown;
+  try {
+    parsed = parser.parse(text);
+  } catch {
+    // Configuração sem entidades: entradas exóticas são rejeitadas como conteúdo
+    // inválido em vez de vazar detalhes internos do parser.
     throw badRequest('File content is not a valid XML', 'INVALID_NFE_CONTENT');
   }
 
-  return text;
+  if (!isObject(parsed)) {
+    throw badRequest(
+      'The document does not look like a supported NF-e',
+      'UNSUPPORTED_NFE_DOCUMENT',
+    );
+  }
+
+  const infNFe = findInfNFe(parsed);
+
+  if (!infNFe) {
+    // XML válido, mas sem a estrutura de NF-e esperada.
+    throw badRequest(
+      'The document does not look like a supported NF-e',
+      'UNSUPPORTED_NFE_DOCUMENT',
+    );
+  }
+
+  const ide = child(infNFe, 'ide');
+  const idAttribute = asText(infNFe.Id);
+
+  // A chave de acesso vem no atributo Id como "NFe<44 dígitos>". É opcional.
+  const accessKey = idAttribute ? idAttribute.replace(/^NFe/i, '').trim() || null : null;
+
+  const number = asText(ide?.nNF) ?? '';
+  const series = asText(ide?.serie) ?? '';
+  const issuedAt = asText(ide?.dhEmi) ?? asText(ide?.dEmi) ?? '';
+
+  if (!number) {
+    throw badRequest('NF-e number (ide.nNF) is missing', 'INVALID_NFE_DATA');
+  }
+
+  if (!issuedAt) {
+    throw badRequest('NF-e issue date (ide.dhEmi/dEmi) is missing', 'INVALID_NFE_DATA');
+  }
+
+  return {
+    accessKey,
+    number,
+    series,
+    issuedAt,
+    issuer: buildIssuer(infNFe),
+    total: buildTotal(infNFe),
+    items: buildItems(infNFe),
+  };
 };
