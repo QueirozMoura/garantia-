@@ -36,7 +36,7 @@ export const parseDurationToMs = (value: string): number => {
 export const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: env.nodeEnv === 'production',
-  sameSite: 'lax' as const,
+  sameSite: (env.nodeEnv === 'production' ? 'none' : 'lax') as 'none' | 'lax',
   path: '/auth',
   maxAge: parseDurationToMs(env.refreshTokenExpiresIn),
 };
