@@ -34,11 +34,17 @@ function MobileNavItemButton({ item, isActive }: MobileNavItemButtonProps) {
   }`
   const iconClassName = `h-5 w-5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`
 
-  // Itens sem rota ainda não possuem página: permanecem como botão não navegável.
+  // Itens sem rota ainda não possuem página: ficam claramente NÃO interativos.
   if (!item.path) {
     return (
-      <button type="button" className={className}>
-        <Icon className={iconClassName} />
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        title="Em breve"
+        className="flex w-full cursor-not-allowed flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium text-slate-400"
+      >
+        <Icon className="h-5 w-5 text-slate-300" />
         <span className="truncate">{item.label}</span>
       </button>
     )

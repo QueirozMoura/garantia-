@@ -58,11 +58,18 @@ function NavItemButton({ item, isActive }: NavItemButtonProps) {
     isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'
   }`
 
-  // Itens sem rota ainda não possuem página: permanecem como botão não navegável.
+  // Itens sem rota ainda não possuem página: mantêm a aparência do menu, mas
+  // ficam claramente NÃO interativos (sem navegação falsa).
   if (!item.path) {
     return (
-      <button type="button" className={className}>
-        <Icon className={iconClassName} />
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        title="Em breve"
+        className="group flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400"
+      >
+        <Icon className="h-5 w-5 shrink-0 text-slate-300" />
         <span className="truncate">{item.label}</span>
       </button>
     )

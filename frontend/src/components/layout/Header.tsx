@@ -76,14 +76,18 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
 
       {/* Right: Actions & User Avatar */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Notification bell placeholder */}
+        {/* Notificações: recurso ainda não implementado. Visível, porém NÃO
+            interativo (sem ação falsa). */}
         <button
           type="button"
-          aria-label="Notificações"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 cursor-pointer"
+          disabled
+          aria-disabled="true"
+          aria-label="Notificações (em breve)"
+          title="Notificações em breve"
+          className="relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border-slate-200 text-slate-300"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-slate-300 ring-2 ring-white" />
         </button>
 
         {/* User avatar + menu */}
