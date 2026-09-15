@@ -38,7 +38,7 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
             <Link
               key={purchase.id}
               to={`/purchases/${purchase.id}`}
-              className="group flex items-center gap-3 rounded-2xl px-2 py-4 transition-all duration-200 hover:bg-emerald-50/55 sm:gap-4 sm:px-3"
+              className="group flex items-center gap-3 rounded-2xl border border-transparent px-2 py-4 transition-all duration-200 hover:-translate-y-px hover:border-emerald-100 hover:bg-emerald-50/55 sm:gap-4 sm:px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-all duration-200 group-hover:bg-emerald-100 group-hover:text-emerald-700">
                 <ReceiptText className="h-5 w-5" aria-hidden="true" />

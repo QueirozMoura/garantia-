@@ -47,7 +47,7 @@ function App() {
         element={
           <RequireAuth>
             <AppLayout activeNavId="compras">
-              <Purchases />
+              <Purchases key="purchases-library-redesign" />
             </AppLayout>
           </RequireAuth>
         }
