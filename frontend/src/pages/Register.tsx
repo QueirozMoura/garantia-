@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
 import { User, Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { registerUser, RegisterFormError } from '../services/auth.ts'
@@ -16,8 +16,19 @@ interface FieldErrors {
   confirmPassword?: string
 }
 
+interface RegisterLocationState {
+  resumeAction?: string
+}
+
 export function Register() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Preserva a intenção de retomada (ex.: rascunho de compra de visitante)
+  // ao longo de register → login, para não perder o fluxo iniciado em guest.
+  const resumeState = (location.state as RegisterLocationState | null) ?? null
+  const loginLinkState = resumeState?.resumeAction
+    ? { resumeAction: resumeState.resumeAction }
+    : undefined
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -72,9 +83,10 @@ export function Register() {
       setPassword('')
       setConfirmPassword('')
       setIsSuccess(true)
-      // Confirmação breve antes de seguir para o login.
+      // Confirmação breve antes de seguir para o login (preservando a intenção
+      // de retomada, se houver).
       window.setTimeout(() => {
-        navigate('/login', { replace: true })
+        navigate('/login', { replace: true, state: loginLinkState })
       }, 1500)
     } catch (error) {
       const message =
@@ -285,6 +297,7 @@ export function Register() {
             Já possui uma conta?{' '}
             <Link
               to="/login"
+              state={loginLinkState}
               className="font-medium text-emerald-600 transition-colors hover:text-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 rounded-sm"
             >
               Entrar

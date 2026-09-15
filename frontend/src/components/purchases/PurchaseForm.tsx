@@ -21,6 +21,12 @@ export interface PurchaseFormProps {
   /** `true` após o sucesso (bloqueia novos envios). */
   isSuccess?: boolean
   onSubmit: (payload: CreatePurchaseInput) => void
+  /**
+   * Alternativa ao `onSubmit` que recebe os campos brutos do formulário (sem
+   * converter em payload). Usada no fluxo guest para salvar o rascunho local.
+   * Quando presente, tem prioridade sobre `onSubmit`.
+   */
+  onSubmitFields?: (fields: PurchaseFormFields) => void
   onCancel: () => void
 }
 
@@ -37,6 +43,7 @@ export function PurchaseForm({
   isSubmitting,
   isSuccess = false,
   onSubmit,
+  onSubmitFields,
   onCancel,
 }: PurchaseFormProps) {
   const [fields, setFields] = useState<PurchaseFormFields>(initialFields)
@@ -54,7 +61,10 @@ export function PurchaseForm({
     const errors = validatePurchaseFields(fields)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
-
+    if (onSubmitFields) {
+      onSubmitFields(fields)
+      return
+    }
     onSubmit(toPurchasePayload(fields))
   }
 

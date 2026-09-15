@@ -4,10 +4,12 @@ import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { hasGuestPurchaseDraft } from '../services/guest-drafts.ts'
 import { Button, Input, FeedbackMessage } from '../components/ui'
 
 interface LocationState {
   from?: { pathname?: string }
+  resumeAction?: string
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -16,8 +18,14 @@ export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { setUser } = useAuth()
-  const redirectTo =
-    (location.state as LocationState | null)?.from?.pathname ?? '/dashboard'
+  const locationState = location.state as LocationState | null
+  // Rota de retorno padrão: `from` quando houver, senão o Dashboard.
+  const defaultRedirect = locationState?.from?.pathname ?? '/dashboard'
+  // Retomada de compra iniciada como visitante: só redireciona para o
+  // formulário quando existe um rascunho válido (o localStorage é a fonte).
+  const shouldResumePurchaseDraft =
+    locationState?.resumeAction === 'purchase-draft' && hasGuestPurchaseDraft()
+  const redirectTo = shouldResumePurchaseDraft ? '/purchases/new' : defaultRedirect
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,7 +59,16 @@ export function Login() {
     try {
       const { user } = await authenticate({ email: email.trim(), password })
       setUser(user)
-      navigate(redirectTo, { replace: true })
+      if (shouldResumePurchaseDraft) {
+        // Retomada: volta ao formulário levando a intenção. O RequireGuest também
+        // sabe retomar (cobre o caso em que este navigate perde a corrida).
+        navigate('/purchases/new', {
+          replace: true,
+          state: { resumeAction: 'purchase-draft' },
+        })
+      } else {
+        navigate(redirectTo, { replace: true })
+      }
     } catch (error) {
       const message =
         error instanceof LoginFormError

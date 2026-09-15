@@ -1,9 +1,22 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 import { PurchaseForm } from '../components/purchases/PurchaseForm.tsx'
-import { EMPTY_PURCHASE_FIELDS } from '../components/purchases/purchase-form.ts'
+import {
+  EMPTY_PURCHASE_FIELDS,
+  toPurchasePayload,
+  validatePurchaseFields,
+  type PurchaseFormFields,
+} from '../components/purchases/purchase-form.ts'
 import { InvoiceUploadCard } from '../components/purchases/InvoiceUploadCard.tsx'
+import { GuestPurchaseNotice } from '../components/purchases/GuestPurchaseNotice.tsx'
+import { PurchaseDraftRestoreBanner } from '../components/purchases/PurchaseDraftRestoreBanner.tsx'
+import { DiscardDraftDialog } from '../components/purchases/DiscardDraftDialog.tsx'
+import {
+  clearGuestPurchaseDraft,
+  getGuestPurchaseDraft,
+  saveGuestPurchaseDraft,
+} from '../services/guest-drafts.ts'
 import { ExtractionPreview } from '../components/purchases/ExtractionPreview.tsx'
 import { PurchaseFlowStepper } from '../components/purchases/PurchaseFlowStepper.tsx'
 import {
@@ -82,7 +95,8 @@ type ExtractionState =
 export function AddPurchase() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser } = useAuth()
+  const { setUser, status } = useAuth()
+  const isGuest = status === 'guest'
   // Dados vindos da etapa de confirmação ("Voltar") — preservam a revisão.
   const returnedState =
     (location.state as {
@@ -90,6 +104,7 @@ export function AddPurchase() {
       documentId?: string
       reviewed?: DocumentExtraction
       invoiceNumber?: string | null
+      resumeAction?: string
     } | null) ?? null
   const [formError, setFormError] = useState<string | null>(null)
   const [submission, setSubmission] = useState<SubmissionState>('idle')
@@ -121,15 +136,53 @@ export function AddPurchase() {
   // Guarda síncrona contra duplo disparo de /extract (evita chamadas duplicadas).
   const isExtractingRef = useRef(false)
 
+  // --- Rascunho de visitante (etapa de acesso progressivo) ----------------
+  // O rascunho é lido do localStorage SÓ para usuário autenticado. Em guest,
+  // nenhum rascunho é restaurado aqui (ele é criado ao tentar salvar).
+  // `discardedDraft` esconde o rascunho após o usuário descartá-lo.
+  const [discardedDraft, setDiscardedDraft] = useState(false)
+  // Erro específico da retomada (POST do "Continuar e salvar").
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+  // Confirmação de descarte do rascunho (diálogo leve).
+  const [isDiscardOpen, setIsDiscardOpen] = useState(false)
+  // `key` do formulário: força remontagem ao limpar os campos restaurados.
+  const [formKey, setFormKey] = useState(0)
+  // Origem do envio: quando vem do banner de retomada, o erro aparece ali.
+  const submitFromRestoreRef = useRef(false)
+
+  // Derivado (sem efeito): só há restauração quando o usuário está autenticado
+  // e ainda não descartou o rascunho.
+  const restoredDraft = useMemo(
+    () =>
+      status === 'authenticated' && !discardedDraft ? getGuestPurchaseDraft() : null,
+    [status, discardedDraft],
+  )
+  const restoredFields = restoredDraft?.data ?? null
+
   // Etapa destacada no stepper: após a compra criada, o fluxo é da IA.
   const currentStep =
     extraction.status === 'extracting' ? 'review' : createdPurchaseId ? 'upload' : 'form'
+
+  /**
+   * Visitante: valida o formulário, salva o rascunho local e leva ao login.
+   * NENHUMA chamada de API acontece aqui — nem POST /purchases nem upload.
+   */
+  function handleGuestSubmit(fields: PurchaseFormFields) {
+    if (isSubmittingRef.current) return
+    const errors = validatePurchaseFields(fields)
+    if (Object.keys(errors).length > 0) return
+    saveGuestPurchaseDraft(fields)
+    navigate('/login', {
+      state: { from: { pathname: '/purchases/new' }, resumeAction: 'purchase-draft' },
+    })
+  }
 
   async function handleSubmit(payload: CreatePurchaseInput) {
     // Guarda síncrona: dois cliques no mesmo tick não disparam dois POST.
     if (isSubmittingRef.current || isSuccess) return
     isSubmittingRef.current = true
     setFormError(null)
+    setRestoreError(null)
 
     // Se a compra já foi criada numa tentativa anterior, não cria de novo:
     // apenas tenta anexar a nota fiscal novamente (evita duplicar a compra).
@@ -147,17 +200,26 @@ export function AddPurchase() {
       purchaseId = purchase.id
     } catch (error) {
       if (error instanceof AuthenticationError) {
+        // Sessão inválida/expirada: preserva o rascunho local (não limpa) e
+        // segue o padrão global de volta ao login.
         setUser(null)
         navigate('/login', { replace: true })
         return
       }
       // Compra NÃO criada: nenhum upload é feito. Os dados digitados são
       // preservados (o formulário continua montado) e o botão volta ao normal.
-      setFormError(createErrorMessage(error))
+      const message = createErrorMessage(error)
+      setFormError(message)
+      if (submitFromRestoreRef.current) setRestoreError(message)
       setSubmission('idle')
       isSubmittingRef.current = false
       return
     }
+
+    // Compra criada com sucesso: o rascunho já pode ser descartado. Só aqui,
+    // nunca antes do POST confirmado.
+    clearGuestPurchaseDraft()
+    setDiscardedDraft(true)
 
     // Compra criada: a partir daqui ela existe mesmo que o upload falhe.
     setCreatedPurchaseId(purchaseId)
@@ -246,6 +308,38 @@ export function AddPurchase() {
     isSubmittingRef.current = false
     navigate('/purchases', { replace: true })
   }
+
+  /**
+   * "Continuar e salvar" do banner de retomada: envia o rascunho restaurado
+   * pela mesma rota de criação. O rascunho só é limpo dentro de `handleSubmit`,
+   * e apenas após o POST ter sucesso.
+   */
+  function handleContinueRestore() {
+    if (!restoredFields) return
+    submitFromRestoreRef.current = true
+    void handleSubmit(toPurchasePayload(restoredFields))
+  }
+
+  /** "Descartar": abre a confirmação leve; nada é enviado à API. */
+  function handleDiscard() {
+    setIsDiscardOpen(true)
+  }
+
+  /** Confirmado o descarte: limpa rascunho e formulário, sem chamar API. */
+  function confirmDiscard() {
+    clearGuestPurchaseDraft()
+    setDiscardedDraft(true)
+    setRestoreError(null)
+    setIsDiscardOpen(false)
+    setFormKey((key) => key + 1)
+  }
+
+  // Campos iniciais do formulário: rascunho restaurado (autenticado) ou vazio.
+  const initialFields = useMemo(
+    () => restoredFields ?? EMPTY_PURCHASE_FIELDS,
+    [restoredFields],
+  )
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header do conteúdo */}
@@ -271,6 +365,21 @@ export function AddPurchase() {
           <span>Voltar</span>
         </button>
       </section>
+
+      {/* Aviso de modo visitante: o formulário funciona, mas só salva após o
+          login. Nada bloqueia o preenchimento. */}
+      {isGuest && !restoredFields && <GuestPurchaseNotice />}
+
+      {/* Confirmação de retomada após o login: nada é salvo sem clique em
+          "Continuar e salvar". */}
+      {!isGuest && restoredFields && (
+        <PurchaseDraftRestoreBanner
+          onContinue={handleContinueRestore}
+          onDiscard={handleDiscard}
+          isSubmitting={submission !== 'idle'}
+          errorMessage={restoreError}
+        />
+      )}
 
       {/* Indicador de progresso — apenas no fluxo com nota fiscal. O fluxo
           manual (sem nota) não exibe stepper para continuar simples. */}
@@ -309,7 +418,8 @@ export function AddPurchase() {
         />
       ) : (
         <>
-          {/* Importar nota fiscal (opcional) */}
+          {/* Importar nota fiscal (opcional). Visitante vê o card, mas a ação
+              de upload exige autenticação. */}
           <InvoiceUploadCard
             file={invoiceFile}
             fileError={invoiceError}
@@ -318,6 +428,7 @@ export function AddPurchase() {
               setInvoiceError(error)
             }}
             disabled={submission !== 'idle' || isSuccess}
+            guestLocked={isGuest}
             loadingLabel={
               submission === 'creating' ? 'Salvando compra...' : 'Anexando nota fiscal...'
             }
@@ -354,21 +465,32 @@ export function AddPurchase() {
             )}
 
             <PurchaseForm
-              initialFields={EMPTY_PURCHASE_FIELDS}
+              key={formKey}
+              initialFields={initialFields}
               submitLabel={
                 createdPurchaseId ? 'Tentar anexar nota novamente' : 'Salvar compra'
               }
               submittingLabel={
                 createdPurchaseId ? 'Anexando nota fiscal...' : 'Salvando compra...'
               }
-              formError={createdPurchaseId ? null : formError}
+              formError={
+                createdPurchaseId || (restoredFields && restoreError) ? null : formError
+              }
               isSubmitting={submission !== 'idle'}
               isSuccess={isSuccess}
               onSubmit={handleSubmit}
+              onSubmitFields={isGuest ? handleGuestSubmit : undefined}
               onCancel={() => navigate('/purchases')}
             />
           </div>
         </>
+      )}
+
+      {isDiscardOpen && (
+        <DiscardDraftDialog
+          onClose={() => setIsDiscardOpen(false)}
+          onConfirm={confirmDiscard}
+        />
       )}
     </div>
   )

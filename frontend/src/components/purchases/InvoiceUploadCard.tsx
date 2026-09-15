@@ -22,6 +22,11 @@ export interface InvoiceUploadCardProps {
   onFileChange: (file: File | null, error: string | null) => void
   /** Desabilita as ações enquanto a compra/upload está em andamento. */
   disabled?: boolean
+  /**
+   * Modo visitante: mostra o card, mas bloqueia a seleção de arquivo com uma
+   * mensagem pedindo autenticação. Nenhum arquivo é lido ou persistido.
+   */
+  guestLocked?: boolean
   /** Texto do estado de carregamento exibido no lugar da seleção. */
   loadingLabel?: string
 }
@@ -38,15 +43,16 @@ export function InvoiceUploadCard({
   fileError,
   onFileChange,
   disabled = false,
+  guestLocked = false,
   loadingLabel,
 }: InvoiceUploadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const isLoading = disabled && Boolean(loadingLabel)
-  // Bloqueia diálogo de arquivo e remoção enquanto qualquer requisição corre.
-  const isLocked = disabled || isLoading
-
+  // Bloqueia diálogo de arquivo e remoção enquanto qualquer requisição corre
+  // ou quando o usuário está em modo visitante (upload exige autenticação).
+  const isLocked = disabled || isLoading || guestLocked
   const openPicker = () => {
-    if (disabled) return
+    if (isLocked) return
     inputRef.current?.click()
   }
 
@@ -54,6 +60,7 @@ export function InvoiceUploadCard({
     const selected = event.target.files?.[0] ?? null
     // Permite selecionar o mesmo arquivo novamente depois de remover.
     event.target.value = ''
+    if (guestLocked) return
     if (!selected) {
       onFileChange(null, null)
       return
@@ -62,7 +69,7 @@ export function InvoiceUploadCard({
   }
 
   const remove = () => {
-    if (disabled) return
+    if (isLocked) return
     onFileChange(null, null)
   }
 
@@ -90,10 +97,16 @@ export function InvoiceUploadCard({
         type="file"
         accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
         onChange={handleChange}
-        disabled={disabled}
+        disabled={isLocked}
         className="sr-only"
         aria-label="Selecionar nota fiscal"
       />
+
+      {guestLocked && (
+        <p className="mt-4 rounded-lg border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
+          Entre para anexar uma nota fiscal.
+        </p>
+      )}
 
       {isLoading && (
         <div

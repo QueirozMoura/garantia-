@@ -95,12 +95,19 @@ describe('Rotas protegidas — exigem autenticação', () => {
     expect(screen.getByRole('heading', { name: /entrar/i })).toBeInTheDocument()
   })
 
-  it('guest em /purchases/new é levado ao login (criação segue protegida)', () => {
+  it('guest acessa /purchases/new como formulário (draft local), sem ir ao login', () => {
     renderApp('/purchases/new', 'guest')
 
+    // Etapa 3: a criação agora é acessível para guest (rascunho local).
+    expect(screen.getByRole('heading', { name: 'Adicionar compra' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: /adicionar compra|nova compra/i }),
-    ).not.toBeInTheDocument()
+      screen.getByText(/Sua compra será salva depois que você entrar/),
+    ).toBeInTheDocument()
+  })
+
+  it('guest em /purchases/new/confirm é levado ao login (segue protegida)', () => {
+    renderApp('/purchases/new/confirm', 'guest')
+
     expect(screen.getByRole('heading', { name: /entrar/i })).toBeInTheDocument()
   })
 })

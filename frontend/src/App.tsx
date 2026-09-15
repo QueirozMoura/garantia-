@@ -48,14 +48,13 @@ function App() {
           </AppLayout>
         }
       />
+      {/* Acessível para guest (rascunho local) e authenticated (fluxo atual). */}
       <Route
         path="/purchases/new"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="compras">
-              <AddPurchase />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="compras">
+            <AddPurchase />
+          </AppLayout>
         }
       />
       <Route
