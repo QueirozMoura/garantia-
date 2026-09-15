@@ -1,10 +1,15 @@
 import { createContext, useContext } from 'react'
 import type { AuthUser } from '../types/auth.ts'
 
+export type AuthStatus = 'loading' | 'guest' | 'authenticated'
+
 export interface AuthContextValue {
   /** Usuário autenticado vindo de GET /auth/me. `null` se não autenticado. */
   user: AuthUser | null
+  /** Estado explícito da sessão, incluindo visitante legítimo. */
+  status: AuthStatus
   isAuthenticated: boolean
+  isGuest: boolean
   /** `true` enquanto a sessão inicial está sendo verificada. */
   isLoading: boolean
   /** Encerra a sessão local e no backend, depois limpa o estado global. */

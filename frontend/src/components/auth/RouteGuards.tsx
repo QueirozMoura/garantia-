@@ -23,13 +23,13 @@ interface RequireAuthProps {
  */
 export function RequireAuth({ children }: RequireAuthProps) {
   const location = useLocation()
-  const { isAuthenticated, isLoading } = useAuth()
+  const { status } = useAuth()
 
-  if (isLoading) {
+  if (status === 'loading') {
     return <SessionLoading />
   }
 
-  if (!isAuthenticated) {
+  if (status === 'guest') {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
@@ -42,13 +42,13 @@ interface RequireGuestProps {
 
 /** Rota de convidado: aguarda a sessão; se autenticado, vai para /dashboard. */
 export function RequireGuest({ children }: RequireGuestProps) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { status } = useAuth()
 
-  if (isLoading) {
+  if (status === 'loading') {
     return <SessionLoading />
   }
 
-  if (isAuthenticated) {
+  if (status === 'authenticated') {
     return <Navigate to="/dashboard" replace />
   }
 

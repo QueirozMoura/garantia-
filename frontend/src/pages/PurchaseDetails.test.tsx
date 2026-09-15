@@ -113,7 +113,9 @@ describe('PurchaseDetails', () => {
     const user = userEvent.setup()
     const authValue: AuthContextValue = {
       user: null,
+      status: 'authenticated',
       isAuthenticated: true,
+      isGuest: false,
       isLoading: false,
       logout: vi.fn(),
       setUser,
@@ -496,7 +498,9 @@ describe('edição da compra', () => {
     const user = userEvent.setup()
     const authValue: AuthContextValue = {
       user: null,
+      status: 'authenticated',
       isAuthenticated: true,
+      isGuest: false,
       isLoading: false,
       logout: vi.fn(),
       setUser,

@@ -5,7 +5,8 @@ import {
   logout as logoutSession,
 } from '../services/auth.ts'
 import type { AuthUser } from '../types/auth.ts'
-import { AuthContext, type AuthContextValue } from './auth-context.ts'
+import { clearStoredAccessToken } from '../lib/api.ts'
+import { AuthContext, type AuthContextValue, type AuthStatus } from './auth-context.ts'
 
 /**
  * Estado global da sessão.
@@ -17,7 +18,7 @@ import { AuthContext, type AuthContextValue } from './auth-context.ts'
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [status, setStatus] = useState<AuthStatus>('loading')
 
   useEffect(() => {
     let isActive = true
@@ -26,20 +27,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!hasStoredSession()) {
         if (isActive) {
           setUser(null)
-          setIsLoading(false)
+          setStatus('guest')
         }
         return
       }
 
       try {
         const currentUser = await fetchCurrentUser()
-        if (isActive) setUser(currentUser)
+        if (isActive) {
+          setUser(currentUser)
+          setStatus(currentUser ? 'authenticated' : 'guest')
+        }
       } catch {
-        // Falha de rede durante a verificação: mantém o usuário sem sessão
-        // sem exibir erro; o RequireAuth direciona para /login.
-        if (isActive) setUser(null)
-      } finally {
-        if (isActive) setIsLoading(false)
+        // Qualquer falha que não seja recuperada pelo fluxo de refresh encerra
+        // a sessão local e deixa o usuário no estado visitante.
+        clearStoredAccessToken()
+        if (isActive) {
+          setUser(null)
+          setStatus('guest')
+        }
       }
     }
 
@@ -53,17 +59,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await logoutSession()
     setUser(null)
+    setStatus('guest')
+  }, [])
+
+  const updateUser = useCallback((nextUser: AuthUser | null) => {
+    setUser(nextUser)
+    setStatus(nextUser ? 'authenticated' : 'guest')
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isAuthenticated: user !== null,
-      isLoading,
+      status,
+      isAuthenticated: status === 'authenticated',
+      isGuest: status === 'guest',
+      isLoading: status === 'loading',
       logout,
-      setUser,
+      setUser: updateUser,
     }),
-    [user, isLoading, logout],
+    [user, status, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
