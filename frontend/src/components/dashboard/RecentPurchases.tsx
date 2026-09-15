@@ -1,4 +1,5 @@
-import { ShoppingBag, Store, Calendar } from 'lucide-react'
+import { ShoppingBag, Store, Calendar, ArrowUpRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { RecentPurchase } from '../../types/dashboard.ts'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
 
@@ -8,7 +9,7 @@ export interface RecentPurchasesProps {
 
 export function RecentPurchases({ purchases }: RecentPurchasesProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)]">
       {/* Header */}
       <div className="border-b border-slate-100 p-5 sm:p-6">
         <div className="flex items-center justify-between">
@@ -18,9 +19,13 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
               Últimas aquisições e seus respectivos status de cobertura.
             </p>
           </div>
-          <span className="text-xs font-medium text-slate-400">
+          <Link
+            to="/purchases"
+            className="group inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          >
             {purchases.length} itens
-          </span>
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </Link>
         </div>
       </div>
 
@@ -52,14 +57,19 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
                 .filter(Boolean)
                 .join(' ')
               return (
-                <tr key={purchase.id} className="transition-colors hover:bg-slate-50/60">
+                <tr
+                  key={purchase.id}
+                  className="group transition-colors hover:bg-emerald-50/35"
+                >
                   <td className="px-3.5 py-3.5 lg:px-5 font-medium text-slate-900">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition-transform group-hover:scale-105">
                         <ShoppingBag className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate">{purchase.productName}</span>
+                        <span className="block truncate group-hover:text-emerald-700">
+                          {purchase.productName}
+                        </span>
                         {brandModel && (
                           <span className="block truncate text-[11px] text-slate-400">
                             {brandModel}

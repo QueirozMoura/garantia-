@@ -123,7 +123,10 @@ export function EditPurchase() {
       {/* Header do conteúdo */}
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="mb-2 text-[10px] font-bold tracking-[0.18em] text-emerald-600 uppercase">
+            Atualização segura
+          </p>
+          <h2 className="text-2xl font-bold tracking-[-0.03em] text-slate-950 sm:text-3xl">
             Editar compra
           </h2>
           <p className="mt-1 text-sm text-slate-500">Atualize os dados desta compra.</p>
@@ -153,7 +156,7 @@ export function EditPurchase() {
       )}
 
       {currentState.status === 'success' && (
-        <div className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_12px_36px_-28px_rgb(15_23_42/0.55)] sm:p-6">
           <PurchaseForm
             initialFields={purchaseToFields(currentState.purchase)}
             submitLabel="Salvar alterações"

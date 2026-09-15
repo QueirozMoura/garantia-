@@ -55,12 +55,17 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        'flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
+        'relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.4)] sm:p-6',
+        'before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-emerald-500',
+        'flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between',
         className,
       )}
     >
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+      <div className="relative">
+        <p className="mb-2 text-[10px] font-bold tracking-[0.18em] text-emerald-600 uppercase">
+          Área protegida
+        </p>
+        <h2 className="text-2xl font-bold tracking-[-0.03em] text-slate-950 sm:text-3xl">
           {title}
         </h2>
         {(subtitle ?? description) && (

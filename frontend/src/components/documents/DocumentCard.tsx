@@ -107,12 +107,12 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
   }
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-px hover:shadow-md hover:border-slate-300 sm:p-6">
+    <article className="group rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_14px_32px_-22px_rgb(15_23_42/0.5)] sm:p-6">
       {/* Cabeçalho: ícone + nome + tipo + dados do arquivo */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${typeColor}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${typeColor} transition-transform duration-200 group-hover:scale-105`}
           >
             <TypeIcon className="h-5 w-5" aria-hidden="true" />
           </div>

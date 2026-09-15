@@ -23,7 +23,7 @@ export function WarrantiesSummary({ warranties }: WarrantiesSummaryProps) {
       aria-label="Indicadores de garantias"
       className="grid grid-cols-1 gap-4 sm:grid-cols-3"
     >
-      <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md">
+      <div className="flex flex-col rounded-2xl border border-emerald-200/70 bg-emerald-50/45 p-5 shadow-[0_8px_30px_-24px_rgb(16_185_129/0.5)] transition-all hover:-translate-y-0.5 hover:shadow-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
             <ShieldCheck className="h-5 w-5" />
@@ -36,7 +36,7 @@ export function WarrantiesSummary({ warranties }: WarrantiesSummaryProps) {
         <p className="mt-3 text-xs text-slate-500">Dentro do prazo</p>
       </div>
 
-      <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md">
+      <div className="flex flex-col rounded-2xl border border-amber-200/70 bg-amber-50/45 p-5 shadow-[0_8px_30px_-24px_rgb(245_158_11/0.35)] transition-all hover:-translate-y-0.5 hover:shadow-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
             <ShieldAlert className="h-5 w-5" />
@@ -49,7 +49,7 @@ export function WarrantiesSummary({ warranties }: WarrantiesSummaryProps) {
         <p className="mt-3 text-xs text-slate-500">Próximos 30 dias</p>
       </div>
 
-      <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md">
+      <div className="flex flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all hover:-translate-y-0.5 hover:shadow-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
             <ShieldX className="h-5 w-5" />

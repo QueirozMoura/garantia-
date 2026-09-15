@@ -8,12 +8,16 @@ export interface ExpiringWarrantyCardProps {
 
 export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+    <div className="relative overflow-hidden rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-white p-5 shadow-[0_10px_30px_-24px_rgb(146_64_14/0.5)] sm:p-6">
+      <span
+        className="absolute right-0 top-0 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl"
+        aria-hidden="true"
+      />
       {/* Section Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-slate-900">
+            <h3 className="relative text-base font-semibold text-slate-950">
               Garantias vencendo em breve
             </h3>
             <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">
@@ -42,7 +46,7 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
             return (
               <div
                 key={item.purchaseId}
-                className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0"
+                className="group flex flex-col gap-2 rounded-xl py-3.5 transition-colors first:pt-0 last:pb-0 hover:bg-white/70"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">

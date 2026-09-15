@@ -32,7 +32,10 @@ export function PurchaseFlowStepper({
   const currentIndex = STEPS.findIndex((step) => step.id === current)
 
   return (
-    <nav aria-label={ariaLabel}>
+    <nav
+      aria-label={ariaLabel}
+      className="rounded-2xl border border-emerald-100 bg-white/85 p-4 shadow-[0_8px_30px_-24px_rgb(16_185_129/0.45)] sm:p-5"
+    >
       <ol className="flex items-center gap-1 sm:gap-2">
         {STEPS.map((step, index) => {
           const isCurrent = step.id === current
@@ -44,7 +47,7 @@ export function PurchaseFlowStepper({
                   aria-hidden="true"
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                     isCurrent
-                      ? 'bg-emerald-600 text-white'
+                      ? 'bg-emerald-600 text-white shadow-sm ring-4 ring-emerald-100'
                       : isDone
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-slate-100 text-slate-500'

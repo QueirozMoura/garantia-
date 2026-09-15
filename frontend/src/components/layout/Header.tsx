@@ -59,7 +59,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200/70 bg-white/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
       {/* Left: Mobile brand / Desktop page title context */}
       <div className="flex items-center gap-3">
         {/* Mobile brand (hidden on md+) */}
@@ -67,7 +67,10 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
 
         {/* Desktop title / context */}
         <div className="hidden md:block">
-          <h1 className="text-sm font-semibold text-slate-900">{pageTitle}</h1>
+          <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-600 uppercase">
+            Garantia+
+          </p>
+          <h1 className="mt-0.5 text-sm font-semibold text-slate-900">{pageTitle}</h1>
           {pageSubtitle && <p className="text-xs text-slate-500">{pageSubtitle}</p>}
         </div>
       </div>
@@ -97,7 +100,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
             aria-haspopup="menu"
             aria-expanded={isMenuOpen}
             aria-label="Abrir menu do usuário"
-            className="flex cursor-pointer items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2"
+            className="flex cursor-pointer items-center gap-2 rounded-xl p-1.5 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2"
           >
             {/* Avatar */}
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-xs font-bold text-white ring-2 ring-white shadow-sm">

@@ -10,7 +10,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+    <div className="min-h-screen text-slate-900 antialiased">
       {/* Sidebar fixa no Desktop (md+) */}
       <Sidebar activeId={activeNavId} />
 
@@ -20,7 +20,7 @@ export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProp
 
         {/* Conteúdo da página com margem inferior no mobile para a bottom-bar */}
         <main className="flex-1 px-4 py-6 pb-20 sm:px-6 md:pb-8 lg:px-8">
-          <div className="mx-auto max-w-7xl">{children}</div>
+          <div className="page-enter mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
 

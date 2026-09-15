@@ -21,7 +21,7 @@ export function AlertCard({ alert }: AlertCardProps) {
 
   return (
     <article
-      className={`rounded-xl border border-slate-200 ${severityBorder} bg-white p-5 transition-all duration-200 hover:-translate-y-px hover:shadow-md hover:border-slate-300 sm:p-6`}
+      className={`group rounded-2xl border border-slate-200/80 ${severityBorder} bg-white/90 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_14px_32px_-22px_rgb(15_23_42/0.5)] sm:p-6`}
     >
       {/* Cabeçalho: ícone + título/mensagem + status */}
       <div className="flex flex-wrap items-start justify-between gap-3">

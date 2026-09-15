@@ -32,12 +32,12 @@ export const visualTokens = {
   transitionShadow: 'transition-[box-shadow,transform] duration-150 ease-out',
 
   // Border radius
-  radius: 'rounded-xl',
+  radius: 'rounded-2xl',
   radiusSm: 'rounded-lg',
   radiusFull: 'rounded-full',
 
   // Shadows
-  shadow: 'shadow-[0_1px_3px_0_rgb(0_0_0/0.06),0_1px_2px_-1px_rgb(0_0_0/0.04)]',
+  shadow: 'shadow-[0_8px_24px_-20px_rgb(15_23_42/0.5)]',
   shadowMd: 'shadow-[0_4px_6px_-1px_rgb(0_0_0/0.07),0_2px_4px_-2px_rgb(0_0_0/0.05)]',
   shadowLg: 'shadow-[0_10px_15px_-3px_rgb(0_0_0/0.08),0_4px_6px_-4px_rgb(0_0_0/0.05)]',
   shadowXl: 'shadow-[0_20px_25px_-5px_rgb(0_0_0/0.08),0_8px_10px_-6px_rgb(0_0_0/0.04)]',

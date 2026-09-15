@@ -1,4 +1,4 @@
-import { ShoppingBag, Store, Calendar } from 'lucide-react'
+import { ShoppingBag, Store, Calendar, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Purchase } from '../../types/purchase.ts'
 import { formatCurrencyBRL, formatDateBR } from '../../lib/formatters.ts'
@@ -70,12 +70,14 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
     : `${count} ${count === 1 ? 'item' : 'itens'}`
 
   return (
-    <div className="rounded-xl border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)]">
       {/* Header */}
-      <div className="border-b border-slate-100 p-5 sm:p-6">
+      <div className="border-b border-slate-100 bg-slate-50/45 p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">Todas as compras</h3>
+            <h3 className="text-base font-semibold text-slate-950">
+              Biblioteca de compras
+            </h3>
             <p className="mt-1 text-xs text-slate-500">
               Histórico completo dos produtos cadastrados.
             </p>
@@ -118,14 +120,17 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
               const brandModel = brandModelLabel(purchase)
               const category = categoryLabel(purchase)
               return (
-                <tr key={purchase.id} className="transition-colors hover:bg-slate-50/60">
+                <tr
+                  key={purchase.id}
+                  className="group transition-colors hover:bg-emerald-50/35"
+                >
                   <td className="px-3.5 py-3.5 lg:px-5">
                     {/* Produto é o alvo do clique: leva aos detalhes. */}
                     <Link
                       to={`/purchases/${purchase.id}`}
                       className="group flex items-center gap-2.5 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 transition-transform group-hover:scale-105">
                         <ShoppingBag className="h-4 w-4" aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
@@ -205,8 +210,9 @@ export function PurchasesList({ purchases, totalCount }: PurchasesListProps) {
                     )}
                   </span>
                 </div>
-                <span className="shrink-0 text-sm font-bold text-slate-900 tabular-nums">
+                <span className="flex shrink-0 items-center gap-2 text-sm font-bold text-slate-900 tabular-nums">
                   {formatCurrencyBRL(purchase.price)}
+                  <ArrowUpRight className="h-4 w-4 text-slate-300" />
                 </span>
               </div>
 

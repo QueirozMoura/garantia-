@@ -114,7 +114,7 @@ export function Dashboard() {
       {importSuccess && (
         <div
           role="status"
-          className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          className="animate-slide-up flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 shadow-sm"
         >
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>Compra cadastrada a partir da NF-e com sucesso!</span>
@@ -155,19 +155,21 @@ function DashboardContent({ data }: { data: DashboardData }) {
       {/* 2. Grid de 4 Cards de Resumo */}
       <section
         aria-label="Indicadores principais"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12"
       >
         <SummaryCard
           title="Compras cadastradas"
           value={String(summary.totalPurchases)}
           subtitle="Total de itens registrados"
           icon={ShoppingBag}
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Garantias ativas"
           value={String(summary.activeWarranties)}
           subtitle={`${summary.totalWarranties} garantias no total`}
           icon={ShieldCheck}
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Vencendo em breve"
@@ -175,12 +177,14 @@ function DashboardContent({ data }: { data: DashboardData }) {
           subtitle="Próximos 30 dias"
           icon={AlertTriangle}
           variant="warning"
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Total gasto"
           value={formatCurrencyBRL(summary.totalSpent)}
           subtitle="Em bens sob garantia"
           icon={Receipt}
+          className="lg:col-span-3"
         />
       </section>
 

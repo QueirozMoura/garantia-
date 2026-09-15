@@ -253,28 +253,34 @@ function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
   const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-col gap-6 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+    <Card className="surface-grid relative overflow-hidden border-slate-200/80 bg-white/90 p-0 shadow-[0_14px_40px_-28px_rgb(15_23_42/0.55)]">
+      <div className="relative flex flex-col gap-6 border-b border-slate-100 bg-gradient-to-br from-white via-white/90 to-emerald-50/45 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div className="flex items-start gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-900/10 ring-4 ring-emerald-100">
             <ShoppingBag className="h-8 w-8" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            <p className="mb-1 text-[10px] font-bold tracking-[0.18em] text-emerald-700 uppercase">
+              Compra protegida
+            </p>
+            <h2 className="text-2xl font-bold tracking-[-0.03em] text-slate-950">
               {purchase.productName}
             </h2>
             {brandModel && (
               <p className="mt-1 text-sm font-medium text-slate-500">{brandModel}</p>
             )}
-            <div className="mt-3">
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/15">
                 {purchase.category}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                Importado por NF-e
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-start rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200/50 sm:items-end">
+        <div className="flex flex-col items-start rounded-2xl border border-emerald-100 bg-white/90 px-5 py-4 shadow-sm sm:items-end">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Valor da compra
           </span>
@@ -288,7 +294,7 @@ function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
         <div className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-2 md:divide-y-0 md:divide-x">
           <div className="p-6 sm:p-8">
             <h3 className="mb-6 flex items-center text-sm font-semibold uppercase tracking-wider text-slate-900">
-              <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgb(16_185_129/0.12)]" />
               <span id="purchase-info-title">Informações da compra</span>
             </h3>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
@@ -321,7 +327,7 @@ function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
 
           <div className="bg-slate-50/30 p-6 sm:p-8">
             <h3 className="mb-6 flex items-center text-sm font-semibold uppercase tracking-wider text-slate-900">
-              <span className="mr-2 h-2 w-2 rounded-full bg-sky-500" />
+              <span className="mr-2 h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_0_4px_rgb(14_165_233/0.12)]" />
               Informações do Produto
             </h3>
             <dl className="grid grid-cols-1 gap-y-6 sm:grid-cols-2">

@@ -40,7 +40,7 @@ export function DocumentsToolbar({
   return (
     <section
       aria-label="Busca e filtros de documentos"
-      className="rounded-xl border-slate-200 bg-white p-4 sm:p-5"
+      className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] backdrop-blur-sm sm:p-5"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         {/* Busca — ocupa a maior parte da largura no desktop. */}

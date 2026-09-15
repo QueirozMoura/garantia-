@@ -82,13 +82,13 @@ export function WarrantyCard({ warranty }: WarrantyCardProps) {
 
   return (
     <article
-      className={`rounded-xl border ${styles.border} ${styles.bg} p-5 transition-all duration-200 hover:-translate-y-px hover:shadow-md ${styles.hoverBorder} sm:p-6`}
+      className={`group rounded-2xl border ${styles.border} ${styles.bg} p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-22px_rgb(15_23_42/0.5)] ${styles.hoverBorder} sm:p-6`}
     >
       {/* Cabeçalho: produto + status */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${styles.iconBg} ${styles.iconText}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${styles.iconBg} ${styles.iconText} transition-transform duration-200 group-hover:scale-105`}
           >
             <StatusIcon className="h-6 w-6" aria-hidden="true" />
           </div>
