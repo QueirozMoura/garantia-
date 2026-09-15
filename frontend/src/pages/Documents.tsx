@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FileStack, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { DocumentCard } from '../components/documents/DocumentCard.tsx'
 import { DocumentsSkeleton } from '../components/documents/DocumentsSkeleton.tsx'
 import { DocumentsEmptyState } from '../components/documents/DocumentsEmptyState.tsx'
@@ -14,7 +15,6 @@ import {
 } from '../components/documents/document-filters.ts'
 import { getDocuments, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
-import { PageHeader } from '../components/ui/PageHeader.tsx'
 import type { DocumentWithPurchase } from '../types/document.ts'
 
 type FetchState =
@@ -26,8 +26,6 @@ type FetchState =
 const EMPTY_DOCUMENTS: DocumentWithPurchase[] = []
 
 const TITLE = 'Documentos'
-const DESCRIPTION =
-  'Todas as notas fiscais, recibos e comprovantes das suas compras em um só lugar.'
 const FALLBACK_ERROR = 'Não foi possível carregar seus documentos.'
 
 export function Documents() {
@@ -114,9 +112,47 @@ export function Documents() {
     : `${visibleCount} ${visibleCount === 1 ? 'documento' : 'documentos'}`
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Header do conteúdo */}
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+    <div className="space-y-8 sm:space-y-10">
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
+        <div className="surface-grid absolute inset-0 -z-10 opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="absolute bottom-[-5rem] right-[18%] -z-10 h-40 w-40 rounded-full border border-blue-300/10" />
+        <div className="absolute bottom-[-6rem] right-[10%] -z-10 h-56 w-56 rounded-full border border-white/5" />
+
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold tracking-[0.18em] text-blue-200 uppercase">
+              <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+              Cofre digital
+            </div>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              {TITLE}
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+              Todos os comprovantes, notas e documentos das suas compras em um só lugar.
+            </p>
+          </div>
+          {state.status === 'success' && (
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3">
+              <FileStack className="h-5 w-5 text-blue-300" aria-hidden="true" />
+              <div>
+                <p className="text-2xl font-semibold leading-none text-white">
+                  {state.documents.length}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {state.documents.length === 1
+                    ? 'documento protegido'
+                    : 'documentos protegidos'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
+          <ShieldCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+          <span>Encontre rapidamente os arquivos que comprovam cada compra.</span>
+        </div>
+      </section>
 
       {state.status === 'loading' && <DocumentsSkeleton />}
 
@@ -143,10 +179,20 @@ export function Documents() {
           // Existem documentos, mas nada corresponde à busca/filtros.
           <DocumentsNoResultsState onClear={handleClearFilters} />
         ) : (
-          <section aria-label="Lista de documentos" className="space-y-4">
-            <p aria-live="polite" className="text-xs font-medium text-slate-400">
-              {counterLabel}
-            </p>
+          <section aria-label="Biblioteca de documentos" className="space-y-4">
+            <div className="flex items-end justify-between gap-4 px-1">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.16em] text-blue-700 uppercase">
+                  Arquivo pessoal
+                </p>
+                <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+                  Sua documentoteca
+                </h3>
+              </div>
+              <p aria-live="polite" className="text-xs font-medium text-slate-400">
+                {counterLabel}
+              </p>
+            </div>
             {visibleDocuments.map((document) => (
               <DocumentCard
                 key={document.id}

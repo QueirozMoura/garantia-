@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ArrowRight,
   Eye,
+  File,
+  FileCode2,
   FileText,
   Image as ImageIcon,
   Loader2,
-  ShoppingBag,
-  Trash2,
   Receipt,
   ShieldCheck,
-  File,
+  ShoppingBag,
+  Trash2,
 } from 'lucide-react'
 import {
   AuthenticationError,
@@ -18,7 +20,7 @@ import {
   getDocumentFile,
 } from '../../lib/api.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
-import type { DocumentWithPurchase } from '../../types/document.ts'
+import type { DocumentType, DocumentWithPurchase } from '../../types/document.ts'
 import { documentTypeLabel, formatFileSize } from './document-presentation.ts'
 import { Button } from '../ui/Button.tsx'
 
@@ -31,6 +33,36 @@ export interface DocumentCardProps {
   onAuthError: () => void
 }
 
+const TYPE_CONFIG: Record<
+  DocumentType,
+  { icon: typeof FileText; surface: string; iconText: string; marker: string }
+> = {
+  INVOICE: {
+    icon: FileText,
+    surface: 'bg-emerald-50',
+    iconText: 'text-emerald-700',
+    marker: 'bg-emerald-500',
+  },
+  RECEIPT: {
+    icon: Receipt,
+    surface: 'bg-blue-50',
+    iconText: 'text-blue-700',
+    marker: 'bg-blue-500',
+  },
+  WARRANTY: {
+    icon: ShieldCheck,
+    surface: 'bg-amber-50',
+    iconText: 'text-amber-700',
+    marker: 'bg-amber-500',
+  },
+  OTHER: {
+    icon: File,
+    surface: 'bg-slate-100',
+    iconText: 'text-slate-600',
+    marker: 'bg-slate-400',
+  },
+}
+
 export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardProps) {
   const [isViewing, setIsViewing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -39,6 +71,8 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
   const { purchase } = document
   const isImage = document.mimeType.startsWith('image/')
   const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
+  const config = TYPE_CONFIG[document.type]
+  const TypeIcon = document.type === 'OTHER' && isImage ? ImageIcon : config.icon
 
   const handleView = async () => {
     if (isViewing) return
@@ -89,62 +123,60 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
     }
   }
 
-  let TypeIcon = File
-  let typeColor = 'bg-slate-100 text-slate-600'
-
-  if (document.type === 'INVOICE') {
-    TypeIcon = FileText
-    typeColor = 'bg-emerald-100 text-emerald-600'
-  } else if (document.type === 'RECEIPT') {
-    TypeIcon = Receipt
-    typeColor = 'bg-blue-100 text-blue-600'
-  } else if (document.type === 'WARRANTY') {
-    TypeIcon = ShieldCheck
-    typeColor = 'bg-amber-100 text-amber-600'
-  } else if (document.type === 'OTHER') {
-    TypeIcon = isImage ? ImageIcon : File
-    typeColor = 'bg-slate-100 text-slate-600'
-  }
-
   return (
-    <article className="group rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_14px_32px_-22px_rgb(15_23_42/0.5)] sm:p-6">
-      {/* Cabeçalho: ícone + nome + tipo + dados do arquivo */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${typeColor} transition-transform duration-200 group-hover:scale-105`}
-          >
-            <TypeIcon className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-slate-900">
-              {document.name}
-            </h3>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-600/10">
-                {documentTypeLabel(document.type)}
-              </span>
-              <span>{formatFileSize(document.size)}</span>
-              <span className="text-slate-300" aria-hidden="true">
-                •
-              </span>
-              <span>Adicionado em {formatDateBR(document.createdAt)}</span>
-            </p>
+    <article className="group relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_-30px_rgb(15_23_42/0.65)] transition-all duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-blue-50/[0.12] hover:shadow-[0_22px_42px_-28px_rgb(15_23_42/0.55)] sm:p-6">
+      <div className={`absolute inset-x-0 top-0 h-0.5 ${config.marker} opacity-70`} />
+      <div className="flex items-start gap-4">
+        <div
+          className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${config.surface} ${config.iconText} transition-transform duration-200 group-hover:rotate-[-3deg] group-hover:scale-105`}
+        >
+          <TypeIcon className="h-6 w-6" aria-hidden="true" />
+          <span className="absolute -bottom-1 -right-1 rounded-md border-2 border-white bg-slate-900 px-1 py-0.5 text-[8px] font-bold text-white uppercase">
+            {isImage ? 'IMG' : document.mimeType.split('/')[1]?.slice(0, 4) || 'DOC'}
+          </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="mb-1 text-[10px] font-bold tracking-[0.16em] text-slate-400 uppercase">
+                Documento protegido
+              </p>
+              <h3 className="truncate text-base font-semibold tracking-[-0.015em] text-slate-950 transition-colors duration-200 group-hover:text-blue-800">
+                {document.name}
+              </h3>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-900/5">
+                  {documentTypeLabel(document.type)}
+                </span>
+                <span>{formatFileSize(document.size)}</span>
+                <span className="text-slate-300" aria-hidden="true">
+                  •
+                </span>
+                <span>Adicionado em {formatDateBR(document.createdAt)}</span>
+              </div>
+            </div>
+            <FileCode2
+              className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-blue-600"
+              aria-hidden="true"
+            />
           </div>
         </div>
       </div>
 
-      {/* Compra relacionada */}
-      <div className="mt-4 flex min-w-0 items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3.5 py-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200 shadow-sm">
+      <div className="mt-5 flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3.5 transition-colors duration-200 group-hover:border-blue-100 group-hover:bg-white">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 shadow-xs ring-1 ring-slate-200">
           <ShoppingBag className="h-4 w-4" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-900">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">
+            Compra relacionada
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-slate-900">
             {purchase.productName}
           </p>
           <p className="mt-0.5 truncate text-xs text-slate-500">
-            {brandModel || purchase.store || '-'}
+            {brandModel || purchase.store || 'Detalhes da compra'}
           </p>
         </div>
       </div>
@@ -152,18 +184,19 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
       {actionError && (
         <p
           role="alert"
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700"
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700"
         >
           {actionError}
         </p>
       )}
 
-      {/* Ações */}
       <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <Button variant="ghost" asChild>
-          <Link to={`/purchases/${purchase.id}`}>Ver compra</Link>
+          <Link to={`/purchases/${purchase.id}`} className="group/action">
+            Ver compra
+            <ArrowRight className="ml-1 h-4 w-4 transition-transform duration-200 group-hover/action:translate-x-0.5" />
+          </Link>
         </Button>
-
         <Button
           variant="secondary"
           onClick={handleView}
@@ -172,7 +205,6 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
         >
           {isViewing ? 'Abrindo...' : 'Visualizar'}
         </Button>
-
         <Button
           variant="danger"
           onClick={handleDelete}
