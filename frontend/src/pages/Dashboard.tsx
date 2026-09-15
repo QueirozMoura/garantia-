@@ -6,6 +6,9 @@ import {
   AlertTriangle,
   Receipt,
   CheckCircle2,
+  ArrowRight,
+  FileText,
+  LockKeyhole,
 } from 'lucide-react'
 import { SummaryCard } from '../components/dashboard/SummaryCard.tsx'
 import { ExpiringWarrantyCard } from '../components/dashboard/ExpiringWarrantyCard.tsx'
@@ -16,11 +19,11 @@ import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton.tsx
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState.tsx'
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
 import { XmlImportDialog } from '../components/dashboard/XmlImportDialog.tsx'
+import { DashboardImportCard } from '../components/dashboard/DashboardImportCard.tsx'
 import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
 import type { DashboardResponse } from '../types/dashboard.ts'
-import { PageHeader } from '../components/ui'
 
 type DashboardData = DashboardResponse['dashboard']
 
@@ -29,7 +32,7 @@ type FetchState =
   | { status: 'error'; message: string; isAuthError: boolean }
   | { status: 'success'; data: DashboardData }
 
-const SUBTITLE = 'Acompanhe suas compras e garantias em um só lugar.'
+const SUBTITLE = 'Tenha controle das suas compras, garantias e documentos em um só lugar.'
 
 function isEmptyDashboard(data: DashboardData): boolean {
   const { summary, expiringWarranties, recentPurchases } = data
@@ -103,13 +106,35 @@ export function Dashboard() {
   }, [])
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* 1. Header do conteúdo com Saudação e Ações Rápidas */}
-      <PageHeader
-        title={greetingName ? `${greeting}, ${greetingName}` : greeting}
-        description={SUBTITLE}
-        actions={<DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />}
-      />
+    <div className="space-y-8 sm:space-y-10">
+      <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-36px_rgb(15_23_42/0.7)] sm:px-9 sm:py-9">
+        <div className="surface-grid absolute inset-0 -z-10 opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="absolute bottom-[-5rem] right-[18%] -z-10 h-40 w-40 rounded-full border border-emerald-300/10" />
+        <div className="absolute bottom-[-6rem] right-[10%] -z-10 h-56 w-56 rounded-full border border-white/5" />
+
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">
+              <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+              Controle protegido
+            </div>
+            <h2 className="max-w-xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              {greetingName ? `${greeting}, ${greetingName}` : greeting}
+            </h2>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-slate-300 sm:text-base">
+              {SUBTITLE}
+            </p>
+          </div>
+          <DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />
+        </div>
+
+        <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
+          <FileText className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+          <span>Seus documentos e prazos importantes, sempre à vista.</span>
+          <ArrowRight className="ml-auto h-4 w-4 text-slate-500" aria-hidden="true" />
+        </div>
+      </section>
 
       {importSuccess && (
         <div
@@ -135,7 +160,10 @@ export function Dashboard() {
         (isEmptyDashboard(state.data) ? (
           <DashboardEmptyState onImportXml={() => setIsXmlImportOpen(true)} />
         ) : (
-          <DashboardContent data={state.data} />
+          <DashboardContent
+            data={state.data}
+            onImportXml={() => setIsXmlImportOpen(true)}
+          />
         ))}
 
       {isXmlImportOpen && (
@@ -148,7 +176,13 @@ export function Dashboard() {
   )
 }
 
-function DashboardContent({ data }: { data: DashboardData }) {
+function DashboardContent({
+  data,
+  onImportXml,
+}: {
+  data: DashboardData
+  onImportXml: () => void
+}) {
   const { summary, expiringWarranties, recentPurchases } = data
   return (
     <>
@@ -162,14 +196,15 @@ function DashboardContent({ data }: { data: DashboardData }) {
           value={String(summary.totalPurchases)}
           subtitle="Total de itens registrados"
           icon={ShoppingBag}
-          className="lg:col-span-3"
+          className="lg:col-span-2"
         />
         <SummaryCard
           title="Garantias ativas"
           value={String(summary.activeWarranties)}
           subtitle={`${summary.totalWarranties} garantias no total`}
           icon={ShieldCheck}
-          className="lg:col-span-3"
+          variant="protection"
+          className="lg:col-span-2"
         />
         <SummaryCard
           title="Vencendo em breve"
@@ -177,30 +212,32 @@ function DashboardContent({ data }: { data: DashboardData }) {
           subtitle="Próximos 30 dias"
           icon={AlertTriangle}
           variant="warning"
-          className="lg:col-span-3"
+          className="lg:col-span-2"
         />
         <SummaryCard
           title="Total gasto"
           value={formatCurrencyBRL(summary.totalSpent)}
           subtitle="Em bens sob garantia"
           icon={Receipt}
-          className="lg:col-span-3"
+          variant="spending"
+          className="lg:col-span-6"
         />
       </section>
 
-      {/* 3. Área Central: Compras recentes (coluna maior) + Garantias próximas & Dica (coluna lateral) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Coluna principal (2/3 em desktop) */}
-        <section aria-label="Compras recentes" className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <section aria-label="Garantias próximas" className="lg:col-span-5">
+          <ExpiringWarrantyCard warranties={expiringWarranties} />
+        </section>
+        <section aria-label="Compras recentes" className="lg:col-span-7">
           <RecentPurchases purchases={recentPurchases} />
         </section>
+      </div>
 
-        {/* Coluna lateral (1/3 em desktop) */}
-        <section
-          aria-label="Garantias próximas e dicas"
-          className="space-y-6 lg:col-span-1"
-        >
-          <ExpiringWarrantyCard warranties={expiringWarranties} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <section aria-label="Importação de nota fiscal" className="lg:col-span-7">
+          <DashboardImportCard onImportXml={onImportXml} />
+        </section>
+        <section aria-label="Dica de garantia" className="lg:col-span-5">
           <GuaranteeTip />
         </section>
       </div>
