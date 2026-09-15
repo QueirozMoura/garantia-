@@ -233,11 +233,20 @@ export function PurchaseAssistanceSection({
   }
 
   return (
-    <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
-      <h3 className="text-base font-semibold text-slate-900">Precisa de assistência?</h3>
-      <p className="mt-1 text-sm text-slate-500">
-        Descreva o problema deste produto e verifique a situação da sua garantia.
-      </p>
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <LifeBuoy className="h-5 w-5" aria-hidden="true" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">
+            Precisa de assistência?
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Descreva o problema deste produto e verifique a situação da sua garantia.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-5">
         {state.status === 'success' ? (

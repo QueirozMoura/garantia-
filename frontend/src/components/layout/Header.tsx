@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, LogOut } from 'lucide-react'
+import { Bell, LogOut, ChevronDown } from 'lucide-react'
 import { BrandLogo } from '../brand/BrandLogo.tsx'
 import { useAuth } from '../../contexts/auth-context.ts'
 
@@ -59,7 +59,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
       {/* Left: Mobile brand / Desktop page title context */}
       <div className="flex items-center gap-3">
         {/* Mobile brand (hidden on md+) */}
@@ -67,56 +67,70 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
 
         {/* Desktop title / context */}
         <div className="hidden md:block">
-          <h1 className="text-sm font-semibold tracking-wide text-slate-900">
-            {pageTitle}
-          </h1>
+          <h1 className="text-sm font-semibold text-slate-900">{pageTitle}</h1>
           {pageSubtitle && <p className="text-xs text-slate-500">{pageSubtitle}</p>}
         </div>
       </div>
 
       {/* Right: Actions & User Avatar */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Notificações: recurso ainda não implementado. Visível, porém NÃO
-            interativo (sem ação falsa). */}
+        {/* Notificações: recurso ainda não implementado. */}
         <button
           type="button"
           disabled
           aria-disabled="true"
           aria-label="Notificações (em breve)"
           title="Notificações em breve"
-          className="relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border-slate-200 text-slate-300"
+          className="relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-slate-300 ring-2 ring-white" />
         </button>
 
+        {/* Divider */}
+        <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+
         {/* User avatar + menu */}
-        <div ref={menuRef} className="relative pl-2 sm:border-l sm:border-slate-200">
+        <div ref={menuRef} className="relative">
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}
             aria-haspopup="menu"
             aria-expanded={isMenuOpen}
             aria-label="Abrir menu do usuário"
-            className="flex cursor-pointer items-center gap-3 rounded-lg pr-1 transition-colors hover:bg-slate-50"
+            className="flex cursor-pointer items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white ring-2 ring-slate-100">
+            {/* Avatar */}
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-xs font-bold text-white ring-2 ring-white shadow-sm">
               {initial}
             </div>
             <div className="hidden text-left text-xs lg:block">
-              <p className="font-medium text-slate-900 leading-tight">{name}</p>
-              <p className="text-slate-500 leading-tight">{email}</p>
+              <p className="font-semibold text-slate-900 leading-tight">
+                {name || email}
+              </p>
+              {name && (
+                <p className="text-slate-500 leading-tight truncate max-w-[120px]">
+                  {email}
+                </p>
+              )}
             </div>
+            <ChevronDown
+              className={[
+                'hidden h-3.5 w-3.5 text-slate-400 transition-transform duration-150 lg:block',
+                isMenuOpen ? 'rotate-180' : '',
+              ].join(' ')}
+              aria-hidden="true"
+            />
           </button>
 
+          {/* Dropdown menu */}
           {isMenuOpen && (
             <div
               role="menu"
               aria-label="Menu do usuário"
-              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border-slate-200 bg-white shadow-lg"
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg animate-scale-in"
             >
               <div className="border-b border-slate-100 px-4 py-3">
-                <p className="truncate text-sm font-medium text-slate-900">{name}</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
                 <p className="truncate text-xs text-slate-500">{email}</p>
               </div>
               <button
@@ -124,7 +138,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
                 role="menuitem"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span>{isLoggingOut ? 'Saindo…' : 'Sair'}</span>

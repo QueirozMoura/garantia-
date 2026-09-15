@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
-  CheckCircle,
-  Loader2,
   Pencil,
   RefreshCw,
-  ShieldCheck,
   ShieldPlus,
-  ShieldX,
   Trash2,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  CalendarClock,
 } from 'lucide-react'
 import {
   getPurchaseWarranty,
@@ -30,6 +30,16 @@ import {
   type WarrantyFormErrors,
   type WarrantyFormValues,
 } from './warranty-form.ts'
+import {
+  SectionHeader,
+  EmptyState,
+  Card,
+  StatusBadge,
+  Button,
+  Input,
+  FeedbackMessage,
+  type StatusBadgeStatus,
+} from '../ui'
 
 type FetchState =
   | { status: 'loading' }
@@ -74,9 +84,16 @@ export interface PurchaseWarrantySectionProps {
   purchaseId: string
 }
 
-/** Compara endDate com o agora em UTC, sem conversão de fuso nem libs novas. */
-function isWarrantyActive(endDate: string): boolean {
-  return new Date(endDate).getTime() >= Date.now()
+function getWarrantyStatus(startDate: string, endDate: string): StatusBadgeStatus {
+  const start = new Date(startDate).getTime()
+  const end = new Date(endDate).getTime()
+  const now = Date.now()
+
+  if (now > end) return 'expired'
+  if (now < start) return 'upcoming'
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000
+  if (end - now <= thirtyDays) return 'expiring'
+  return 'active'
 }
 
 export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionProps) {
@@ -163,10 +180,10 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
   }, [purchaseId, isDeleting, navigate, setUser])
 
   return (
-    <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
-      <h3 className="text-base font-semibold text-slate-900">Garantia</h3>
+    <section className="space-y-5">
+      <SectionHeader title="Garantia" />
 
-      <div className="mt-5">
+      <div>
         {state.status === 'loading' && <WarrantySkeleton />}
 
         {state.status === 'error' && (
@@ -176,15 +193,8 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
         {state.status === 'success' && state.warranty && !isEditing && (
           <>
             {successMessage && (
-              <div
-                role="status"
-                className="mb-5 flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800"
-              >
-                <CheckCircle
-                  className="h-4 w-4 shrink-0 translate-y-0.5"
-                  aria-hidden="true"
-                />
-                <span>{successMessage}</span>
+              <div className="mb-5">
+                <FeedbackMessage variant="success" description={successMessage} />
               </div>
             )}
             <WarrantyCard
@@ -203,16 +213,18 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
 
         {/* Edição inline — reutiliza o mesmo layout de campos da criação. */}
         {state.status === 'success' && state.warranty && isEditing && (
-          <WarrantyEditForm
-            purchaseId={purchaseId}
-            warranty={state.warranty}
-            onCancel={() => setIsEditing(false)}
-            onUpdated={handleUpdated}
-            onAuthError={() => {
-              setUser(null)
-              navigate('/login', { replace: true })
-            }}
-          />
+          <Card className="p-6">
+            <WarrantyEditForm
+              purchaseId={purchaseId}
+              warranty={state.warranty}
+              onCancel={() => setIsEditing(false)}
+              onUpdated={handleUpdated}
+              onAuthError={() => {
+                setUser(null)
+                navigate('/login', { replace: true })
+              }}
+            />
+          </Card>
         )}
 
         {state.status === 'success' && !state.warranty && !showForm && (
@@ -220,15 +232,17 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
         )}
 
         {state.status === 'success' && !state.warranty && showForm && (
-          <WarrantyForm
-            purchaseId={purchaseId}
-            onCancel={() => setShowForm(false)}
-            onCreated={handleCreated}
-            onAuthError={() => {
-              setUser(null)
-              navigate('/login', { replace: true })
-            }}
-          />
+          <Card className="p-6">
+            <WarrantyForm
+              purchaseId={purchaseId}
+              onCancel={() => setShowForm(false)}
+              onCreated={handleCreated}
+              onAuthError={() => {
+                setUser(null)
+                navigate('/login', { replace: true })
+              }}
+            />
+          </Card>
         )}
       </div>
 
@@ -276,60 +290,103 @@ function WarrantyCard({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const active = isWarrantyActive(warranty.endDate)
+  const status = getWarrantyStatus(warranty.startDate, warranty.endDate)
+
+  const start = new Date(warranty.startDate).getTime()
+  const end = new Date(warranty.endDate).getTime()
+  const [now] = useState(() => Date.now())
+  let progress = 0
+  let showProgress = false
+
+  if (
+    !isNaN(start) &&
+    !isNaN(end) &&
+    start < end &&
+    (status === 'active' || status === 'expiring')
+  ) {
+    const totalDays = end - start
+    const daysPassed = now - start
+    progress = Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100)
+    showProgress = true
+  }
+
+  const statusColors: Record<StatusBadgeStatus, string> = {
+    active: 'bg-emerald-50 text-emerald-600',
+    expiring: 'bg-amber-50 text-amber-600',
+    expired: 'bg-slate-100 text-slate-500',
+    upcoming: 'bg-sky-50 text-sky-600',
+    none: 'bg-slate-100 text-slate-500',
+    ACTIVE: 'bg-emerald-50 text-emerald-600',
+    EXPIRED: 'bg-slate-100 text-slate-500',
+    UPCOMING: 'bg-sky-50 text-sky-600',
+    NONE: 'bg-slate-100 text-slate-500',
+  }
+
+  const Icon =
+    status === 'active'
+      ? ShieldCheck
+      : status === 'expiring'
+        ? ShieldAlert
+        : status === 'upcoming'
+          ? CalendarClock
+          : ShieldX
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
-            active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          {active ? (
-            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <ShieldX className="h-5 w-5" aria-hidden="true" />
-          )}
+    <Card className="overflow-hidden">
+      <div className="space-y-6 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                statusColors[status] || statusColors.expired
+              }`}
+            >
+              <Icon className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <StatusBadge
+                status={status}
+                label={status === 'expired' ? 'Vencida' : undefined}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={onEdit}
+              variant="outline"
+              leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+            >
+              Editar
+            </Button>
+            <Button
+              onClick={onDelete}
+              variant="danger"
+              leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+            >
+              Excluir garantia
+            </Button>
+          </div>
         </div>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
-            active
-              ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
-              : 'bg-slate-100 text-slate-600 ring-slate-500/20'
-          }`}
-        >
-          {active ? 'Ativa' : 'Vencida'}
-        </span>
+
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+          <WarrantyItem label="Início" value={formatDateBR(warranty.startDate)} />
+          <WarrantyItem label="Término" value={formatDateBR(warranty.endDate)} />
+          <WarrantyItem label="Duração" value={`${warranty.durationMonths} meses`} />
+        </dl>
       </div>
 
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-        <WarrantyItem label="Duração" value={`${warranty.durationMonths} meses`} />
-        <WarrantyItem label="Início" value={formatDateBR(warranty.startDate)} />
-        <WarrantyItem label="Término" value={formatDateBR(warranty.endDate)} />
-      </dl>
-
-      {/* Ações: "Editar" é a principal (secundária em cor, para não competir
-          com o status); "Excluir garantia" mantém o destaque de perigo. */}
-      <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
-        >
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-          <span>Editar</span>
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:text-sm"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-          <span>Excluir garantia</span>
-        </button>
-      </div>
-    </div>
+      {showProgress && (
+        <div className="h-1.5 w-full bg-slate-100">
+          <div
+            className={`h-full transition-all duration-500 ${
+              status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -344,7 +401,7 @@ function WarrantyItem({ label, value }: WarrantyItemProps) {
       <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
         {label}
       </dt>
-      <dd className="mt-1 truncate text-sm text-slate-900">{value}</dd>
+      <dd className="mt-1 truncate text-sm font-medium text-slate-900">{value}</dd>
     </div>
   )
 }
@@ -352,24 +409,19 @@ function WarrantyItem({ label, value }: WarrantyItemProps) {
 /** Estado sem garantia + botão para abrir o formulário. */
 function WarrantyEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="rounded-2xl border-dashed border-slate-300 bg-white p-6 text-center sm:p-8">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-        <ShieldPlus className="h-6 w-6" aria-hidden="true" />
-      </div>
-      <p className="mx-auto mt-4 max-w-md text-sm text-slate-500">
-        Esta compra ainda não possui garantia
-      </p>
-      <div className="mt-5 flex justify-center">
-        <button
-          type="button"
+    <EmptyState
+      icon={ShieldPlus}
+      title="Esta compra ainda não possui garantia"
+      action={
+        <Button
           onClick={onAdd}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          variant="primary"
+          leftIcon={<ShieldPlus className="h-4 w-4" aria-hidden="true" />}
         >
-          <ShieldPlus className="h-4 w-4" aria-hidden="true" />
-          <span>Adicionar garantia</span>
-        </button>
-      </div>
-    </div>
+          Adicionar garantia
+        </Button>
+      }
+    />
   )
 }
 
@@ -423,84 +475,44 @@ function WarrantyFields({
   disabled,
   onChange,
 }: WarrantyFieldsProps) {
-  const inputClass = (invalid: boolean) =>
-    `w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-      invalid
-        ? 'border-red-300 focus-visible:border-red-400'
-        : 'border-slate-300 focus-visible:border-emerald-500'
-    }`
-
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      <div className="min-w-0">
-        <label
-          htmlFor={`${idPrefix}-duration`}
-          className="mb-1.5 block text-sm font-medium text-slate-700"
-        >
-          Duração da garantia (meses)
-        </label>
-        <input
-          id={`${idPrefix}-duration`}
-          name="durationMonths"
-          type="number"
-          min="1"
-          step="1"
-          inputMode="numeric"
-          value={values.durationMonths}
-          onChange={(event) => onChange({ durationMonths: event.target.value })}
-          placeholder="Ex.: 12"
-          disabled={disabled}
-          aria-invalid={Boolean(errors.durationMonths)}
-          className={inputClass(Boolean(errors.durationMonths))}
-        />
-        {errors.durationMonths && (
-          <p className="mt-1.5 text-xs text-red-600">{errors.durationMonths}</p>
-        )}
-      </div>
+      <Input
+        id={`${idPrefix}-duration`}
+        name="durationMonths"
+        type="number"
+        min="1"
+        step="1"
+        inputMode="numeric"
+        label="Duração da garantia (meses)"
+        value={values.durationMonths}
+        onChange={(event) => onChange({ durationMonths: event.target.value })}
+        placeholder="Ex.: 12"
+        disabled={disabled}
+        error={errors.durationMonths}
+      />
 
-      <div className="min-w-0">
-        <label
-          htmlFor={`${idPrefix}-start`}
-          className="mb-1.5 block text-sm font-medium text-slate-700"
-        >
-          Data de início
-        </label>
-        <input
-          id={`${idPrefix}-start`}
-          name="startDate"
-          type="date"
-          value={values.startDate}
-          onChange={(event) => onChange({ startDate: event.target.value })}
-          disabled={disabled}
-          aria-invalid={Boolean(errors.startDate)}
-          className={inputClass(Boolean(errors.startDate))}
-        />
-        {errors.startDate && (
-          <p className="mt-1.5 text-xs text-red-600">{errors.startDate}</p>
-        )}
-      </div>
+      <Input
+        id={`${idPrefix}-start`}
+        name="startDate"
+        type="date"
+        label="Data de início"
+        value={values.startDate}
+        onChange={(event) => onChange({ startDate: event.target.value })}
+        disabled={disabled}
+        error={errors.startDate}
+      />
 
-      <div className="min-w-0">
-        <label
-          htmlFor={`${idPrefix}-end`}
-          className="mb-1.5 block text-sm font-medium text-slate-700"
-        >
-          Data de término
-        </label>
-        <input
-          id={`${idPrefix}-end`}
-          name="endDate"
-          type="date"
-          value={values.endDate}
-          onChange={(event) => onChange({ endDate: event.target.value })}
-          disabled={disabled}
-          aria-invalid={Boolean(errors.endDate)}
-          className={inputClass(Boolean(errors.endDate))}
-        />
-        {errors.endDate && (
-          <p className="mt-1.5 text-xs text-red-600">{errors.endDate}</p>
-        )}
-      </div>
+      <Input
+        id={`${idPrefix}-end`}
+        name="endDate"
+        type="date"
+        label="Data de término"
+        value={values.endDate}
+        onChange={(event) => onChange({ endDate: event.target.value })}
+        disabled={disabled}
+        error={errors.endDate}
+      />
     </div>
   )
 }
@@ -513,7 +525,6 @@ interface WarrantyFormActionsProps {
   onCancel: () => void
 }
 
-/** Botões Cancelar/Salvar compartilhados, com o mesmo estado de carregamento. */
 function WarrantyFormActions({
   isSaving,
   canSubmit,
@@ -523,22 +534,17 @@ function WarrantyFormActions({
 }: WarrantyFormActionsProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-      <button
-        type="button"
-        onClick={onCancel}
-        disabled={isSaving}
-        className="inline-flex cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="button" onClick={onCancel} disabled={isSaving} variant="outline">
         Cancelar
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         disabled={!canSubmit || isSaving}
-        className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+        variant="primary"
+        isLoading={isSaving}
       >
-        {isSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-        <span>{isSaving ? savingLabel : submitLabel}</span>
-      </button>
+        {isSaving ? savingLabel : submitLabel}
+      </Button>
     </div>
   )
 }

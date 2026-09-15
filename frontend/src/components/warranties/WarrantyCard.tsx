@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarClock, CalendarPlus, ShoppingBag } from 'lucide-react'
+import { ArrowRight, CalendarClock, CalendarPlus } from 'lucide-react'
 import { formatDateBR } from '../../lib/formatters.ts'
 import { getWarrantyStatus, type WarrantyStatus } from '../../lib/warranty-status.ts'
 import type { WarrantyWithPurchase } from '../../types/warranty.ts'
@@ -20,19 +20,77 @@ const STATUS_ICON: Record<WarrantyStatus, typeof CalendarPlus> = {
   upcoming: CalendarPlus,
 }
 
+const STATUS_STYLES: Record<
+  WarrantyStatus,
+  {
+    border: string
+    bg: string
+    iconBg: string
+    iconText: string
+    hoverBorder: string
+    progressColor?: string
+  }
+> = {
+  active: {
+    border: 'border-emerald-200',
+    bg: 'bg-emerald-50/30',
+    iconBg: 'bg-emerald-100',
+    iconText: 'text-emerald-600',
+    hoverBorder: 'hover:border-emerald-300',
+    progressColor: 'bg-emerald-500',
+  },
+  expiring: {
+    border: 'border-amber-200',
+    bg: 'bg-amber-50/40',
+    iconBg: 'bg-amber-100',
+    iconText: 'text-amber-600',
+    hoverBorder: 'hover:border-amber-300',
+    progressColor: 'bg-amber-500',
+  },
+  expired: {
+    border: 'border-slate-200',
+    bg: 'bg-white',
+    iconBg: 'bg-slate-100',
+    iconText: 'text-slate-500',
+    hoverBorder: 'hover:border-slate-300',
+  },
+  upcoming: {
+    border: 'border-sky-200',
+    bg: 'bg-sky-50/30',
+    iconBg: 'bg-sky-100',
+    iconText: 'text-sky-600',
+    hoverBorder: 'hover:border-sky-300',
+  },
+}
+
 export function WarrantyCard({ warranty }: WarrantyCardProps) {
   const { purchase } = warranty
   const { status, daysRemaining } = getWarrantyStatus(warranty)
   const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
   const StatusIcon = STATUS_ICON[status]
+  const styles = STATUS_STYLES[status]
+
+  let pct = 0
+  if (status === 'active' || status === 'expiring') {
+    const totalTime =
+      new Date(warranty.endDate).getTime() - new Date(warranty.startDate).getTime()
+    const timePassed = new Date().getTime() - new Date(warranty.startDate).getTime()
+    if (totalTime > 0) {
+      pct = Math.max(0, Math.min(100, (timePassed / totalTime) * 100))
+    }
+  }
 
   return (
-    <article className="rounded-xl border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 sm:p-6">
+    <article
+      className={`rounded-xl border ${styles.border} ${styles.bg} p-5 transition-all duration-200 hover:-translate-y-px hover:shadow-md ${styles.hoverBorder} sm:p-6`}
+    >
       {/* Cabeçalho: produto + status */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-            <ShoppingBag className="h-5 w-5" aria-hidden="true" />
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${styles.iconBg} ${styles.iconText}`}
+          >
+            <StatusIcon className="h-6 w-6" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-slate-900">
@@ -66,6 +124,18 @@ export function WarrantyCard({ warranty }: WarrantyCardProps) {
           hintTone={status === 'expiring' ? 'warning' : 'muted'}
         />
       </dl>
+
+      {/* Progress Bar */}
+      {(status === 'active' || status === 'expiring') && (
+        <div className="mt-5">
+          <div className="h-1 w-full rounded-full bg-slate-200">
+            <div
+              className={`h-1 rounded-full ${styles.progressColor}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Ação */}
       <div className="mt-5 flex justify-end border-t border-slate-100 pt-4">

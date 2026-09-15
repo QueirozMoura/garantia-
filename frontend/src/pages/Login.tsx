@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
+import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { Button, Input, FeedbackMessage } from '../components/ui'
 
 interface LocationState {
   from?: { pathname?: string }
@@ -63,138 +64,164 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 antialiased sm:px-6">
-      <div className="w-full max-w-md">
-        {/* Marca */}
-        <div className="mb-8 flex-col items-center text-center">
-          <BrandLogo size="lg" orientation="vertical" className="w-full" />
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
+    <div className="flex min-h-screen bg-slate-50 lg:bg-white antialiased">
+      {/* Mobile/Tablet Background Tint */}
+      <div
+        className="absolute inset-x-0 top-0 h-1/2 bg-emerald-100/30 lg:hidden"
+        aria-hidden="true"
+      />
+
+      {/* Left Panel - Branding (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-br from-emerald-900 to-emerald-700 p-12 text-white overflow-hidden">
+        {/* Pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay pointer-events-none"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '24px 24px',
+          }}
+        ></div>
+
+        <div className="relative z-10">
+          <BrandLogo
+            size="lg"
+            orientation="horizontal"
+            className="text-white brightness-0 invert"
+          />
+          <h1 className="mt-8 text-4xl font-bold tracking-tight">
+            Seu cofre fiscal e de garantias.
+          </h1>
+          <p className="mt-4 text-emerald-100 text-lg max-w-md">
             Acesse sua conta para acompanhar compras, garantias e documentos em um só
             lugar.
           </p>
         </div>
 
-        {/* Card do formulário */}
-        <div className="rounded-2xl border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {formError && (
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700"
-              >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            {/* Email */}
+        <div className="relative z-10 space-y-6 mb-12">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <ShieldCheck className="h-6 w-6 text-emerald-300" />
+            </div>
             <div>
-              <label
-                htmlFor="email"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Email
-              </label>
-              <div className="relative">
-                <Mail
-                  className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                  aria-hidden="true"
-                />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="voce@exemplo.com"
-                  aria-invalid={Boolean(fieldErrors.email)}
-                  className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                    fieldErrors.email
-                      ? 'border-red-300 focus-visible:border-red-400'
-                      : 'border-slate-300 focus-visible:border-emerald-500'
-                  }`}
-                />
-              </div>
-              {fieldErrors.email && (
-                <p className="mt-1.5 text-xs text-red-600">{fieldErrors.email}</p>
-              )}
+              <h3 className="font-semibold text-white">Proteção de garantias</h3>
+              <p className="text-sm text-emerald-200">Nunca perca o prazo de troca.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <FileText className="h-6 w-6 text-emerald-300" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Controle fiscal</h3>
+              <p className="text-sm text-emerald-200">
+                Notas fiscais organizadas e seguras.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <Bell className="h-6 w-6 text-emerald-300" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Alertas de vencimento</h3>
+              <p className="text-sm text-emerald-200">
+                Seja avisado antes que seja tarde.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2 sm:px-6 animate-fade-in">
+        <div className="w-full max-w-md">
+          {/* Logo on Mobile */}
+          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+            <BrandLogo size="lg" orientation="vertical" />
+          </div>
+
+          {/* Form Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Entrar na sua conta</h2>
+              <p className="mt-1 text-sm text-slate-500 lg:hidden">
+                Acompanhe suas compras e garantias.
+              </p>
             </div>
 
-            {/* Senha */}
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-slate-700"
-                >
-                  Senha
-                </label>
-                <a
-                  href="#"
-                  onClick={(event) => event.preventDefault()}
-                  className="rounded text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-                >
-                  Esqueci minha senha
-                </a>
-              </div>
-              <div className="relative">
-                <Lock
-                  className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                  aria-hidden="true"
-                />
-                <input
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {formError && <FeedbackMessage variant="error" description={formError} />}
+
+              <Input
+                label="Email"
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@exemplo.com"
+                leftIcon={<Mail className="h-4 w-4" />}
+                error={fieldErrors.email}
+              />
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Senha
+                  </label>
+                  <a
+                    href="#"
+                    onClick={(event) => event.preventDefault()}
+                    className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 rounded-sm"
+                  >
+                    Esqueci minha senha
+                  </a>
+                </div>
+                <Input
                   id="password"
                   name="password"
                   type="password"
                   autoComplete="current-password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••"
-                  aria-invalid={Boolean(fieldErrors.password)}
-                  className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                    fieldErrors.password
-                      ? 'border-red-300 focus-visible:border-red-400'
-                      : 'border-slate-300 focus-visible:border-emerald-500'
-                  }`}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  leftIcon={<Lock className="h-4 w-4" />}
+                  error={fieldErrors.password}
                 />
               </div>
-              {fieldErrors.password && (
-                <p className="mt-1.5 text-xs text-red-600">{fieldErrors.password}</p>
-              )}
-            </div>
 
-            {/* Botão Entrar */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  isLoading={isSubmitting}
+                >
+                  Entrar
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Ainda não tem uma conta?{' '}
+            <Link
+              to="/register"
+              className="font-medium text-emerald-600 transition-colors hover:text-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 rounded-sm"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  <span>Entrando...</span>
-                </>
-              ) : (
-                <span>Entrar</span>
-              )}
-            </button>
-          </form>
+              Criar conta
+            </Link>
+          </p>
+
+          <p className="mt-8 text-center text-xs text-slate-400">
+            Garantia+ · Seu controle de compras e garantias
+          </p>
         </div>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Ainda não tem uma conta?{' '}
-          <Link
-            to="/register"
-            className="rounded font-medium text-emerald-700 transition-colors hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-          >
-            Criar conta
-          </Link>
-        </p>
-
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Garantia+ · Seu controle de compras e garantias
-        </p>
       </div>
     </div>
   )

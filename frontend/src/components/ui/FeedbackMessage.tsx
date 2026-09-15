@@ -8,7 +8,8 @@ export type FeedbackMessageVariant = 'success' | 'error' | 'warning' | 'info'
 export interface FeedbackMessageProps {
   variant?: FeedbackMessageVariant
   title?: string
-  description: ReactNode
+  description?: ReactNode
+  message?: ReactNode
   icon?: ReactNode
   action?: ReactNode
   onClose?: () => void
@@ -32,6 +33,7 @@ export function FeedbackMessage({
   variant = 'info',
   title,
   description,
+  message,
   icon,
   action,
   onClose,
@@ -54,7 +56,9 @@ export function FeedbackMessage({
       </span>
       <div className="min-w-0 flex-1">
         {title && <p className="font-semibold">{title}</p>}
-        <div className={cn(title && 'mt-1', 'text-current/80')}>{description}</div>
+        <div className={cn(title && 'mt-1', 'text-current/80')}>
+          {description ?? message}
+        </div>
         {action && <div className="mt-3">{action}</div>}
       </div>
       {onClose && (

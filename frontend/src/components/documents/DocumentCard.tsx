@@ -7,6 +7,9 @@ import {
   Loader2,
   ShoppingBag,
   Trash2,
+  Receipt,
+  ShieldCheck,
+  File,
 } from 'lucide-react'
 import {
   AuthenticationError,
@@ -17,6 +20,7 @@ import {
 import { formatDateBR } from '../../lib/formatters.ts'
 import type { DocumentWithPurchase } from '../../types/document.ts'
 import { documentTypeLabel, formatFileSize } from './document-presentation.ts'
+import { Button } from '../ui/Button.tsx'
 
 const FALLBACK_DELETE_ERROR = 'Não foi possível excluir o documento.'
 const FALLBACK_VIEW_ERROR = 'Não foi possível abrir o documento.'
@@ -40,13 +44,9 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
     if (isViewing) return
     setIsViewing(true)
     setActionError(null)
-    // Abre a aba no clique (sincronamente) para não ser bloqueada por popup
-    // blockers; o Blob é atribuído depois que a requisição resolve.
     const viewer = window.open('', '_blank')
     let objectUrl: string | null = null
     try {
-      // O arquivo é privado: busca autenticada via fetch (token no header),
-      // depois abre o Blob em memória. Nenhuma URL pública/token na URL.
       const blob = await getDocumentFile(document.id)
       objectUrl = URL.createObjectURL(blob)
       if (viewer) {
@@ -54,7 +54,6 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
       } else {
         window.open(objectUrl, '_blank', 'noopener,noreferrer')
       }
-      // Libera o Blob depois que a aba tiver chance de carregá-lo.
       window.setTimeout(() => URL.revokeObjectURL(objectUrl as string), 60_000)
     } catch (error) {
       viewer?.close()
@@ -90,24 +89,39 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
     }
   }
 
+  let TypeIcon = File
+  let typeColor = 'bg-slate-100 text-slate-600'
+
+  if (document.type === 'INVOICE') {
+    TypeIcon = FileText
+    typeColor = 'bg-emerald-100 text-emerald-600'
+  } else if (document.type === 'RECEIPT') {
+    TypeIcon = Receipt
+    typeColor = 'bg-blue-100 text-blue-600'
+  } else if (document.type === 'WARRANTY') {
+    TypeIcon = ShieldCheck
+    typeColor = 'bg-amber-100 text-amber-600'
+  } else if (document.type === 'OTHER') {
+    TypeIcon = isImage ? ImageIcon : File
+    typeColor = 'bg-slate-100 text-slate-600'
+  }
+
   return (
-    <article className="rounded-xl border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 sm:p-6">
+    <article className="rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-px hover:shadow-md hover:border-slate-300 sm:p-6">
       {/* Cabeçalho: ícone + nome + tipo + dados do arquivo */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-            {isImage ? (
-              <ImageIcon className="h-5 w-5" aria-hidden="true" />
-            ) : (
-              <FileText className="h-5 w-5" aria-hidden="true" />
-            )}
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${typeColor}`}
+          >
+            <TypeIcon className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-slate-900">
               {document.name}
             </h3>
-            <p className="mt-0.5 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-600/20">
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-600/10">
                 {documentTypeLabel(document.type)}
               </span>
               <span>{formatFileSize(document.size)}</span>
@@ -121,8 +135,8 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
       </div>
 
       {/* Compra relacionada */}
-      <div className="mt-4 flex min-w-0 items-center gap-3 rounded-lg border-slate-100 bg-slate-50/60 px-3.5 py-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200">
+      <div className="mt-4 flex min-w-0 items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3.5 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200 shadow-sm">
           <ShoppingBag className="h-4 w-4" aria-hidden="true" />
         </div>
         <div className="min-w-0">
@@ -138,49 +152,36 @@ export function DocumentCard({ document, onDeleted, onAuthError }: DocumentCardP
       {actionError && (
         <p
           role="alert"
-          className="mt-4 rounded-lg border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700"
+          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700"
         >
           {actionError}
         </p>
       )}
 
       {/* Ações */}
-      <div className="mt-5 flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        <Link
-          to={`/purchases/${purchase.id}`}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
-        >
-          <span>Ver compra</span>
-        </Link>
+      <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <Button variant="ghost" asChild>
+          <Link to={`/purchases/${purchase.id}`}>Ver compra</Link>
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={handleView}
           disabled={isViewing}
-          className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+          leftIcon={isViewing ? <Loader2 className="animate-spin" /> : <Eye />}
         >
-          {isViewing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          <span>{isViewing ? 'Abrindo...' : 'Visualizar'}</span>
-        </button>
+          {isViewing ? 'Abrindo...' : 'Visualizar'}
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          variant="danger"
           onClick={handleDelete}
           disabled={isDeleting}
           aria-label={`Excluir documento ${document.name}`}
-          className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+          leftIcon={isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
         >
-          {isDeleting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          ) : (
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          <span>{isDeleting ? 'Excluindo...' : 'Excluir'}</span>
-        </button>
+          {isDeleting ? 'Excluindo...' : 'Excluir'}
+        </Button>
       </div>
     </article>
   )

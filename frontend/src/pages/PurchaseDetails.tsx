@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft, CheckCircle, Pencil, Trash2 } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { PurchaseDetailsSkeleton } from '../components/purchases/PurchaseDetailsSkeleton.tsx'
 import { PurchaseNotFoundState } from '../components/purchases/PurchaseNotFoundState.tsx'
 import { PurchasesErrorState } from '../components/purchases/PurchasesErrorState.tsx'
@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import type { Purchase } from '../types/purchase.ts'
 import type { DocumentExtractionConfirmationResponse } from '../types/document.ts'
+import { PageHeader, FeedbackMessage, Button, Card } from '../components/ui'
 
 type FetchState =
   | { status: 'loading' }
@@ -147,50 +148,51 @@ export function PurchaseDetails() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header do conteúdo */}
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Detalhes da compra
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Informações registradas sobre este produto.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {currentState.status === 'success' && (
-            <Link
-              to={`/purchases/${currentState.purchase.id}/edit`}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
+      <PageHeader
+        title="Detalhes da compra"
+        description={
+          currentState.status === 'success'
+            ? currentState.purchase.category ||
+              'Informações registradas sobre este produto.'
+            : 'Informações registradas sobre este produto.'
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              as={Link}
+              to="/purchases"
+              variant="outline"
+              leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}
             >
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-              <span>Editar compra</span>
-            </Link>
-          )}
+              Voltar para compras
+            </Button>
 
-          <Link
-            to="/purchases"
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Voltar para compras</span>
-          </Link>
+            {currentState.status === 'success' && (
+              <Button
+                as={Link}
+                to={`/purchases/${currentState.purchase.id}/edit`}
+                variant="primary"
+                leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+              >
+                Editar compra
+              </Button>
+            )}
 
-          {currentState.status === 'success' && (
-            <button
-              type="button"
-              onClick={() => {
-                setDeleteError(null)
-                setIsDeleteOpen(true)
-              }}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 shadow-xs transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:text-sm"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              <span>Excluir compra</span>
-            </button>
-          )}
-        </div>
-      </section>
+            {currentState.status === 'success' && (
+              <Button
+                onClick={() => {
+                  setDeleteError(null)
+                  setIsDeleteOpen(true)
+                }}
+                variant="danger"
+                leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+              >
+                Excluir compra
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {currentState.status === 'loading' && <PurchaseDetailsSkeleton />}
 
@@ -206,13 +208,7 @@ export function PurchaseDetails() {
       )}
 
       {currentState.status === 'success' && successMessage && (
-        <div
-          role="status"
-          className="flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800"
-        >
-          <CheckCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
-          <span>{successMessage}</span>
-        </div>
+        <FeedbackMessage variant="success" message={successMessage} />
       )}
 
       {currentState.status === 'success' && (
@@ -255,74 +251,102 @@ export function PurchaseDetails() {
 
 function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
   const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
-  const hasOptional = Boolean(
-    purchase.brand || purchase.model || purchase.serialNumber || purchase.store,
-  )
 
   return (
-    <>
-      {/* Card do produto */}
-      <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-            <ShoppingBag className="h-5 w-5" aria-hidden="true" />
+    <Card className="overflow-hidden">
+      <div className="flex flex-col gap-6 border-b border-slate-100 bg-slate-50/50 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div className="flex items-start gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50">
+            <ShoppingBag className="h-8 w-8" aria-hidden="true" />
           </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-slate-900 sm:text-lg">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
               {purchase.productName}
-            </h3>
+            </h2>
             {brandModel && (
-              <p className="mt-0.5 truncate text-sm text-slate-500">{brandModel}</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">{brandModel}</p>
             )}
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                {purchase.category}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-start rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200/50 sm:items-end">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Valor da compra
+          </span>
+          <span className="mt-1 text-4xl font-extrabold tracking-tight text-emerald-600">
+            {formatCurrencyBRL(purchase.price)}
+          </span>
+        </div>
+      </div>
+
+      <section aria-labelledby="purchase-info-title">
+        <div className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-2 md:divide-y-0 md:divide-x">
+          <div className="p-6 sm:p-8">
+            <h3 className="mb-6 flex items-center text-sm font-semibold uppercase tracking-wider text-slate-900">
+              <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />
+              <span id="purchase-info-title">Informações da compra</span>
+            </h3>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Valor</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatCurrencyBRL(purchase.price)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Data da compra</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatDateBR(purchase.purchaseDate)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Loja</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {purchase.store || '-'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Categoria</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {purchase.category || '-'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-slate-50/30 p-6 sm:p-8">
+            <h3 className="mb-6 flex items-center text-sm font-semibold uppercase tracking-wider text-slate-900">
+              <span className="mr-2 h-2 w-2 rounded-full bg-sky-500" />
+              Informações do Produto
+            </h3>
+            <dl className="grid grid-cols-1 gap-y-6 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Marca</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {purchase.brand || '-'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Modelo</dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {purchase.model || '-'}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-slate-500">Número de série</dt>
+                <dd className="mt-1 font-mono text-sm font-medium text-slate-700">
+                  {purchase.serialNumber || '-'}
+                </dd>
+              </div>
+            </dl>
           </div>
         </div>
       </section>
-
-      {/* Grade de detalhes */}
-      <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-slate-900">Informações da compra</h3>
-        <dl className="mt-5 grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailItem label="Preço" value={formatCurrencyBRL(purchase.price)} emphasize />
-          <DetailItem
-            label="Data da compra"
-            value={formatDateBR(purchase.purchaseDate)}
-          />
-          <DetailItem label="Categoria" value={purchase.category} />
-          {hasOptional && (
-            <>
-              {purchase.brand && <DetailItem label="Marca" value={purchase.brand} />}
-              {purchase.model && <DetailItem label="Modelo" value={purchase.model} />}
-              {purchase.serialNumber && (
-                <DetailItem label="Número de série" value={purchase.serialNumber} />
-              )}
-              {purchase.store && <DetailItem label="Loja" value={purchase.store} />}
-            </>
-          )}
-        </dl>
-      </section>
-    </>
-  )
-}
-
-interface DetailItemProps {
-  label: string
-  value: string
-  emphasize?: boolean
-}
-
-function DetailItem({ label, value, emphasize = false }: DetailItemProps) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-        {label}
-      </dt>
-      <dd
-        className={`mt-1 truncate ${
-          emphasize ? 'text-lg font-bold text-slate-900' : 'text-sm text-slate-900'
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
+    </Card>
   )
 }

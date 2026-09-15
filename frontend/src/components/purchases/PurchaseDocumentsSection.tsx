@@ -238,9 +238,21 @@ export function PurchaseDocumentsSection({
   const documents = state.status === 'success' ? state.documents : []
 
   return (
-    <section className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-slate-900">Documentos</h3>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <FileText className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">
+              Cofre de documentos
+            </h3>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Notas, recibos e comprovantes desta compra.
+            </p>
+          </div>
+        </div>
         {state.status === 'success' && documents.length > 0 && !showForm && (
           <button
             type="button"

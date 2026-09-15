@@ -20,6 +20,7 @@ import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
 import type { DashboardResponse } from '../types/dashboard.ts'
+import { PageHeader } from '../components/ui'
 
 type DashboardData = DashboardResponse['dashboard']
 
@@ -41,10 +42,18 @@ function isEmptyDashboard(data: DashboardData): boolean {
   )
 }
 
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Bom dia'
+  if (hour < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
 export function Dashboard() {
   const navigate = useNavigate()
   const { user, setUser } = useAuth()
   const greetingName = user?.name?.trim() || user?.email?.trim() || ''
+  const greeting = getGreeting()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
 
   const [reloadKey, setReloadKey] = useState(0)
@@ -96,20 +105,16 @@ export function Dashboard() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* 1. Header do conteúdo com Saudação e Ações Rápidas */}
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {greetingName ? `Bom dia, ${greetingName}` : 'Bom dia'}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">{SUBTITLE}</p>
-        </div>
-        <DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />
-      </section>
+      <PageHeader
+        title={greetingName ? `${greeting}, ${greetingName}` : greeting}
+        description={SUBTITLE}
+        actions={<DashboardActions onImportXml={() => setIsXmlImportOpen(true)} />}
+      />
 
       {importSuccess && (
         <div
           role="status"
-          className="flex items-start gap-2.5 rounded-xl border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
         >
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>Compra cadastrada a partir da NF-e com sucesso!</span>

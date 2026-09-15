@@ -14,6 +14,7 @@ import {
 } from '../components/documents/document-filters.ts'
 import { getDocuments, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { PageHeader } from '../components/ui/PageHeader.tsx'
 import type { DocumentWithPurchase } from '../types/document.ts'
 
 type FetchState =
@@ -115,14 +116,7 @@ export function Documents() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header do conteúdo */}
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {TITLE}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">{DESCRIPTION}</p>
-        </div>
-      </section>
+      <PageHeader title={TITLE} description={DESCRIPTION} />
 
       {state.status === 'loading' && <DocumentsSkeleton />}
 

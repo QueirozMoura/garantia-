@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
-import { User, Mail, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { User, Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { registerUser, RegisterFormError } from '../services/auth.ts'
+import { Button, Input, FeedbackMessage } from '../components/ui'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 // Regra real do backend (registerSchema): password com no mínimo 8 caracteres.
@@ -85,210 +86,215 @@ export function Register() {
     }
   }
 
+  const passwordLength = password.length
+  let strengthPercent = 0
+  let strengthColor = 'bg-slate-200'
+
+  if (passwordLength > 0 && passwordLength <= 3) {
+    strengthPercent = 33
+    strengthColor = 'bg-red-500'
+  } else if (passwordLength > 3 && passwordLength <= 7) {
+    strengthPercent = 66
+    strengthColor = 'bg-amber-500'
+  } else if (passwordLength >= 8) {
+    strengthPercent = 100
+    strengthColor = 'bg-emerald-500'
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 antialiased sm:px-6">
-      <div className="w-full max-w-md">
-        {/* Marca */}
-        <div className="mb-8 flex-col items-center text-center">
-          <BrandLogo size="lg" orientation="vertical" className="w-full" />
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
+    <div className="flex min-h-screen bg-slate-50 lg:bg-white antialiased">
+      {/* Mobile/Tablet Background Tint */}
+      <div
+        className="absolute inset-x-0 top-0 h-1/2 bg-emerald-100/30 lg:hidden"
+        aria-hidden="true"
+      />
+
+      {/* Left Panel - Branding (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-br from-emerald-900 to-emerald-700 p-12 text-white overflow-hidden">
+        {/* Pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay pointer-events-none"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '24px 24px',
+          }}
+        ></div>
+
+        <div className="relative z-10">
+          <BrandLogo
+            size="lg"
+            orientation="horizontal"
+            className="text-white brightness-0 invert"
+          />
+          <h1 className="mt-8 text-4xl font-bold tracking-tight">
+            Comece a proteger suas compras
+          </h1>
+          <p className="mt-4 text-emerald-100 text-lg max-w-md">
             Crie sua conta para começar a acompanhar compras, garantias e documentos em um
             só lugar.
           </p>
         </div>
 
-        {/* Card do formulário */}
-        <div className="rounded-2xl border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-          {isSuccess ? (
-            <div
-              role="status"
-              className="flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-700"
-            >
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Conta criada com sucesso! Redirecionando para o login…</span>
+        <div className="relative z-10 space-y-6 mb-12">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <ShieldCheck className="h-6 w-6 text-emerald-300" />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate className="space-y-5">
-              {formError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700"
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{formError}</span>
-                </div>
-              )}
+            <div>
+              <h3 className="font-semibold text-white">Proteção e Segurança</h3>
+              <p className="text-sm text-emerald-200">
+                Seus dados e notas fiscais criptografados.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <FileText className="h-6 w-6 text-emerald-300" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Digitalização Rápida</h3>
+              <p className="text-sm text-emerald-200">
+                Registre garantias com poucos cliques.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-800/50">
+              <Bell className="h-6 w-6 text-emerald-300" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Notificações Inteligentes</h3>
+              <p className="text-sm text-emerald-200">Fique por dentro dos prazos.</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {/* Nome */}
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Nome
-                </label>
-                <div className="relative">
-                  <User
-                    className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Seu nome"
-                    aria-invalid={Boolean(fieldErrors.name)}
-                    className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                      fieldErrors.name
-                        ? 'border-red-300 focus-visible:border-red-400'
-                        : 'border-slate-300 focus-visible:border-emerald-500'
-                    }`}
-                  />
-                </div>
-                {fieldErrors.name && (
-                  <p className="mt-1.5 text-xs text-red-600">{fieldErrors.name}</p>
-                )}
-              </div>
+      {/* Right Panel - Form */}
+      <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2 sm:px-6 animate-fade-in">
+        <div className="w-full max-w-md">
+          {/* Logo on Mobile */}
+          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+            <BrandLogo size="lg" orientation="vertical" />
+          </div>
 
-              {/* Email */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail
-                    className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="voce@exemplo.com"
-                    aria-invalid={Boolean(fieldErrors.email)}
-                    className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                      fieldErrors.email
-                        ? 'border-red-300 focus-visible:border-red-400'
-                        : 'border-slate-300 focus-visible:border-emerald-500'
-                    }`}
-                  />
-                </div>
-                {fieldErrors.email && (
-                  <p className="mt-1.5 text-xs text-red-600">{fieldErrors.email}</p>
-                )}
-              </div>
+          {/* Form Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Criar conta</h2>
+              <p className="mt-1 text-sm text-slate-500 lg:hidden">
+                Junte-se a nós em menos de 1 minuto.
+              </p>
+            </div>
 
-              {/* Senha */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Senha
-                </label>
-                <div className="relative">
-                  <Lock
-                    className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <input
+            {isSuccess ? (
+              <FeedbackMessage
+                variant="success"
+                title="Conta criada com sucesso!"
+                description="Redirecionando para o login..."
+              />
+            ) : (
+              <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                {formError && <FeedbackMessage variant="error" description={formError} />}
+
+                <Input
+                  label="Nome"
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Seu nome"
+                  leftIcon={<User className="h-4 w-4" />}
+                  error={fieldErrors.name}
+                />
+
+                <Input
+                  label="Email"
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@exemplo.com"
+                  leftIcon={<Mail className="h-4 w-4" />}
+                  error={fieldErrors.email}
+                />
+
+                <div className="space-y-1.5">
+                  <Input
+                    label="Senha"
                     id="password"
                     name="password"
                     type="password"
                     autoComplete="new-password"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo de 8 caracteres"
-                    aria-invalid={Boolean(fieldErrors.password)}
-                    className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                      fieldErrors.password
-                        ? 'border-red-300 focus-visible:border-red-400'
-                        : 'border-slate-300 focus-visible:border-emerald-500'
-                    }`}
+                    leftIcon={<Lock className="h-4 w-4" />}
+                    error={fieldErrors.password}
                   />
+                  {passwordLength > 0 && (
+                    <div className="pt-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-slate-500">
+                          Força da senha
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${strengthColor}`}
+                          style={{ width: `${strengthPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {fieldErrors.password && (
-                  <p className="mt-1.5 text-xs text-red-600">{fieldErrors.password}</p>
-                )}
-              </div>
 
-              {/* Confirmar senha */}
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Confirmar senha
-                </label>
-                <div className="relative">
-                  <Lock
-                    className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Repita a senha"
-                    aria-invalid={Boolean(fieldErrors.confirmPassword)}
-                    className={`w-full rounded-lg border bg-white py-2.5 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                      fieldErrors.confirmPassword
-                        ? 'border-red-300 focus-visible:border-red-400'
-                        : 'border-slate-300 focus-visible:border-emerald-500'
-                    }`}
-                  />
+                <Input
+                  label="Confirmar senha"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a senha"
+                  leftIcon={<Lock className="h-4 w-4" />}
+                  error={fieldErrors.confirmPassword}
+                />
+
+                <div className="pt-3">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-full"
+                    isLoading={isSubmitting}
+                  >
+                    Criar conta
+                  </Button>
                 </div>
-                {fieldErrors.confirmPassword && (
-                  <p className="mt-1.5 text-xs text-red-600">
-                    {fieldErrors.confirmPassword}
-                  </p>
-                )}
-              </div>
+              </form>
+            )}
+          </div>
 
-              {/* Botão Criar conta */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    <span>Criando conta...</span>
-                  </>
-                ) : (
-                  <span>Criar conta</span>
-                )}
-              </button>
-            </form>
-          )}
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Já possui uma conta?{' '}
+            <Link
+              to="/login"
+              className="font-medium text-emerald-600 transition-colors hover:text-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 rounded-sm"
+            >
+              Entrar
+            </Link>
+          </p>
+
+          <p className="mt-8 text-center text-xs text-slate-400">
+            Garantia+ · Seu controle de compras e garantias
+          </p>
         </div>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Já possui uma conta?{' '}
-          <Link
-            to="/login"
-            className="rounded font-medium text-emerald-700 transition-colors hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-          >
-            Entrar
-          </Link>
-        </p>
-
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Garantia+ · Seu controle de compras e garantias
-        </p>
       </div>
     </div>
   )
