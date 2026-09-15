@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Sidebar } from '../components/layout/Sidebar.tsx'
 import { Header } from '../components/layout/Header.tsx'
 import { MobileNavigation } from '../components/layout/MobileNavigation.tsx'
+import { GuestModeBanner } from '../components/auth/GuestModeBanner.tsx'
+import { useAuth } from '../contexts/auth-context.ts'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -9,6 +11,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProps) {
+  const { isGuest } = useAuth()
+
   return (
     <div className="min-h-screen text-slate-900 antialiased">
       {/* Sidebar fixa no Desktop (md+) */}
@@ -20,7 +24,10 @@ export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProp
 
         {/* Conteúdo da página com margem inferior no mobile para a bottom-bar */}
         <main className="flex-1 px-4 py-6 pb-20 sm:px-6 md:pb-8 lg:px-8">
-          <div className="page-enter mx-auto max-w-7xl">{children}</div>
+          <div className="page-enter mx-auto max-w-7xl">
+            {isGuest && <GuestModeBanner />}
+            {children}
+          </div>
         </main>
       </div>
 

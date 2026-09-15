@@ -35,21 +35,17 @@ function App() {
       <Route
         path="/dashboard"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="dashboard">
-              <Dashboard />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="dashboard">
+            <Dashboard />
+          </AppLayout>
         }
       />
       <Route
         path="/purchases"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="compras">
-              <Purchases key="purchases-library-redesign" />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="compras">
+            <Purchases key="purchases-library-redesign" />
+          </AppLayout>
         }
       />
       <Route
@@ -95,31 +91,25 @@ function App() {
       <Route
         path="/warranties"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="garantias">
-              <Warranties />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="garantias">
+            <Warranties />
+          </AppLayout>
         }
       />
       <Route
         path="/documents"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="documentos">
-              <Documents />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="documentos">
+            <Documents />
+          </AppLayout>
         }
       />
       <Route
         path="/alerts"
         element={
-          <RequireAuth>
-            <AppLayout activeNavId="alertas">
-              <Alerts />
-            </AppLayout>
-          </RequireAuth>
+          <AppLayout activeNavId="alertas">
+            <Alerts />
+          </AppLayout>
         }
       />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

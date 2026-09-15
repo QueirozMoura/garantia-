@@ -15,6 +15,7 @@ import {
 } from '../components/documents/document-filters.ts'
 import { getDocuments, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
 import type { DocumentWithPurchase } from '../types/document.ts'
 
 type FetchState =
@@ -30,7 +31,7 @@ const FALLBACK_ERROR = 'Não foi possível carregar seus documentos.'
 
 export function Documents() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { status, setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Busca, filtros e ordenação vivem SOMENTE no estado local: nada vai para a
@@ -46,6 +47,7 @@ export function Documents() {
   useEffect(() => {
     let isActive = true
     const load = async () => {
+      if (status !== 'authenticated') return
       try {
         const documents = await getDocuments()
         if (isActive) setState({ status: 'success', documents })
@@ -65,7 +67,7 @@ export function Documents() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, handleAuthError])
+  }, [reloadKey, handleAuthError, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -101,6 +103,29 @@ export function Documents() {
 
   /** Restaura o padrão. Apenas estado local — sem navegação nem API. */
   const handleClearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
+
+  if (status === 'guest') {
+    return (
+      <div className="space-y-8 sm:space-y-10">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-amber-200 uppercase">
+            Cofre digital
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Seu cofre de documentos
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            Um espaço seguro para guardar seus comprovantes quando você entrar na conta.
+          </p>
+        </section>
+        <GuestAccessState
+          icon={FileStack}
+          title="Seus documentos ficam organizados aqui."
+          description="Entre ou crie uma conta para consultar notas fiscais, comprovantes e documentos das suas compras."
+        />
+      </div>
+    )
+  }
 
   // Contador: "8 documentos" ou, com filtros ativos e resultado menor,
   // "3 de 8 documentos". O total é o número de documentos carregados.

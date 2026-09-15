@@ -16,6 +16,7 @@ import {
 } from '../components/purchases/purchase-filters.ts'
 import { getPurchases, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
 import type { Purchase } from '../types/purchase.ts'
 
 type FetchState =
@@ -32,7 +33,7 @@ const FALLBACK_ERROR = 'Não foi possível carregar suas compras. Tente novament
 export function Purchases() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser } = useAuth()
+  const { status, setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Busca, filtros e ordenação vivem SOMENTE no estado local: nada vai para a
@@ -45,6 +46,7 @@ export function Purchases() {
   useEffect(() => {
     let isActive = true
     const load = async () => {
+      if (status !== 'authenticated') return
       try {
         const purchases = await getPurchases()
         if (isActive) setState({ status: 'success', purchases })
@@ -66,7 +68,7 @@ export function Purchases() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser])
+  }, [reloadKey, navigate, setUser, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -94,6 +96,29 @@ export function Purchases() {
 
   /** Restaura o padrão. Apenas estado local — sem navegação nem API. */
   const handleClearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
+
+  if (status === 'guest') {
+    return (
+      <div className="space-y-8 sm:space-y-10">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-200 bg-white px-6 py-7 shadow-[0_20px_48px_-36px_rgb(15_23_42/0.55)] sm:px-9 sm:py-9">
+          <p className="text-[10px] font-bold tracking-[0.17em] text-emerald-600 uppercase">
+            Biblioteca pessoal
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+            Minhas compras
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+            Explore como suas compras podem ficar organizadas em um só lugar.
+          </p>
+        </section>
+        <GuestAccessState
+          icon={Package}
+          title="Suas compras ficam organizadas aqui."
+          description="Entre ou crie uma conta para cadastrar produtos, acompanhar garantias e consultar seu histórico com segurança."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">

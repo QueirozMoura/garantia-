@@ -7,6 +7,7 @@ import { AlertsEmptyState } from '../components/alerts/AlertsEmptyState.tsx'
 import { AlertsErrorState } from '../components/alerts/AlertsErrorState.tsx'
 import { getAlerts, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
 import type { Alert } from '../types/alert.ts'
 
 type FetchState =
@@ -19,13 +20,14 @@ const FALLBACK_ERROR = 'Não foi possível carregar seus alertas.'
 
 export function Alerts() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { status, setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let isActive = true
     const load = async () => {
+      if (status !== 'authenticated') return
       try {
         const alerts = await getAlerts()
         if (isActive) setState({ status: 'success', alerts })
@@ -47,7 +49,7 @@ export function Alerts() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser])
+  }, [reloadKey, navigate, setUser, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -63,6 +65,29 @@ export function Alerts() {
     if (state.status !== 'success') return []
     return state.alerts.filter((a) => a.type === 'WARRANTY_EXPIRED')
   }, [state])
+
+  if (status === 'guest') {
+    return (
+      <div className="space-y-8 sm:space-y-10">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-amber-200 uppercase">
+            Central de atenção
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Alertas
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            Acompanhe avisos importantes quando suas compras estiverem cadastradas.
+          </p>
+        </section>
+        <GuestAccessState
+          icon={BellRing}
+          title="Seus alertas aparecem aqui."
+          description="Entre ou crie uma conta para acompanhar garantias próximas do vencimento e agir no momento certo."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import {
+  Link,
+  type Location as RouterLocation,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import {
   ShoppingBag,
   ShieldCheck,
@@ -54,7 +59,8 @@ function getGreeting() {
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const { user, setUser } = useAuth()
+  const location = useLocation()
+  const { user, status, setUser } = useAuth()
   const greetingName = user?.name?.trim() || user?.email?.trim() || ''
   const greeting = getGreeting()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
@@ -67,6 +73,7 @@ export function Dashboard() {
   useEffect(() => {
     let isActive = true
     const load = async () => {
+      if (status !== 'authenticated') return
       try {
         const data = await getDashboard()
         if (isActive) setState({ status: 'success', data })
@@ -91,7 +98,7 @@ export function Dashboard() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser])
+  }, [reloadKey, navigate, setUser, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -104,6 +111,10 @@ export function Dashboard() {
     setImportSuccess(true)
     setReloadKey((key) => key + 1)
   }, [])
+
+  if (status === 'guest') {
+    return <GuestDashboard from={location} />
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -173,6 +184,83 @@ export function Dashboard() {
         />
       )}
     </div>
+  )
+}
+
+function GuestDashboard({ from }: { from: RouterLocation }) {
+  return (
+    <div className="space-y-8 sm:space-y-10">
+      <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-8 text-white shadow-[0_24px_60px_-36px_rgb(15_23_42/0.7)] sm:px-9 sm:py-10">
+        <div className="surface-grid absolute inset-0 -z-10 opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="relative max-w-2xl">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">
+            <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+            Exploração segura
+          </p>
+          <h2 className="max-w-xl text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Organize suas compras. Proteja suas garantias.
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            Conheça o Garantia+ e explore o produto como visitante. Entre ou crie uma
+            conta quando quiser acessar seus dados e recursos pessoais.
+          </p>
+          <div className="mt-7 flex-wrap items-center gap-3">
+            <Link
+              to="/login"
+              state={{ from }}
+              className="inline-flex min-h-10 items-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            >
+              Entrar
+            </Link>
+            <Link
+              to="/register"
+              state={{ from }}
+              className="inline-flex min-h-10 items-center rounded-lg border-white/15 bg-white/[0.06] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            >
+              Criar conta
+            </Link>
+          </div>
+        </div>
+      </section>
+      <section aria-label="Recursos do Garantia+" className="grid gap-4 md:grid-cols-3">
+        <GuestFeature
+          icon={ShoppingBag}
+          title="Compras organizadas"
+          text="Mantenha produtos, valores e datas reunidos em um só lugar."
+        />
+        <GuestFeature
+          icon={ShieldCheck}
+          title="Garantias sob controle"
+          text="Acompanhe prazos importantes antes que eles passem."
+        />
+        <GuestFeature
+          icon={FileText}
+          title="Documentos acessíveis"
+          text="Tenha notas fiscais e comprovantes disponíveis quando precisar."
+        />
+      </section>
+    </div>
+  )
+}
+
+function GuestFeature({
+  icon: Icon,
+  title,
+  text,
+}: {
+  icon: typeof ShoppingBag
+  title: string
+  text: string
+}) {
+  return (
+    <article className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_16px_40px_-32px_rgb(15_23_42/0.55)]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <h3 className="mt-4 font-semibold text-slate-950">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
+    </article>
   )
 }
 

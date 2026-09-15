@@ -7,6 +7,7 @@ import { WarrantiesEmptyState } from '../components/warranties/WarrantiesEmptySt
 import { WarrantiesErrorState } from '../components/warranties/WarrantiesErrorState.tsx'
 import { getWarranties, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
+import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
 import type { WarrantyWithPurchase } from '../types/warranty.ts'
 import { ShieldCheck, Shield } from 'lucide-react'
 
@@ -20,13 +21,14 @@ const FALLBACK_ERROR = 'Não foi possível carregar suas garantias.'
 
 export function Warranties() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { status, setUser } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let isActive = true
     const load = async () => {
+      if (status !== 'authenticated') return
       try {
         const warranties = await getWarranties()
         if (isActive) setState({ status: 'success', warranties })
@@ -48,12 +50,35 @@ export function Warranties() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser])
+  }, [reloadKey, navigate, setUser, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
     setReloadKey((key) => key + 1)
   }, [])
+
+  if (status === 'guest') {
+    return (
+      <div className="space-y-8 sm:space-y-10">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">
+            Central de proteção
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Garantias
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            Acompanhe prazos e proteções importantes depois de entrar na sua conta.
+          </p>
+        </section>
+        <GuestAccessState
+          icon={ShieldCheck}
+          title="Suas garantias ficam aqui."
+          description="Entre ou crie uma conta para cadastrar compras e acompanhar prazos de garantia sem perder nenhuma data importante."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">
