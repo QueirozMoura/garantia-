@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, CheckCircle } from 'lucide-react'
+import { CheckCircle, Package, Plus, ShieldCheck } from 'lucide-react'
 import { PurchasesList } from '../components/purchases/PurchasesList.tsx'
 import { PurchasesSkeleton } from '../components/purchases/PurchasesSkeleton.tsx'
 import { PurchasesEmptyState } from '../components/purchases/PurchasesEmptyState.tsx'
@@ -27,8 +27,6 @@ type FetchState =
 const EMPTY_PURCHASES: Purchase[] = []
 
 const TITLE = 'Minhas compras'
-const DESCRIPTION =
-  'Visualize as compras que você cadastrou e acompanhe as garantias de cada produto.'
 const FALLBACK_ERROR = 'Não foi possível carregar suas compras. Tente novamente.'
 
 export function Purchases() {
@@ -98,24 +96,49 @@ export function Purchases() {
   const handleClearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Header do conteúdo */}
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {TITLE}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">{DESCRIPTION}</p>
+    <div className="space-y-8 sm:space-y-10">
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_20px_48px_-36px_rgb(15_23_42/0.55)] sm:px-9 sm:py-9">
+        <div className="surface-grid absolute inset-0 -z-10 opacity-40 [mask-image:linear-gradient(110deg,black,transparent_75%)]" />
+        <div className="absolute -right-16 -top-24 -z-10 h-64 w-64 rounded-full bg-emerald-50" />
+        <div className="absolute right-16 top-10 -z-10 h-28 w-28 rounded-full border border-emerald-100" />
+        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold tracking-[0.17em] text-emerald-200 uppercase">
+              <Package className="h-3.5 w-3.5" aria-hidden="true" />
+              Biblioteca pessoal
+            </div>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+              {TITLE}
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+              Tenha todas as suas compras, produtos e garantias organizados em um só
+              lugar.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/purchases/new')}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_-16px_rgb(5_150_105/0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-500 hover:shadow-[0_16px_28px_-16px_rgb(5_150_105/0.85)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span>Adicionar compra</span>
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => navigate('/purchases/new')}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:text-sm"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          <span>Adicionar compra</span>
-        </button>
+        {state.status === 'success' && (
+          <div className="relative mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-2">
+              <Package className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+              <strong className="font-semibold text-slate-700">
+                {state.purchases.length}
+              </strong>{' '}
+              {state.purchases.length === 1 ? 'compra cadastrada' : 'compras cadastradas'}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              Histórico organizado para consulta rápida
+            </span>
+          </div>
+        )}
       </section>
 
       {flashMessage && (
