@@ -23,43 +23,64 @@ export function WarrantiesSummary({ warranties }: WarrantiesSummaryProps) {
       aria-label="Indicadores de garantias"
       className="grid grid-cols-1 gap-4 sm:grid-cols-3"
     >
-      <div className="flex flex-col rounded-2xl border border-emerald-200/70 bg-emerald-50/45 p-5 shadow-[0_8px_30px_-24px_rgb(16_185_129/0.5)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="group relative overflow-hidden rounded-[1.5rem] border border-emerald-200/80 bg-emerald-50/70 p-5 shadow-[0_16px_38px_-32px_rgb(16_185_129/0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_20px_42px_-30px_rgb(16_185_129/0.42)] sm:p-6">
+        <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-emerald-100/70 transition-transform duration-300 group-hover:scale-110" />
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition-transform duration-200 group-hover:scale-105">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Ativas</p>
-            <p className="text-2xl font-bold text-slate-900">{active}</p>
+          <div className="relative">
+            <p className="text-[10px] font-bold tracking-[0.16em] text-emerald-800 uppercase">
+              Proteção vigente
+            </p>
+            <p className="mt-1 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
+              {active}
+            </p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Dentro do prazo</p>
+        <p className="relative mt-5 text-sm text-slate-600">
+          Garantias ativas dentro do prazo.
+        </p>
       </div>
 
-      <div className="flex flex-col rounded-2xl border border-amber-200/70 bg-amber-50/45 p-5 shadow-[0_8px_30px_-24px_rgb(245_158_11/0.35)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="group relative overflow-hidden rounded-[1.5rem] border border-amber-200/80 bg-amber-50/70 p-5 shadow-[0_16px_38px_-32px_rgb(245_158_11/0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_20px_42px_-30px_rgb(245_158_11/0.38)] sm:p-6">
+        <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-amber-100/80 transition-transform duration-300 group-hover:scale-110" />
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 transition-transform duration-200 group-hover:scale-105">
             <ShieldAlert className="h-5 w-5" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Vencendo em breve</p>
-            <p className="text-2xl font-bold text-slate-900">{expiring}</p>
+          <div className="relative">
+            <p className="text-[10px] font-bold tracking-[0.16em] text-amber-800 uppercase">
+              Requer atenção
+            </p>
+            <p className="mt-1 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
+              {expiring}
+            </p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Próximos 30 dias</p>
+        <p className="relative mt-5 text-sm text-slate-600">
+          Vencem nos próximos 30 dias.
+        </p>
       </div>
 
-      <div className="flex flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-24px_rgb(15_23_42/0.45)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="group relative overflow-hidden rounded-[1.5rem] border border-red-200/80 bg-red-50/55 p-5 shadow-[0_16px_38px_-32px_rgb(127_29_29/0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:border-red-300 hover:shadow-[0_20px_42px_-30px_rgb(127_29_29/0.3)] sm:p-6">
+        <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-red-100/70 transition-transform duration-300 group-hover:scale-110" />
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-700 transition-transform duration-200 group-hover:scale-105">
             <ShieldX className="h-5 w-5" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Expiradas</p>
-            <p className="text-2xl font-bold text-slate-900">{expired}</p>
+          <div className="relative">
+            <p className="text-[10px] font-bold tracking-[0.16em] text-red-800 uppercase">
+              Proteção encerrada
+            </p>
+            <p className="mt-1 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
+              {expired}
+            </p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Prazo encerrado</p>
+        <p className="relative mt-5 text-sm text-slate-600">
+          O prazo de cobertura já terminou.
+        </p>
       </div>
     </section>
   )
