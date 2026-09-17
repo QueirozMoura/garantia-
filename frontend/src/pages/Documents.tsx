@@ -116,7 +116,7 @@ export function Documents() {
             Cofre digital
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-            Seu cofre de documentos
+            Seus documentos ficam aqui
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
             Um espaço seguro para guardar seus comprovantes quando você entrar na conta.
@@ -124,8 +124,9 @@ export function Documents() {
         </section>
         <GuestAccessState
           icon={FileStack}
-          title="Seus documentos ficam organizados aqui."
-          description="Entre ou crie uma conta para consultar notas fiscais, comprovantes e documentos das suas compras."
+          title="Organize seus documentos"
+          description="Entre na sua conta para acessar e organizar seus documentos."
+          returnTo="/documents"
         />
       </div>
     )

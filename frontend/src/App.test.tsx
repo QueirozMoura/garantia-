@@ -58,7 +58,7 @@ describe('Rotas — acesso progressivo (guest)', () => {
     { path: '/dashboard', heading: /Organize suas compras/ },
     { path: '/purchases', heading: 'Suas compras ficam organizadas aqui.' },
     { path: '/warranties', heading: 'Suas garantias ficam aqui.' },
-    { path: '/documents', heading: 'Seu cofre de documentos' },
+    { path: '/documents', heading: 'Seus documentos ficam aqui' },
     { path: '/alerts', heading: 'Seus alertas aparecem aqui.' },
   ]
 
