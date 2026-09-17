@@ -670,6 +670,57 @@ describe('gestão do access token', () => {
     expect(api.getStoredAccessToken()).toBe('token-login')
   })
 
+  it('loginWithGoogle envia a credencial apenas no corpo e não a armazena', async () => {
+    const api = await importApi()
+    const CREDENTIAL = 'credencial-secreta-do-google.abc'
+
+    const controller = installFetch([
+      () => jsonResponse(200, { user: { id: 'u1' }, accessToken: 'token-google' }),
+    ])
+
+    await api.loginWithGoogle(CREDENTIAL)
+
+    expect(controller.calls[0].url).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+  })
+
+  it('loginWithGoogle envia { credential } para POST /auth/google e persiste o token', async () => {
+    const api = await importApi()
+
+    const controller = installFetch([
+      () => jsonResponse(200, { user: { id: 'u1' }, accessToken: 'token-google' }),
+    ])
+
+    const response = await api.loginWithGoogle('credencial-do-google')
+
+    expect(response.accessToken).toBe('token-google')
+    expect(controller.calls).toHaveLength(1)
+    expect(controller.urls()[0]).toBe(`${api.API_URL}/auth/google`)
+    expect(controller.calls[0].method).toBe('POST')
+    expect(controller.calls[0].body).toBe(
+      JSON.stringify({ credential: 'credencial-do-google' }),
+    )
+    expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBe('token-google')
+  })
+
+  it('loginWithGoogle propaga o código de erro do backend sem persistir token', async () => {
+    const api = await importApi()
+
+    installFetch([
+      () =>
+        jsonResponse(400, {
+          error: { message: 'invalid', code: 'GOOGLE_TOKEN_INVALID' },
+        }),
+    ])
+
+    await expect(api.loginWithGoogle('credencial-invalida')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 400,
+      code: 'GOOGLE_TOKEN_INVALID',
+    })
+    expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
+  })
+
   it('clearStoredAccessToken remove o token', async () => {
     const api = await importApi()
     api.setStoredAccessToken('algo')

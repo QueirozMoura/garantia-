@@ -1,5 +1,6 @@
 import {
   login,
+  loginWithGoogle,
   register,
   getMe,
   logout as logoutRequest,
@@ -66,6 +67,50 @@ export async function authenticate(
     return await login(credentials)
   } catch (error) {
     throw new LoginFormError(toFriendlyMessage(error))
+  }
+}
+
+/**
+ * Traduz os erros de POST /auth/google em mensagens amigáveis, sem expor
+ * detalhes internos da API. Os códigos específicos do login com Google são
+ * tratados individualmente; o restante cai nas mensagens genéricas.
+ */
+function toGoogleFriendlyMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return 'Não foi possível conectar ao servidor. Tente novamente.'
+    }
+    switch (error.code) {
+      case 'GOOGLE_TOKEN_INVALID':
+        return 'Não foi possível validar sua conta Google. Tente novamente.'
+      case 'GOOGLE_EMAIL_NOT_VERIFIED':
+        return 'Seu email do Google precisa ser verificado antes de continuar.'
+      case 'GOOGLE_ACCOUNT_LINK_REQUIRED':
+        return 'Já existe uma conta com este email. Entre com sua senha para vincular o Google.'
+      case 'GOOGLE_AUTH_NOT_CONFIGURED':
+        return 'Login com Google indisponível no momento. Use seu email e senha.'
+      default:
+        break
+    }
+    if (error.status >= 500) {
+      return 'O servidor está indisponível no momento. Tente novamente mais tarde.'
+    }
+    return 'Não foi possível entrar com o Google. Tente novamente.'
+  }
+  return 'Não foi possível entrar com o Google. Tente novamente.'
+}
+
+/**
+ * Autentica usando a credencial do Google Identity Services via POST /auth/google.
+ * Reutiliza o mesmo formato de sucesso do login tradicional (access token já
+ * persistido) e o mesmo tipo de erro já exibido no formulário.
+ * A credencial é enviada apenas nesta requisição e nunca é armazenada.
+ */
+export async function authenticateWithGoogle(credential: string): Promise<LoginResponse> {
+  try {
+    return await loginWithGoogle(credential)
+  } catch (error) {
+    throw new LoginFormError(toGoogleFriendlyMessage(error))
   }
 }
 

@@ -674,6 +674,21 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 }
 
 /**
+ * Autentica o usuário com a credencial (ID token) do Google Identity Services.
+ * POST /auth/google — mesma base URL, mesmo tratamento de erro e mesma
+ * persistência de access token do login por email/senha; o refresh token segue
+ * em cookie HttpOnly definido pelo backend.
+ */
+export async function loginWithGoogle(credential: string): Promise<LoginResponse> {
+  const data = await request<LoginResponse>('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  })
+  setStoredAccessToken(data.accessToken)
+  return data
+}
+
+/**
  * Cria uma nova conta no backend.
  * POST /auth/register — responde 201 `{ user }`, sem access token nem sessão.
  */

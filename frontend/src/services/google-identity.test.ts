@@ -1,4 +1,4 @@
- // Testes do fluxo do Google Identity Services (GIS).
+// Testes do fluxo do Google Identity Services (GIS).
 //
 // Cobrem os comportamentos críticos desta etapa:
 // - sem VITE_GOOGLE_CLIENT_ID o Google fica indisponível (login tradicional intacto);
