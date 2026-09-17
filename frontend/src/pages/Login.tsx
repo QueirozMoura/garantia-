@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
+import { GoogleIcon } from '../components/icons/GoogleIcon.tsx'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { hasGuestPurchaseDraft } from '../services/guest-drafts.ts'
+import { loadGoogleIdentityServices } from '../services/google-identity.ts'
 import { Button, Input, FeedbackMessage } from '../components/ui'
 
 interface LocationState {
@@ -34,6 +36,13 @@ export function Login() {
   )
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Etapa preparatória: apenas baixa o script do Google Identity Services quando
+  // há Client ID configurado. A inicialização e o login com Google (POST
+  // /auth/google) ficam para a próxima etapa.
+  useEffect(() => {
+    void loadGoogleIdentityServices()
+  }, [])
 
   function validate(): boolean {
     const errors: { email?: string; password?: string } = {}
@@ -223,6 +232,25 @@ export function Login() {
                 </Button>
               </div>
             </form>
+
+            {/* Divisor + botão social. Apenas visual nesta etapa: ainda não
+                inicia o fluxo do Google nem chama /auth/google. */}
+            <div className="mt-5 space-y-5">
+              <div className="flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-medium text-slate-400">ou</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                leftIcon={<GoogleIcon className="h-4 w-4" />}
+              >
+                Continuar com Google
+              </Button>
+            </div>
           </div>
 
           <p className="mt-6 text-center text-sm text-slate-600">
