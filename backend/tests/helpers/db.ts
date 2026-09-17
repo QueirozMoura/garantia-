@@ -5,10 +5,13 @@ import { PrismaClient } from '@prisma/client';
 export const testPrisma = new PrismaClient();
 
 // Deletes all rows in the tables used by integration tests.
-// Order matters because of foreign keys: children (Document, Warranty) before Purchase.
+// Order matters because of foreign keys: children (Document, Warranty, Account)
+// before Purchase/User. Account.userId is ON DELETE CASCADE (so deleting User
+// would also clear it), but deleting explicitly keeps the order unambiguous.
 export const cleanDatabase = async () => {
   await testPrisma.document.deleteMany();
   await testPrisma.warranty.deleteMany();
+  await testPrisma.account.deleteMany();
   await testPrisma.purchase.deleteMany();
   await testPrisma.user.deleteMany();
 };

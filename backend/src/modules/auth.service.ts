@@ -42,18 +42,39 @@ export const login = async (input: LoginInput) => {
     throw unauthorized('Invalid email or password', 'INVALID_CREDENTIALS');
   }
 
-  return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    },
-    accessToken: createAccessToken(user.id),
-    refreshToken: createRefreshToken(user.id),
-  };
+  return createSession(user);
 };
+
+/**
+ * Usuário autenticável mínimo aceito pelo emissor de sessão. No caso do Google
+ * o User vem de `google-account.service`, que já devolve exatamente o shape
+ * público (id/name/email/createdAt/updatedAt).
+ */
+interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Único ponto de emissão de sessão do projeto. Login tradicional e login Google
+ * passam por aqui: mesma geração de access/refresh token, mesma expiração,
+ * mesmos secrets e mesmo payload (ver `config/jwt`). Nenhuma cópia paralela de
+ * JWT é criada para o Google.
+ */
+export const createSession = (user: SessionUser) => ({
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  },
+  accessToken: createAccessToken(user.id),
+  refreshToken: createRefreshToken(user.id),
+});
 
 export const refresh = (token: string) => {
   let payload;

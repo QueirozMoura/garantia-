@@ -46,4 +46,8 @@ export const env = {
   geminiApiKey: process.env.GEMINI_API_KEY,
   rateLimitAuthMax: positiveIntFromEnv('RATE_LIMIT_AUTH_MAX'),
   rateLimitAiMax: positiveIntFromEnv('RATE_LIMIT_AI_MAX'),
+  // Login com Google (Etapa 1). OPCIONAL: ausente significa "não configurado"
+  // e é exatamente o que faz POST /auth/google responder GOOGLE_AUTH_NOT_CONFIGURED.
+  // Nunca obrigatório aqui para não quebrar o login tradicional.
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
 } as const;
