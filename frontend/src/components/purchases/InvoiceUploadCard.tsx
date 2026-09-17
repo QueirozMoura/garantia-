@@ -4,6 +4,8 @@ import {
   FileText,
   Image as ImageIcon,
   Loader2,
+  Lock,
+  LogIn,
   Upload,
   X,
 } from 'lucide-react'
@@ -27,6 +29,11 @@ export interface InvoiceUploadCardProps {
    * mensagem pedindo autenticação. Nenhum arquivo é lido ou persistido.
    */
   guestLocked?: boolean
+  /**
+   * Ação do CTA "Entrar" exibido no modo visitante. Leva a /login preservando a
+   * intenção de voltar a esta página (e o rascunho, se já existir).
+   */
+  onGuestSignIn?: () => void
   /** Texto do estado de carregamento exibido no lugar da seleção. */
   loadingLabel?: string
 }
@@ -44,6 +51,7 @@ export function InvoiceUploadCard({
   onFileChange,
   disabled = false,
   guestLocked = false,
+  onGuestSignIn,
   loadingLabel,
 }: InvoiceUploadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -100,12 +108,33 @@ export function InvoiceUploadCard({
         disabled={isLocked}
         className="sr-only"
         aria-label="Selecionar nota fiscal"
+        aria-describedby={guestLocked ? 'invoice-guest-locked' : undefined}
       />
 
       {guestLocked && (
-        <p className="mt-4 rounded-lg border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
-          Entre para anexar uma nota fiscal.
-        </p>
+        <div
+          id="invoice-guest-locked"
+          className="mt-4 grid gap-3 rounded-lg border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-900 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4"
+        >
+          <p className="flex min-w-0 items-start gap-2.5 leading-5">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+            <span>
+              <span className="font-semibold">
+                Entre na sua conta para anexar documentos
+              </span>{' '}
+              e usar a extração automática.
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={onGuestSignIn}
+            disabled={!onGuestSignIn}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Entrar</span>
+          </button>
+        </div>
       )}
 
       {isLoading && (

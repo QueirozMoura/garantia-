@@ -1,6 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react'
 import { PurchaseForm } from '../components/purchases/PurchaseForm.tsx'
 import {
   EMPTY_PURCHASE_FIELDS,
@@ -15,6 +22,7 @@ import { DiscardDraftDialog } from '../components/purchases/DiscardDraftDialog.t
 import {
   clearGuestPurchaseDraft,
   getGuestPurchaseDraft,
+  hasGuestPurchaseDraft,
   saveGuestPurchaseDraft,
 } from '../services/guest-drafts.ts'
 import { ExtractionPreview } from '../components/purchases/ExtractionPreview.tsx'
@@ -171,10 +179,26 @@ export function AddPurchase() {
     if (isSubmittingRef.current) return
     const errors = validatePurchaseFields(fields)
     if (Object.keys(errors).length > 0) return
-    saveGuestPurchaseDraft(fields)
+    // O arquivo em memória não é persistido: apenas registramos se havia um
+    // selecionado, para avisar (depois da restauração) que precisa ser
+    // escolhido novamente. Nunca guardamos o File nem seu conteúdo.
+    saveGuestPurchaseDraft(fields, Date.now(), invoiceFile !== null)
     navigate('/login', {
       state: { from: { pathname: '/purchases/new' }, resumeAction: 'purchase-draft' },
     })
+  }
+
+  /**
+   * Visitante clica "Entrar" no bloco de documento: vai ao login preservando a
+   * intenção de voltar a /purchases/new. Se já existe rascunho, mantém a
+   * `resumeAction` para retomá-lo; se não existe, não inventa um rascunho vazio.
+   */
+  function handleGuestSignInFromDocument() {
+    const from = { pathname: '/purchases/new' }
+    const state = hasGuestPurchaseDraft()
+      ? { from, resumeAction: 'purchase-draft' }
+      : { from }
+    navigate('/login', { state })
   }
 
   async function handleSubmit(payload: CreatePurchaseInput) {
@@ -385,6 +409,25 @@ export function AddPurchase() {
         />
       )}
 
+      {/* O arquivo NÃO é preservado no rascunho (vive só em memória). Só
+          avisamos quando há evidência de que um arquivo foi selecionado antes
+          da navegação — nunca numa restauração comum. */}
+      {!isGuest && restoredFields && restoredDraft?.hadDocumentSelection && (
+        <aside
+          aria-label="Arquivo precisa ser selecionado novamente"
+          className="flex items-start gap-2.5 rounded-2xl border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900"
+        >
+          <FileText
+            className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
+            aria-hidden="true"
+          />
+          <span>
+            Os dados da compra foram restaurados, mas o arquivo da nota fiscal precisa ser
+            selecionado novamente.
+          </span>
+        </aside>
+      )}
+
       {/* Indicador de progresso — apenas no fluxo com nota fiscal. O fluxo
           manual (sem nota) não exibe stepper para continuar simples. */}
       {(invoiceFile || createdPurchaseId) && (
@@ -433,6 +476,7 @@ export function AddPurchase() {
             }}
             disabled={submission !== 'idle' || isSuccess}
             guestLocked={isGuest}
+            onGuestSignIn={handleGuestSignInFromDocument}
             loadingLabel={
               submission === 'creating' ? 'Salvando compra...' : 'Anexando nota fiscal...'
             }

@@ -148,4 +148,47 @@ describe('guest-drafts', () => {
     expect(() => saveGuestPurchaseDraft(FIELDS)).not.toThrow()
     setItem.mockRestore()
   })
+
+  // --- hadDocumentSelection (Etapa 5): só um booleano, nunca conteúdo ------
+  it('omite hadDocumentSelection quando não havia arquivo selecionado', () => {
+    const saved = saveGuestPurchaseDraft(FIELDS)
+
+    expect(saved.hadDocumentSelection).toBeUndefined()
+    expect(localStorage.getItem(GUEST_PURCHASE_DRAFT_KEY)).not.toContain(
+      'hadDocumentSelection',
+    )
+  })
+
+  it('registra hadDocumentSelection: true sem guardar o arquivo', () => {
+    const saved = saveGuestPurchaseDraft(FIELDS, Date.now(), true)
+
+    expect(saved.hadDocumentSelection).toBe(true)
+    const raw = localStorage.getItem(GUEST_PURCHASE_DRAFT_KEY) ?? ''
+    expect(raw).toContain('"hadDocumentSelection":true')
+    // Nunca conteúdo/nome/base64/Blob do arquivo.
+    expect(raw).not.toMatch(/base64|blob:|%PDF|iVBOR|data:|fileName|\.pdf/i)
+  })
+
+  it('lê um rascunho com hadDocumentSelection: true', () => {
+    saveGuestPurchaseDraft(FIELDS, Date.now(), true)
+
+    expect(getGuestPurchaseDraft()?.hadDocumentSelection).toBe(true)
+  })
+
+  it('descarta rascunho com hadDocumentSelection não booleano', () => {
+    localStorage.setItem(
+      GUEST_PURCHASE_DRAFT_KEY,
+      JSON.stringify({
+        version: GUEST_PURCHASE_DRAFT_VERSION,
+        type: 'purchase',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        data: FIELDS,
+        hadDocumentSelection: 'nota.pdf',
+      }),
+    )
+
+    expect(getGuestPurchaseDraft()).toBeNull()
+    expect(localStorage.getItem(GUEST_PURCHASE_DRAFT_KEY)).toBeNull()
+  })
 })

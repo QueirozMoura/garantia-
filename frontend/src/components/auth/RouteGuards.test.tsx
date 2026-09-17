@@ -116,6 +116,45 @@ describe('RouteGuards', () => {
     expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
   })
 
+  it('RequireGuest autenticado respeita o `from` (não força /dashboard)', () => {
+    const from = { pathname: '/purchases/new' }
+    const loginFromEntry = { pathname: '/login', state: { from: from } }
+    render(
+      <AuthContext.Provider value={authValue('authenticated')}>
+        <MemoryRouter initialEntries={[loginFromEntry]}>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <RequireGuest>
+                  <div>AUTH_PAGE</div>
+                </RequireGuest>
+              }
+            />
+            <Route path="/purchases/new" element={<div>NEW_PURCHASE_PAGE</div>} />
+            <Route path="/dashboard" element={<div>DASHBOARD_PAGE</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    expect(screen.getByText('NEW_PURCHASE_PAGE')).toBeInTheDocument()
+    expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
+  })
+
+  it('RequireGuest autenticado sem `from` continua indo para /dashboard', () => {
+    renderGuard(
+      <RequireGuest>
+        <div>AUTH_PAGE</div>
+      </RequireGuest>,
+      authValue('authenticated'),
+      '/protected',
+    )
+
+    expect(screen.getByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    expect(screen.queryByText('AUTH_PAGE')).not.toBeInTheDocument()
+  })
+
   it('RequireAuth a partir de guest preserva a intenção `from` para o login', () => {
     render(
       <AuthContext.Provider value={authValue('guest')}>

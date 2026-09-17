@@ -58,10 +58,12 @@ export function RequireGuest({ children }: RequireGuestProps) {
   }
 
   if (status === 'authenticated') {
-    const wantsResume =
-      (location.state as { resumeAction?: string } | null)?.resumeAction ===
-      'purchase-draft'
-    if (wantsResume && hasGuestPurchaseDraft()) {
+    const state = location.state as {
+      resumeAction?: string
+      from?: { pathname?: string }
+    } | null
+    // Retomada de compra iniciada como visitante tem prioridade.
+    if (state?.resumeAction === 'purchase-draft' && hasGuestPurchaseDraft()) {
       return (
         <Navigate
           to="/purchases/new"
@@ -70,6 +72,15 @@ export function RequireGuest({ children }: RequireGuestProps) {
         />
       )
     }
+
+    // Destino pretendido (ex.: guest clicou "Entrar" no bloco de documento de
+    // /purchases/new): respeita o `from` para não perder o contexto. Só cai no
+    // /dashboard quando não há intenção de retorno.
+    const from = state?.from?.pathname
+    if (from && from !== '/login' && from !== '/register') {
+      return <Navigate to={from} replace />
+    }
+
     return <Navigate to="/dashboard" replace />
   }
 

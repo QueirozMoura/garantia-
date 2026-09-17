@@ -18,6 +18,14 @@ export interface PurchaseDraft {
   updatedAt: string
   /** Campos exatamente como o formulário de compra os utiliza. */
   data: PurchaseFormFields
+  /**
+   * Sinaliza que o visitante havia selecionado um arquivo de nota fiscal
+   * ANTES de virar visitante->login. É um booleano puro: NUNCA guarda o File,
+   * conteúdo, base64, Blob, nome ou qualquer referência ao arquivo (o arquivo
+   * vive só em memória). Serve para avisar, após a restauração, que o arquivo
+   * precisa ser selecionado novamente.
+   */
+  hadDocumentSelection?: boolean
 }
 
 /** Versão atual suportada do rascunho. */
@@ -70,7 +78,10 @@ function isPurchaseDraft(value: unknown): value is PurchaseDraft {
     draft.type === 'purchase' &&
     typeof draft.createdAt === 'string' &&
     typeof draft.updatedAt === 'string' &&
-    isPurchaseFormFields(draft.data)
+    isPurchaseFormFields(draft.data) &&
+    // Opcional: quando presente, precisa ser booleano (nunca conteúdo).
+    (draft.hadDocumentSelection === undefined ||
+      typeof draft.hadDocumentSelection === 'boolean')
   )
 }
 
@@ -99,6 +110,7 @@ function isFresh(draft: PurchaseDraft, now: number): boolean {
 export function saveGuestPurchaseDraft(
   fields: PurchaseFormFields,
   now: number = Date.now(),
+  hadDocumentSelection = false,
 ): PurchaseDraft {
   const existing = getGuestPurchaseDraft(now)
   const timestamp = new Date(now).toISOString()
@@ -108,6 +120,8 @@ export function saveGuestPurchaseDraft(
     createdAt: existing?.createdAt ?? timestamp,
     updatedAt: timestamp,
     data: fields,
+    // Só persiste o sinalizador quando verdadeiro — nunca conteúdo de arquivo.
+    ...(hadDocumentSelection ? { hadDocumentSelection: true } : {}),
   }
 
   const storage = getStorage()
