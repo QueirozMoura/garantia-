@@ -1,10 +1,11 @@
 /**
- * Carregamento do Google Identity Services (GIS) — etapa preparatória.
+ * Fluxo do Google Identity Services (GIS) no frontend.
  *
- * Nesta etapa NÃO há autenticação: apenas garantimos que o script
- * `https://accounts.google.com/gsi/client` seja carregado uma única vez e que
- * exista um lugar definido para inicializar o cliente quando o login com Google
- * for implementado. Nenhuma chamada a `/auth/google` é feita aqui.
+ * Escopo desta etapa: carregar o script `https://accounts.google.com/gsi/client`
+ * uma única vez, inicializar o cliente uma única vez e entregar a credencial
+ * (ID token) recebida do Google para quem chamou. Nenhuma chamada a
+ * `/auth/google` é feita aqui e nada é persistido (nem localStorage, nem
+ * sessionStorage, nem cookies) — a credencial vive apenas em memória.
  */
 
 const GIS_SCRIPT_ID = 'google-identity-services'
@@ -15,16 +16,99 @@ export const googleClientId: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '
 
 /** Indica se o Client ID foi configurado no ambiente do frontend. */
 export const hasGoogleClientId = (): boolean => googleClientId.trim().length > 0
+/** Resposta de credencial entregue pelo GIS no callback de `initialize`. */
+export interface GoogleCredentialResponse {
+  /** ID token (JWT) do Google: NUNCA deve ser logado, salvo ou exibido. */
+  credential?: string
+  /** Motivo do cancelamento, quando o usuário fecha a janela do Google. */
+  error?: string
+  [key: string]: unknown
+}
 
-/** Subconjunto da API do GIS usado nesta etapa (evita depender do tipos globais). */
+/** Subconjunto da API do GIS usado nesta etapa (evita depender dos tipos globais). */
 interface GoogleIdentityApi {
   accounts?: {
     id?: {
       initialize: (config: {
         client_id: string
-        callback: (response: unknown) => void
+        callback: (response: GoogleCredentialResponse) => void
       }) => void
+      prompt: () => void
+      cancel: () => void
     }
+  }
+}
+
+export interface GoogleSignInHandlers {
+  /** Chamado com a credencial válida do Google (mantida apenas em memória). */
+  onCredential: (credential: string) => void
+  /** Google indisponível, cancelado pelo usuário ou script bloqueado. */
+  onUnavailable?: (reason: GoogleUnavailableReason) => void
+}
+
+export type GoogleUnavailableReason =
+  'not-configured' | 'script-unavailable' | 'cancelled'
+
+/**
+ * Estado de módulo: garante uma única inicialização do GIS por sessão do SPA.
+ * Em StrictMode (ou em remontagens da tela de login) o `initialize` não se
+ * repete e o callback mais recente é reusado.
+ */
+let initializing: Promise<boolean> | null = null
+let handlers: GoogleSignInHandlers | null = null
+/** Handle do fluxo de credencial (aciona o popup/One Tap do Google). */
+export interface GoogleCredentialFlow {
+  /** Inicia a solicitação da credencial. `false` = Google indisponível. */
+  request: () => boolean
+}
+
+/**
+ * Registra o handler da credencial e dispara a inicialização única do cliente.
+ * Retorna `false` (sem lançar erro) quando o Client ID não está configurado —
+ * o login tradicional por email/senha segue funcionando normalmente.
+ */
+function prepareGoogleSignIn(
+  onCredential: (credential: string) => void,
+  onUnavailable?: (reason: GoogleUnavailableReason) => void,
+): Promise<GoogleCredentialFlow | null> {
+  if (!hasGoogleClientId()) {
+    onUnavailable?.('not-configured')
+    return Promise.resolve(null)
+  }
+
+  handlers = { onCredential, onUnavailable }
+
+  if (initializing) return initializing.then(() => createFlow())
+
+  initializing = loadGoogleIdentityServices().then((loaded) => {
+    if (!loaded || !initializeGoogleIdentity()) {
+      onUnavailable?.('script-unavailable')
+      return false
+    }
+    return true
+  })
+
+  return initializing.then(() => createFlow())
+}
+
+/**
+ * Cria o handle do fluxo de credencial. As referências são resolvidas no
+ * momento do clique (e não na montagem), então a instância mais recente do
+ * `window.google` é sempre usada — mesmo com StrictMode/remontagens.
+ */
+function createFlow(): GoogleCredentialFlow | null {
+  const getIdentity = () => window.google?.accounts?.id
+  if (!getIdentity()) return null
+  return {
+    request: () => {
+      const identity = getIdentity()
+      if (!identity) {
+        handlers?.onUnavailable?.('script-unavailable')
+        return false
+      }
+      identity.prompt()
+      return true
+    },
   }
 }
 
@@ -32,6 +116,19 @@ declare global {
   interface Window {
     google?: GoogleIdentityApi
   }
+}
+
+/**
+ * Callback único registrado no GIS: entrega a credencial para o handler mais
+ * recente e ignora cancelamentos (sem vazar o token em logs).
+ */
+function handleCredentialResponse(response: GoogleCredentialResponse): void {
+  const credential = response?.credential
+  if (typeof credential !== 'string' || credential.length === 0) {
+    handlers?.onUnavailable?.('cancelled')
+    return
+  }
+  handlers?.onCredential(credential)
 }
 
 function findExistingScript(): HTMLScriptElement | null {
@@ -80,16 +177,45 @@ export function loadGoogleIdentityServices(): Promise<boolean> {
 }
 
 /**
- * Inicializa o cliente do GIS. Fica pronta para a próxima etapa (o `callback`
- * receberá a credencial/ID token a ser enviado ao backend em `/auth/google`),
- * mas nesta etapa nada é chamado — nenhuma requisição é disparada.
+ * Inicializa o cliente do GIS uma única vez, usando sempre o mesmo callback
+ * de módulo. O `prompt()` fica sob demanda (`startGoogleSignIn`), para que o
+ * One Tap só apareça quando o usuário clicar no botão. Não dispara requisições.
  */
-export function initializeGoogleIdentity(
-  onCredential: (response: unknown) => void,
-): boolean {
+function initializeGoogleIdentity(): boolean {
   const identity = window.google?.accounts?.id
   if (!hasGoogleClientId() || !identity) return false
-
-  identity.initialize({ client_id: googleClientId, callback: onCredential })
+  identity.initialize({
+    client_id: googleClientId,
+    callback: handleCredentialResponse,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+    use_fedcm_for_prompt: true,
+  } as Parameters<NonNullable<typeof identity.initialize>>[0])
   return true
+}
+
+/**
+ * Inicia o login com Google: carrega o script (uma vez), inicializa o cliente
+ * (uma vez) e pede a credencial. A credencial é entregue em `onCredential`
+ * apenas em memória — nenhuma API do Garantia+ é chamada nesta etapa.
+ */
+export function startGoogleSignIn(
+  handlersConfig: GoogleSignInHandlers,
+): Promise<GoogleCredentialFlow | null> {
+  return prepareGoogleSignIn(handlersConfig.onCredential, handlersConfig.onUnavailable)
+}
+
+/** Cancela o prompt do GIS (usado no unmount da tela de login). */
+export function cancelGoogleSignIn(): void {
+  try {
+    window.google?.accounts?.id?.cancel()
+  } catch {
+    // Ambiente sem o GIS (testes/jsdom) ou estado inválido: nada a fazer.
+  }
+}
+
+/** Somente para testes: restaura o estado de módulo entre casos. */
+export function resetGoogleIdentityForTests(): void {
+  initializing = null
+  handlers = null
 }

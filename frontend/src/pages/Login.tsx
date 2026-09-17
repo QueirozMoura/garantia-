@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
@@ -6,7 +6,12 @@ import { GoogleIcon } from '../components/icons/GoogleIcon.tsx'
 import { authenticate, LoginFormError } from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { hasGuestPurchaseDraft } from '../services/guest-drafts.ts'
-import { loadGoogleIdentityServices } from '../services/google-identity.ts'
+import {
+  hasGoogleClientId,
+  startGoogleSignIn,
+  cancelGoogleSignIn,
+  type GoogleCredentialFlow,
+} from '../services/google-identity.ts'
 import { Button, Input, FeedbackMessage } from '../components/ui'
 
 interface LocationState {
@@ -36,13 +41,76 @@ export function Login() {
   )
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
-  // Etapa preparatória: apenas baixa o script do Google Identity Services quando
-  // há Client ID configurado. A inicialização e o login com Google (POST
-  // /auth/google) ficam para a próxima etapa.
+  // Fluxo do GIS já preparado (script + initialize acontecem uma única vez).
+  const googleFlowRef = useRef<GoogleCredentialFlow | null>(null)
+  // Credencial do Google mantida APENAS em memória: nunca é persistida
+  // (localStorage/sessionStorage/cookies), exibida ou enviada a uma API nesta etapa.
+  const googleCredentialRef = useRef<string | null>(null)
+  // Evita atualizar estado depois que a tela de login for desmontada.
+  const isMountedRef = useRef(true)
+
   useEffect(() => {
-    void loadGoogleIdentityServices()
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      cancelGoogleSignIn()
+      googleFlowRef.current = null
+      googleCredentialRef.current = null
+    }
   }, [])
+
+  /**
+   * Recebe a credencial do Google. Nesta etapa nada é enviado ao backend:
+   * guardamos o valor em memória e, somente em desenvolvimento, registramos um
+   * log seguro (sem imprimir a credencial/token, apenas seu tamanho).
+   */
+  const handleGoogleCredential = useCallback((credential: string) => {
+    googleCredentialRef.current = credential
+    if (isMountedRef.current) setIsGoogleLoading(false)
+    if (import.meta.env.DEV) {
+      console.info(
+        '[Google Identity Services] credencial recebida e mantida apenas em memória (não enviada a nenhuma API). Caracteres:',
+        credential.length,
+      )
+    }
+  }, [])
+
+  const handleGoogleUnavailable = useCallback(
+    (reason: 'not-configured' | 'script-unavailable' | 'cancelled') => {
+      if (!isMountedRef.current) return
+      setIsGoogleLoading(false)
+      if (reason === 'cancelled') return
+      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+    },
+    [],
+  )
+
+  /** Clique no botão: carrega/inicializa o GIS uma única vez e pede a credencial. */
+  async function handleGoogleClick() {
+    setGoogleError(null)
+
+    if (!hasGoogleClientId()) {
+      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+      return
+    }
+
+    setIsGoogleLoading(true)
+    const flow =
+      googleFlowRef.current ??
+      (await startGoogleSignIn({
+        onCredential: handleGoogleCredential,
+        onUnavailable: handleGoogleUnavailable,
+      }))
+    googleFlowRef.current = flow
+    if (!isMountedRef.current) return
+    if (!flow || !flow.request()) {
+      setIsGoogleLoading(false)
+      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+    }
+  }
 
   function validate(): boolean {
     const errors: { email?: string; password?: string } = {}
@@ -233,8 +301,9 @@ export function Login() {
               </div>
             </form>
 
-            {/* Divisor + botão social. Apenas visual nesta etapa: ainda não
-                inicia o fluxo do Google nem chama /auth/google. */}
+            {/* Divisor + botão social. O botão inicia o fluxo do Google
+                Identity Services; a credencial fica apenas em memória — ainda
+                não há sessão do Garantia+ nem chamada a /auth/google. */}
             <div className="mt-5 space-y-5">
               <div className="flex items-center gap-3" aria-hidden="true">
                 <span className="h-px flex-1 bg-slate-200" />
@@ -242,10 +311,16 @@ export function Login() {
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
 
+              {googleError && (
+                <FeedbackMessage variant="error" description={googleError} />
+              )}
+
               <Button
                 type="button"
                 variant="secondary"
                 className="w-full"
+                onClick={() => void handleGoogleClick()}
+                isLoading={isGoogleLoading}
                 leftIcon={<GoogleIcon className="h-4 w-4" />}
               >
                 Continuar com Google
