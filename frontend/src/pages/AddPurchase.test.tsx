@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import {
   ApiError,
+  AuthenticationError,
   createPurchase,
   uploadPurchaseDocument,
   extractDocument,
@@ -299,5 +300,70 @@ describe('AddPurchase — retomada do rascunho (authenticated)', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(getGuestPurchaseDraft()).not.toBeNull()
+  })
+})
+// ---------------------------------------------------------------------------
+// Sobrevivência do rascunho à expiração de sessão (Etapa 4).
+//
+// O rascunho pertence ao NAVEGADOR, não à sessão autenticada. Encerrar a sessão
+// (401/expiração) NÃO pode apagá-lo: a limpeza só acontece após um POST bem
+// sucedido (comportamento já coberto acima).
+// ---------------------------------------------------------------------------
+describe('AddPurchase — rascunho sobrevive à expiração de sessão', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('401 no POST preserva o rascunho, marca expireSession e volta ao login com intenção', async () => {
+    const expireSession = vi.fn()
+    saveGuestPurchaseDraft(FIELDS)
+    mockCreatePurchase.mockRejectedValue(new AuthenticationError())
+
+    function LoginProbe() {
+      const location = useLocation()
+      const state = location.state as {
+        resumeAction?: string
+        from?: { pathname?: string }
+      } | null
+      return (
+        <div>
+          <span>LOGIN_PAGE</span>
+          <span data-testid="resume">{state?.resumeAction ?? ''}</span>
+          <span data-testid="from">{state?.from?.pathname ?? ''}</span>
+        </div>
+      )
+    }
+
+    const user = userEvent.setup()
+    render(
+      <AuthContext.Provider value={makeAuthValue('authenticated', { expireSession })}>
+        <MemoryRouter initialEntries={['/purchases/new']}>
+          <Routes>
+            <Route path="/purchases/new" element={<AddPurchase />} />
+            <Route path="/login" element={<LoginProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Continuar e salvar' }))
+
+    expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
+    // Sessão consolidada como visitante...
+    expect(expireSession).toHaveBeenCalledOnce()
+    // ...e o rascunho continua no navegador, com a intenção de retomada.
+    expect(getGuestPurchaseDraft()?.data).toEqual(FIELDS)
+    expect(screen.getByTestId('resume')).toHaveTextContent('purchase-draft')
+    expect(screen.getByTestId('from')).toHaveTextContent('/purchases/new')
+  })
+
+  it('renderizar em guest (após logout) NÃO apaga o rascunho', async () => {
+    saveGuestPurchaseDraft(FIELDS)
+
+    renderAddPurchase('guest')
+
+    // O formulário guest aparece, mas o rascunho do navegador segue intacto.
+    expect(getGuestPurchaseDraft()?.data).toEqual(FIELDS)
   })
 })

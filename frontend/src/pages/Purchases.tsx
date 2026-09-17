@@ -33,7 +33,7 @@ const FALLBACK_ERROR = 'Não foi possível carregar suas compras. Tente novament
 export function Purchases() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { status, setUser } = useAuth()
+  const { status, expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Busca, filtros e ordenação vivem SOMENTE no estado local: nada vai para a
@@ -46,15 +46,19 @@ export function Purchases() {
   useEffect(() => {
     let isActive = true
     const load = async () => {
-      if (status !== 'authenticated') return
+      // Sem sessão: limpa o estado para não reter compras do usuário anterior.
+      if (status !== 'authenticated') {
+        setState({ status: 'loading' })
+        return
+      }
       try {
         const purchases = await getPurchases()
         if (isActive) setState({ status: 'success', purchases })
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          // Token inválido/expirado: encerra a sessão global e volta ao login.
-          setUser(null)
+          // Token inválido/expirado: consolida o estado visitante e volta ao login.
+          expireSession()
           navigate('/login', { replace: true })
           return
         }
@@ -68,7 +72,7 @@ export function Purchases() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser, status])
+  }, [reloadKey, navigate, expireSession, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })

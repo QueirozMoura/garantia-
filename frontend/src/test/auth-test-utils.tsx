@@ -28,6 +28,7 @@ export function makeAuthValue(
     isGuest: status === 'guest',
     isLoading: status === 'loading',
     logout: vi.fn(),
+    expireSession: vi.fn(),
     setUser: vi.fn(),
     ...overrides,
   }

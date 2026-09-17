@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, LogOut, ChevronDown } from 'lucide-react'
 import { BrandLogo } from '../brand/BrandLogo.tsx'
 import { useAuth } from '../../contexts/auth-context.ts'
+import { isGuestAccessiblePath } from '../auth/guest-routes.ts'
 import { Button } from '../ui/Button.tsx'
 
 interface HeaderProps {
@@ -17,8 +18,9 @@ function getInitial(name: string, email: string): string {
 }
 
 export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
-  const { user, isGuest, logout } = useAuth()
+  const { user, isGuest, isLoading, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -53,7 +55,14 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
     try {
       await logout()
       setIsMenuOpen(false)
-      navigate('/login', { replace: true })
+      // Destino do logout: se a rota atual é visitável por guest, permanecemos
+      // nela e a página re-renderiza em estado visitante (o AuthContext já
+      // zerou o usuário). Em rotas privadas, vamos ao login preservando a
+      // intenção de retorno via `from`.
+      if (!isGuestAccessiblePath(location.pathname)) {
+        const loginState = { from: location }
+        navigate('/login', { replace: true, state: loginState })
+      }
     } finally {
       setIsLoggingOut(false)
     }
@@ -93,8 +102,10 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
         {/* Divider */}
         <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
 
-        {/* User avatar + menu */}
-        {isGuest ? (
+        {/* User avatar + menu.
+            Durante o loading não mostramos NENHUM estado de usuário — evita
+            exibir um avatar/visitante incorreto antes da verificação terminar. */}
+        {isLoading ? null : isGuest ? (
           <div className="flex items-center gap-2">
             <span className="hidden text-xs font-semibold text-slate-500 sm:inline">
               Modo visitante

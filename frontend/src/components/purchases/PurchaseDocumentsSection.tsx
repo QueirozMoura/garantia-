@@ -95,7 +95,7 @@ export function PurchaseDocumentsSection({
   onPurchaseUpdated,
 }: PurchaseDocumentsSectionProps) {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
@@ -111,9 +111,10 @@ export function PurchaseDocumentsSection({
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const handleAuthError = useCallback(() => {
-    setUser(null)
+    // Token inválido/expirado: consolida o estado visitante e volta ao login.
+    expireSession()
     navigate('/login', { replace: true })
-  }, [navigate, setUser])
+  }, [navigate, expireSession])
 
   useEffect(() => {
     let isActive = true

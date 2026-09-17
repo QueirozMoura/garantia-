@@ -8,7 +8,7 @@ import { AuthContext } from '../../contexts/auth-context.ts'
 import { makeAuthValue } from '../../test/auth-test-utils.tsx'
 import { AppLayout } from '../../layouts/AppLayout.tsx'
 
-function renderLayout(status: 'guest' | 'authenticated') {
+function renderLayout(status: 'guest' | 'authenticated' | 'loading') {
   return render(
     <AuthContext.Provider value={makeAuthValue(status)}>
       <MemoryRouter initialEntries={['/dashboard']}>
@@ -37,6 +37,22 @@ describe('AppLayout — banner de modo visitante', () => {
       screen.queryByRole('complementary', { name: 'Modo visitante' }),
     ).not.toBeInTheDocument()
     expect(screen.getByText('CONTEUDO_DA_PAGINA')).toBeInTheDocument()
+  })
+
+  it('NÃO aparece durante o loading (evita flicker de guest)', () => {
+    renderLayout('loading')
+
+    expect(
+      screen.queryByRole('complementary', { name: 'Modo visitante' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('mostra exatamente UM banner em guest (sem duplicação)', () => {
+    renderLayout('guest')
+
+    expect(screen.getAllByRole('complementary', { name: 'Modo visitante' })).toHaveLength(
+      1,
+    )
   })
 })
 

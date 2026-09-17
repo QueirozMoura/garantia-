@@ -14,6 +14,12 @@ export interface AuthContextValue {
   isLoading: boolean
   /** Encerra a sessão local e no backend, depois limpa o estado global. */
   logout: () => Promise<void>
+  /**
+   * Encerra a sessão por expiração/invalidez detectada em runtime (ex.: 401)
+   * SEM chamar o backend (o refresh já falhou). Limpa o estado global de forma
+   * previsível: `user = null` e `status = 'guest'`. Não toca em rascunhos locais.
+   */
+  expireSession: () => void
   /** Atualiza o usuário em memória (ex.: após o login). */
   setUser: (user: AuthUser | null) => void
 }

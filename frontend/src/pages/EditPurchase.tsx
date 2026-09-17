@@ -43,17 +43,17 @@ const purchaseToFields = (purchase: Purchase): PurchaseFormFields => ({
 export function EditPurchase() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { expireSession } = useAuth()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleAuthError = useCallback(() => {
-    // Token inválido/expirado: segue o padrão global e volta ao login.
-    setUser(null)
+    // Token inválido/expirado: consolida o estado visitante e volta ao login.
+    expireSession()
     navigate('/login', { replace: true })
-  }, [navigate, setUser])
+  }, [navigate, expireSession])
 
   useEffect(() => {
     if (!id) return

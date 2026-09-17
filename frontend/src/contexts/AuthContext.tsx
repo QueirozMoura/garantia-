@@ -56,11 +56,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const logout = useCallback(async () => {
-    await logoutSession()
+  /**
+   * Transição única para o estado visitante. `user` e `status` mudam SEMPRE em
+   * par, o que impede a combinação incoerente `user` preenchido + status guest
+   * (ou o inverso). Nenhum rascunho local é tocado aqui.
+   */
+  const goToGuest = useCallback(() => {
     setUser(null)
     setStatus('guest')
   }, [])
+
+  const logout = useCallback(async () => {
+    await logoutSession()
+    goToGuest()
+  }, [goToGuest])
+
+  /**
+   * Sessão expirada/inválida detectada pela camada de API (401 já sem refresh
+   * possível). Não chama o backend: apenas consolida o estado visitante.
+   */
+  const expireSession = useCallback(() => {
+    goToGuest()
+  }, [goToGuest])
 
   const updateUser = useCallback((nextUser: AuthUser | null) => {
     setUser(nextUser)
@@ -75,9 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest: status === 'guest',
       isLoading: status === 'loading',
       logout,
+      expireSession,
       setUser: updateUser,
     }),
-    [user, status, logout, updateUser],
+    [user, status, logout, expireSession, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

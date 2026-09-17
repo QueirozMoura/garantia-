@@ -98,7 +98,7 @@ function getWarrantyStatus(startDate: string, endDate: string): StatusBadgeStatu
 
 export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionProps) {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
@@ -119,7 +119,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          setUser(null)
+          expireSession()
           navigate('/login', { replace: true })
           return
         }
@@ -133,7 +133,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
     return () => {
       isActive = false
     }
-  }, [purchaseId, reloadKey, navigate, setUser])
+  }, [purchaseId, reloadKey, navigate, expireSession])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -167,8 +167,8 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
       setState({ status: 'success', warranty: null })
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        // Token inválido/expirado: segue o padrão global e volta ao login.
-        setUser(null)
+        // Token inválido/expirado: consolida o estado visitante e volta ao login.
+        expireSession()
         navigate('/login', { replace: true })
         return
       }
@@ -177,7 +177,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
     } finally {
       setIsDeleting(false)
     }
-  }, [purchaseId, isDeleting, navigate, setUser])
+  }, [purchaseId, isDeleting, navigate, expireSession])
 
   return (
     <section className="space-y-5">
@@ -220,7 +220,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
               onCancel={() => setIsEditing(false)}
               onUpdated={handleUpdated}
               onAuthError={() => {
-                setUser(null)
+                expireSession()
                 navigate('/login', { replace: true })
               }}
             />
@@ -238,7 +238,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
               onCancel={() => setShowForm(false)}
               onCreated={handleCreated}
               onAuthError={() => {
-                setUser(null)
+                expireSession()
                 navigate('/login', { replace: true })
               }}
             />

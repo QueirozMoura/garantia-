@@ -19,7 +19,6 @@ import {
   getPurchaseDocuments,
 } from '../lib/api.ts'
 import { AuthContext, type AuthContextValue } from '../contexts/auth-context.ts'
-import type { AuthUser } from '../types/auth.ts'
 import type { Purchase } from '../types/purchase.ts'
 import type { Warranty } from '../types/warranty.ts'
 import type { Document } from '../types/document.ts'
@@ -99,10 +98,10 @@ const makeDocument = (overrides: Partial<Document> = {}): Document => ({
 })
 
 describe('PurchaseDetails', () => {
-  let setUser: (user: AuthUser | null) => void
+  let expireSession: () => void
   beforeEach(() => {
     vi.clearAllMocks()
-    setUser = vi.fn()
+    expireSession = vi.fn()
     // Estado padrão: sem garantia e sem documentos, para os testes da página.
     mockGetWarranty.mockResolvedValue(null)
     mockGetDocuments.mockResolvedValue([])
@@ -118,7 +117,8 @@ describe('PurchaseDetails', () => {
       isGuest: false,
       isLoading: false,
       logout: vi.fn(),
-      setUser,
+      expireSession,
+      setUser: vi.fn(),
     }
     const utils = render(
       <AuthContext.Provider value={authValue}>
@@ -261,13 +261,13 @@ describe('PurchaseDetails', () => {
       ).toBeInTheDocument()
     })
 
-    it('401 encerra a sessão (setUser) e navega para o login', async () => {
+    it('401 encerra a sessão (expireSession) e navega para o login', async () => {
       mockGetPurchase.mockRejectedValue(new AuthenticationError())
 
       renderDetails()
 
       expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
-      expect(setUser).toHaveBeenCalledWith(null)
+      expect(expireSession).toHaveBeenCalledOnce()
     })
   })
 
@@ -453,7 +453,7 @@ describe('PurchaseDetails', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Excluir compra' }))
 
       expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
-      expect(setUser).toHaveBeenCalledWith(null)
+      expect(expireSession).toHaveBeenCalledOnce()
     })
 
     it('duplo clique em confirmar não dispara dois DELETEs', async () => {
@@ -485,10 +485,10 @@ describe('PurchaseDetails', () => {
 // 6) Edição (página EditPurchase, alcançada pela navegação dos detalhes)
 // -------------------------------------------------------------------------
 describe('edição da compra', () => {
-  let setUser: (user: AuthUser | null) => void
+  let expireSession: () => void
   beforeEach(() => {
     vi.clearAllMocks()
-    setUser = vi.fn()
+    expireSession = vi.fn()
     mockGetWarranty.mockResolvedValue(null)
     mockGetDocuments.mockResolvedValue([])
   })
@@ -503,7 +503,8 @@ describe('edição da compra', () => {
       isGuest: false,
       isLoading: false,
       logout: vi.fn(),
-      setUser,
+      expireSession,
+      setUser: vi.fn(),
     }
     const utils = render(
       <AuthContext.Provider value={authValue}>
@@ -755,7 +756,7 @@ describe('edição da compra', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
     expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
-    expect(setUser).toHaveBeenCalledWith(null)
+    expect(expireSession).toHaveBeenCalledOnce()
   })
 
   // -----------------------------------------------------------------------

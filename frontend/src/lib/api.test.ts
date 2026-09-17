@@ -680,6 +680,19 @@ describe('gestão do access token', () => {
     expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull()
   })
 
+  it('encerrar a sessão NÃO apaga o rascunho guest (chave independente)', async () => {
+    const api = await importApi()
+    api.setStoredAccessToken('token-antigo')
+    // Chave do rascunho guest — pertence ao navegador, não à sessão.
+    const DRAFT_KEY = 'garantia_guest_purchase_draft'
+    localStorage.setItem(DRAFT_KEY, '{"version":1}')
+
+    api.clearStoredAccessToken()
+
+    expect(api.getStoredAccessToken()).toBeNull()
+    expect(localStorage.getItem(DRAFT_KEY)).toBe('{"version":1}')
+  })
+
   it('o retry usa o token renovado gravado em localStorage', async () => {
     const api = await importApi()
     api.setStoredAccessToken('token-antigo')

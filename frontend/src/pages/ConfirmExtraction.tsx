@@ -55,7 +55,7 @@ const confirmErrorMessage = (error: unknown) => {
 export function ConfirmExtraction() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser } = useAuth()
+  const { expireSession } = useAuth()
 
   const state = (location.state as ConfirmationState | null) ?? null
   const purchaseId = state?.purchaseId
@@ -155,8 +155,8 @@ export function ConfirmExtraction() {
       })
     } catch (err) {
       if (err instanceof AuthenticationError) {
-        // Token inválido/expirado: segue o padrão global e volta ao login.
-        setUser(null)
+        // Token inválido/expirado: consolida o estado visitante e volta ao login.
+        expireSession()
         navigate('/login', { replace: true })
         return
       }

@@ -94,4 +94,43 @@ describe('Dashboard — modo visitante', () => {
 
     expect(mockGetDashboard).not.toHaveBeenCalled()
   })
+
+  it('logout (authenticated → guest) faz os dados privados desaparecerem', async () => {
+    mockGetDashboard.mockResolvedValue({
+      ...emptyDashboard,
+      summary: { ...emptyDashboard.summary, totalPurchases: 7, totalSpent: '9999.00' },
+      recentPurchases: [
+        {
+          id: 'p1',
+          productName: 'Notebook Ultra',
+          category: 'Informática',
+          price: '4999.00',
+          purchaseDate: '2026-01-10T00:00:00.000Z',
+        },
+      ],
+    } as unknown as DashboardResponse['dashboard'])
+
+    const { rerender } = renderDashboard('authenticated')
+
+    // Dados privados visíveis após o fetch autenticado.
+    expect(await screen.findByText('Notebook Ultra')).toBeInTheDocument()
+
+    // Logout: o MESMO componente passa a guest.
+    rerender(
+      <AuthContext.Provider value={makeAuthValue('guest')}>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    // Nenhum dado privado permanece e o estado visitante é exibido.
+    expect(screen.queryByText('Notebook Ultra')).not.toBeInTheDocument()
+    expect(screen.queryByText('Compras cadastradas')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Organize suas compras. Proteja suas garantias.',
+      }),
+    ).toBeInTheDocument()
+  })
 })

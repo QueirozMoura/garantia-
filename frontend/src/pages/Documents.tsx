@@ -31,7 +31,7 @@ const FALLBACK_ERROR = 'Não foi possível carregar seus documentos.'
 
 export function Documents() {
   const navigate = useNavigate()
-  const { status, setUser } = useAuth()
+  const { status, expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Busca, filtros e ordenação vivem SOMENTE no estado local: nada vai para a
@@ -39,15 +39,19 @@ export function Documents() {
   const [filters, setFilters] = useState<DocumentFilters>(EMPTY_FILTERS)
 
   const handleAuthError = useCallback(() => {
-    // Token inválido/expirado: encerra a sessão global e volta ao login.
-    setUser(null)
+    // Token inválido/expirado: consolida o estado visitante e volta ao login.
+    expireSession()
     navigate('/login', { replace: true })
-  }, [navigate, setUser])
+  }, [navigate, expireSession])
 
   useEffect(() => {
     let isActive = true
     const load = async () => {
-      if (status !== 'authenticated') return
+      // Sem sessão: limpa o estado para não reter documentos do usuário anterior.
+      if (status !== 'authenticated') {
+        setState({ status: 'loading' })
+        return
+      }
       try {
         const documents = await getDocuments()
         if (isActive) setState({ status: 'success', documents })

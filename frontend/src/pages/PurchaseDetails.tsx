@@ -42,7 +42,7 @@ export function PurchaseDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser } = useAuth()
+  const { expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
   // Incrementado após uma extração confirmada para recarregar a seção de garantia.
@@ -65,8 +65,8 @@ export function PurchaseDetails() {
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          // Token inválido/expirado: encerra a sessão global e volta ao login.
-          setUser(null)
+          // Token inválido/expirado: consolida o estado visitante e volta ao login.
+          expireSession()
           navigate('/login', { replace: true })
           return
         }
@@ -86,7 +86,7 @@ export function PurchaseDetails() {
     return () => {
       isActive = false
     }
-  }, [id, reloadKey, navigate, setUser])
+  }, [id, reloadKey, navigate, expireSession])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
@@ -98,9 +98,9 @@ export function PurchaseDetails() {
    * assistência): encerra a sessão global e volta ao login, como no load.
    */
   const handleAuthError = useCallback(() => {
-    setUser(null)
+    expireSession()
     navigate('/login', { replace: true })
-  }, [navigate, setUser])
+  }, [navigate, expireSession])
 
   /**
    * Aplica na tela o resultado da confirmação de uma extração, usando os dados
@@ -131,8 +131,8 @@ export function PurchaseDetails() {
       })
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        // Token inválido/expirado: segue o padrão global e volta ao login.
-        setUser(null)
+        // Token inválido/expirado: consolida o estado visitante e volta ao login.
+        expireSession()
         navigate('/login', { replace: true })
         return
       }
@@ -140,7 +140,7 @@ export function PurchaseDetails() {
       setDeleteError(deleteErrorMessage(error))
       setIsDeleting(false)
     }
-  }, [id, isDeleting, navigate, setUser])
+  }, [id, isDeleting, navigate, expireSession])
 
   // Rota sem :id válido cai no mesmo estado de "não encontrada".
   const currentState: FetchState = id ? state : { status: 'notFound' }

@@ -21,22 +21,26 @@ const FALLBACK_ERROR = 'Não foi possível carregar suas garantias.'
 
 export function Warranties() {
   const navigate = useNavigate()
-  const { status, setUser } = useAuth()
+  const { status, expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let isActive = true
     const load = async () => {
-      if (status !== 'authenticated') return
+      // Sem sessão: limpa o estado para não reter garantias do usuário anterior.
+      if (status !== 'authenticated') {
+        setState({ status: 'loading' })
+        return
+      }
       try {
         const warranties = await getWarranties()
         if (isActive) setState({ status: 'success', warranties })
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          // Token inválido/expirado: encerra a sessão global e volta ao login.
-          setUser(null)
+          // Token inválido/expirado: consolida o estado visitante e volta ao login.
+          expireSession()
           navigate('/login', { replace: true })
           return
         }
@@ -50,7 +54,7 @@ export function Warranties() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser, status])
+  }, [reloadKey, navigate, expireSession, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })

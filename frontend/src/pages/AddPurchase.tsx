@@ -95,7 +95,7 @@ type ExtractionState =
 export function AddPurchase() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setUser, status } = useAuth()
+  const { expireSession, status } = useAuth()
   const isGuest = status === 'guest'
   // Dados vindos da etapa de confirmação ("Voltar") — preservam a revisão.
   const returnedState =
@@ -200,10 +200,14 @@ export function AddPurchase() {
       purchaseId = purchase.id
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        // Sessão inválida/expirada: preserva o rascunho local (não limpa) e
-        // segue o padrão global de volta ao login.
-        setUser(null)
-        navigate('/login', { replace: true })
+        // Sessão inválida/expirada: NUNCA limpa o rascunho local (a limpeza só
+        // acontece após um POST confirmado). Vai ao login carregando a intenção
+        // de retomada para que o rascunho possa ser recuperado depois.
+        expireSession()
+        navigate('/login', {
+          replace: true,
+          state: { from: { pathname: '/purchases/new' }, resumeAction: 'purchase-draft' },
+        })
         return
       }
       // Compra NÃO criada: nenhum upload é feito. Os dados digitados são
@@ -256,7 +260,7 @@ export function AddPurchase() {
       await runExtraction(document.id)
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        setUser(null)
+        expireSession()
         navigate('/login', { replace: true })
         return
       }
@@ -283,7 +287,7 @@ export function AddPurchase() {
       setExtraction({ status: 'success', data })
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        setUser(null)
+        expireSession()
         navigate('/login', { replace: true })
         return
       }

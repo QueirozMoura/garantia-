@@ -160,4 +160,62 @@ describe('AuthProvider', () => {
     expect(state).toHaveAttribute('data-guest', 'true')
     expect(mockLogout).toHaveBeenCalledOnce()
   })
+
+  it('nunca combina user preenchido com status guest (nem o inverso)', async () => {
+    mockHasStoredSession.mockReturnValue(true)
+    mockFetchCurrentUser.mockResolvedValue(user)
+    const { getByTestId } = renderAuthProvider()
+
+    await act(async () => {})
+
+    const state = getByTestId('auth-state')
+    // authenticated ⟺ user preenchido ⟺ flags coerentes.
+    const status = state.getAttribute('data-status')
+    const hasUser = state.getAttribute('data-user') !== ''
+    expect(status === 'authenticated').toBe(hasUser)
+    expect(state).toHaveAttribute(
+      'data-authenticated',
+      String(status === 'authenticated'),
+    )
+    expect(state).toHaveAttribute('data-guest', String(status === 'guest'))
+    expect(state).toHaveAttribute('data-loading', String(status === 'loading'))
+  })
+
+  it('expireSession leva a guest sem chamar o backend (logout) e limpa o usuário', async () => {
+    mockHasStoredSession.mockReturnValue(true)
+    mockFetchCurrentUser.mockResolvedValue(user)
+
+    function ExpireProbe() {
+      const auth = useAuth()
+      return (
+        <>
+          <AuthStateProbe />
+          <button type="button" onClick={() => auth.expireSession()}>
+            Expirar
+          </button>
+        </>
+      )
+    }
+
+    const { getByRole, getByTestId } = render(
+      <AuthProvider>
+        <ExpireProbe />
+      </AuthProvider>,
+    )
+
+    await act(async () => {})
+    expect(getByTestId('auth-state')).toHaveAttribute('data-status', 'authenticated')
+
+    await act(async () => {
+      getByRole('button', { name: 'Expirar' }).click()
+    })
+
+    const state = getByTestId('auth-state')
+    expect(state).toHaveAttribute('data-status', 'guest')
+    expect(state).toHaveAttribute('data-user', '')
+    expect(state).toHaveAttribute('data-authenticated', 'false')
+    expect(state).toHaveAttribute('data-guest', 'true')
+    // Expiração por 401 NÃO notifica o backend.
+    expect(mockLogout).not.toHaveBeenCalled()
+  })
 })

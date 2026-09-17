@@ -60,7 +60,7 @@ function getGreeting() {
 export function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, status, setUser } = useAuth()
+  const { user, status, expireSession } = useAuth()
   const greetingName = user?.name?.trim() || user?.email?.trim() || ''
   const greeting = getGreeting()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
@@ -73,15 +73,20 @@ export function Dashboard() {
   useEffect(() => {
     let isActive = true
     const load = async () => {
-      if (status !== 'authenticated') return
+      // Sem sessão (guest/loading): nada de fetch privado e nenhum dado antigo
+      // do usuário anterior pode permanecer na tela.
+      if (status !== 'authenticated') {
+        setState({ status: 'loading' })
+        return
+      }
       try {
         const data = await getDashboard()
         if (isActive) setState({ status: 'success', data })
       } catch (error) {
         if (!isActive) return
         if (error instanceof AuthenticationError) {
-          // Token inválido/expirado: encerra a sessão global e volta ao login.
-          setUser(null)
+          // Token inválido/expirado: consolida o estado visitante e volta ao login.
+          expireSession()
           navigate('/login', { replace: true })
           return
         }
@@ -98,7 +103,7 @@ export function Dashboard() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, navigate, setUser, status])
+  }, [reloadKey, navigate, expireSession, status])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })

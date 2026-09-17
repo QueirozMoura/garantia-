@@ -16,7 +16,6 @@ import {
   deletePurchaseWarranty,
 } from '../../lib/api.ts'
 import { AuthContext, type AuthContextValue } from '../../contexts/auth-context.ts'
-import type { AuthUser } from '../../types/auth.ts'
 import type { Warranty } from '../../types/warranty.ts'
 import { PurchaseWarrantySection } from './PurchaseWarrantySection.tsx'
 
@@ -51,11 +50,10 @@ const makeWarranty = (overrides: Partial<Warranty> = {}): Warranty => ({
 })
 
 describe('PurchaseWarrantySection', () => {
-  let setUser: (user: AuthUser | null) => void
-
+  let expireSession: () => void
   beforeEach(() => {
     vi.clearAllMocks()
-    setUser = vi.fn()
+    expireSession = vi.fn()
   })
 
   const renderSection = () => {
@@ -67,7 +65,8 @@ describe('PurchaseWarrantySection', () => {
       isGuest: false,
       isLoading: false,
       logout: vi.fn(),
-      setUser,
+      expireSession,
+      setUser: vi.fn(),
     }
     const utils = render(
       <AuthContext.Provider value={authValue}>
@@ -212,7 +211,7 @@ describe('PurchaseWarrantySection', () => {
       renderSection()
 
       expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
-      expect(setUser).toHaveBeenCalledWith(null)
+      expect(expireSession).toHaveBeenCalledOnce()
     })
   })
 
@@ -797,7 +796,7 @@ describe('PurchaseWarrantySection', () => {
       await confirmDelete(user)
 
       expect(await screen.findByText('LOGIN_PAGE')).toBeInTheDocument()
-      expect(setUser).toHaveBeenCalledWith(null)
+      expect(expireSession).toHaveBeenCalledOnce()
     })
   })
 
