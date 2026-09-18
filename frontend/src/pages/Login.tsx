@@ -17,9 +17,6 @@ import {
   hasGoogleClientId,
   startGoogleSignIn,
   cancelGoogleSignIn,
-  loadGoogleIdentityServices,
-  initializeGoogleIdentity,
-  renderGoogleButtonForTest,
   type GoogleCredentialFlow,
 } from '../services/google-identity.ts'
 import { Button, Input, FeedbackMessage } from '../components/ui'
@@ -81,33 +78,6 @@ export function Login() {
   )
   // Evita atualizar estado depois que a tela de login for desmontada.
   const isMountedRef = useRef(true)
-  // DIAGNÓSTICO TEMPORÁRIO: container do botão oficial do GIS.
-  const googleButtonRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    let active = true
-    let retryFrame = 0
-    const renderOfficialButton = () => {
-      if (!active) return
-      // O container só existe depois do commit do React; se ainda não estiver
-      // disponível, tenta de novo no próximo frame em vez de desistir.
-      if (!googleButtonRef.current) {
-        retryFrame = requestAnimationFrame(renderOfficialButton)
-        return
-      }
-      renderGoogleButtonForTest(googleButtonRef.current)
-    }
-    void loadGoogleIdentityServices().then((loaded) => {
-      // `initializeGoogleIdentity()` retorna `false` quando o GIS ainda não está
-      // pronto: nesse caso o botão oficial não deve ser renderizado.
-      if (!active || !loaded || !initializeGoogleIdentity()) return
-      renderOfficialButton()
-    })
-    return () => {
-      active = false
-      if (retryFrame) cancelAnimationFrame(retryFrame)
-    }
-  }, [])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -464,9 +434,6 @@ export function Login() {
               >
                 Continuar com Google
               </Button>
-
-              {/* DIAGNÓSTICO TEMPORÁRIO: botão oficial do GIS. */}
-              <div ref={googleButtonRef} data-testid="google-render-button" />
             </div>
           </div>
 

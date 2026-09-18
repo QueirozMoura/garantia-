@@ -258,21 +258,3 @@ export function resetGoogleIdentityForTests(): void {
   initializing = null
   handlers = null
 }
-
-/**
- * DIAGNÓSTICO TEMPORÁRIO: renderiza o botão oficial do GIS em `container`.
- * Usa o mesmo `googleClientId` e o mesmo `handleCredentialResponse` do fluxo
- * atual (`prompt()`), sem alterar nada do fluxo existente. Serve apenas para
- * confirmar se `google.accounts.id.renderButton()` funciona neste projeto e se
- * o clique entrega uma credential ao callback.
- */
-export function renderGoogleButtonForTest(container: HTMLElement | null): boolean {
-  const identity = window.google?.accounts?.id
-  if (!container || !hasGoogleClientId() || !identity?.renderButton) return false
-  identity.renderButton(container, {
-    theme: 'outline',
-    size: 'large',
-    text: 'continue_with',
-  })
-  return true
-}
