@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { ApiError, GoogleGenAI } from '@google/genai';
 
 import { env } from '../../config/env.js';
 import {
@@ -57,6 +57,15 @@ Rules:
 
 const supportedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
+// The AI provider rejects content it cannot process (e.g. truncated or empty
+// PDFs) with HTTP 400 INVALID_ARGUMENT. That is a problem with the document
+// being sent, not a transient provider outage, so it must surface as an
+// unsupported-format error instead of being collapsed into a generic request
+// failure. The check relies only on the SDK's ApiError status, never on parsing
+// the provider's message, so no internal detail leaks outwards.
+const isUnsupportedContentError = (error: unknown) =>
+  error instanceof ApiError && error.status === 400;
+
 export class GeminiProvider implements AIProvider {
   private readonly client: GoogleGenAI;
 
@@ -99,6 +108,9 @@ export class GeminiProvider implements AIProvider {
       }
     } catch (error) {
       if (error instanceof AIProviderInvalidResponseError) throw error;
+      if (isUnsupportedContentError(error)) {
+        throw new AIProviderUnsupportedFormatError(document.mimeType);
+      }
 
       const requestError = new AIProviderRequestError();
       requestError.cause = error;
