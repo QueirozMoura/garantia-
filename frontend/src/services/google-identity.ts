@@ -106,6 +106,7 @@ function createFlow(): GoogleCredentialFlow | null {
         handlers?.onUnavailable?.('script-unavailable')
         return false
       }
+      console.log('[Google GIS] calling prompt')
       identity.prompt()
       return true
     },
