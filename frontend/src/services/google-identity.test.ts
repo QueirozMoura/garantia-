@@ -3,6 +3,7 @@
 // Cobrem os comportamentos críticos desta etapa:
 // - sem VITE_GOOGLE_CLIENT_ID o Google fica indisponível (login tradicional intacto);
 // - o script é carregado e o cliente inicializado UMA única vez;
+// - o botão OFICIAL é renderizado via `renderButton()` (nada de `prompt()`);
 // - a credencial é entregue em memória ao callback e NÃO é logada.
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
@@ -11,20 +12,22 @@ interface InitializeConfig {
   callback: (response: { credential?: string }) => void
 }
 
-interface PromptNotification {
-  isNotDisplayed?: () => boolean
-  isSkippedMoment?: () => boolean
-  isDismissedMoment?: () => boolean
+interface RenderButtonOptions {
+  type?: string
+  theme?: string
+  size?: string
+  text?: string
+  shape?: string
+  logo_alignment?: string
+  width?: number
 }
 
 const initialize = vi.fn<(config: InitializeConfig) => void>()
-const prompt = vi.fn<(listener?: (notification: PromptNotification) => void) => void>()
+const renderButton = vi.fn<(parent: HTMLElement, options?: RenderButtonOptions) => void>()
 const cancel = vi.fn<() => void>()
-// Adaptação mínima de tipo: o mock agora precisa cobrir `renderButton`.
-const renderButton = vi.fn<() => void>()
 
 function installGoogleApi() {
-  window.google = { accounts: { id: { initialize, prompt, renderButton, cancel } }
+  window.google = { accounts: { id: { initialize, renderButton, cancel } }
 }
 }
 
@@ -60,24 +63,44 @@ describe('google-identity — fluxo do GIS', () => {
     expect(initialize).not.toHaveBeenCalled()
   })
 
-  it('carrega o script, inicializa uma única vez e pede a credencial', async () => {
+  it('carrega o script, inicializa uma única vez e renderiza o botão oficial', async () => {
     installGoogleApi()
     const { startGoogleSignIn } = await importService('client-id-de-teste')
     const onCredential = vi.fn()
+    const container = document.createElement('div')
 
     const flow = await startGoogleSignIn({ onCredential })
     expect(flow).not.toBeNull()
-    expect(flow?.request()).toBe(true)
-    expect(prompt).toHaveBeenCalledTimes(1)
+    expect(flow?.request(container)).toBe(true)
+    expect(renderButton).toHaveBeenCalledTimes(1)
+    expect(renderButton.mock.calls[0]?.[0]).toBe(container)
 
     // Segunda chamada reusa o estado de módulo: sem nova inicialização.
     const flowAgain = await startGoogleSignIn({ onCredential })
-    flowAgain?.request()
+    flowAgain?.request(container)
 
     expect(initialize).toHaveBeenCalledTimes(1)
-    expect(prompt).toHaveBeenCalledTimes(2)
+    expect(renderButton).toHaveBeenCalledTimes(2)
     const config = initialize.mock.calls[0]?.[0]
     expect(config?.client_id).toBe('client-id-de-teste')
+  })
+
+  it('o botão oficial usa as opções oficiais de aparência do renderButton', async () => {
+    installGoogleApi()
+    const { startGoogleSignIn } = await importService('client-id-de-teste')
+    const container = document.createElement('div')
+
+    const flow = await startGoogleSignIn({ onCredential: vi.fn() })
+    flow?.request(container)
+
+    const options = renderButton.mock.calls[0]?.[1]
+    expect(options).toMatchObject({
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+    })
   })
 
   it('entrega a credencial em memória sem imprimi-la no console', async () => {
@@ -110,63 +133,15 @@ describe('google-identity — fluxo do GIS', () => {
     expect(onUnavailable).toHaveBeenCalledWith('cancelled')
   })
 
-  it('prompt notDisplayed encerra o fluxo como não concluído', async () => {
+  it('não usa `prompt()`: a entrada é exclusivamente o botão oficial', async () => {
     installGoogleApi()
     const { startGoogleSignIn } = await importService('client-id-de-teste')
-    const onCredential = vi.fn()
-    const onUnavailable = vi.fn()
+    const container = document.createElement('div')
 
-    const flow = await startGoogleSignIn({ onCredential, onUnavailable })
-    flow?.request()
+    const flow = await startGoogleSignIn({ onCredential: vi.fn() })
+    flow?.request(container)
 
-    // Simula a notificação do GIS: o One Tap não foi exibido.
-    const listener = prompt.mock.calls[0]?.[0]
-    listener?.({ isNotDisplayed: () => true, isSkippedMoment: () => false })
-
-    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
-    expect(onCredential).not.toHaveBeenCalled()
-  })
-
-  it('prompt skipped encerra o fluxo como não concluído', async () => {
-    installGoogleApi()
-    const { startGoogleSignIn } = await importService('client-id-de-teste')
-    const onUnavailable = vi.fn()
-
-    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
-    flow?.request()
-
-    const listener = prompt.mock.calls[0]?.[0]
-    listener?.({ isSkippedMoment: () => true })
-
-    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
-  })
-
-  it('prompt dismissed encerra o fluxo como não concluído', async () => {
-    installGoogleApi()
-    const { startGoogleSignIn } = await importService('client-id-de-teste')
-    const onUnavailable = vi.fn()
-
-    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
-    flow?.request()
-
-    const listener = prompt.mock.calls[0]?.[0]
-    listener?.({ isDismissedMoment: () => true })
-
-    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
-  })
-
-  it('notificação de prompt exibido (sem dispensa) não encerra o fluxo', async () => {
-    installGoogleApi()
-    const { startGoogleSignIn } = await importService('client-id-de-teste')
-    const onUnavailable = vi.fn()
-
-    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
-    flow?.request()
-
-    const listener = prompt.mock.calls[0]?.[0]
-    // Momento intermediário (ex.: "display"): nada de não concluído.
-    listener?.({})
-
-    expect(onUnavailable).not.toHaveBeenCalled()
+    // O GIS não expõe `prompt` no conjunto usado por este fluxo.
+    expect(window.google?.accounts?.id).not.toHaveProperty('prompt')
   })
 })

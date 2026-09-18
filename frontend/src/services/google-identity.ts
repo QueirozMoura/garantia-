@@ -33,7 +33,6 @@ interface GoogleIdentityApi {
         client_id: string
         callback: (response: GoogleCredentialResponse) => void
       }) => void
-      prompt: (momentListener?: (notification: GooglePromptNotification) => void) => void
       renderButton: (
         parent: HTMLElement,
         options?: {
@@ -61,16 +60,6 @@ export interface GoogleSignInHandlers {
 export type GoogleUnavailableReason =
   'not-configured' | 'script-unavailable' | 'cancelled'
 
-/** Notificação do `prompt()` do GIS (motivos de não exibição/dispensa). */
-interface GooglePromptNotification {
-  getNotDisplayedReason?: () => string
-  getSkippedReason?: () => string
-  getDismissedReason?: () => string
-  isNotDisplayed?: () => boolean
-  isSkippedMoment?: () => boolean
-  isDismissedMoment?: () => boolean
-}
-
 /**
  * Estado de módulo: garante uma única inicialização do GIS por sessão do SPA.
  * Em StrictMode (ou em remontagens da tela de login) o `initialize` não se
@@ -78,10 +67,13 @@ interface GooglePromptNotification {
  */
 let initializing: Promise<boolean> | null = null
 let handlers: GoogleSignInHandlers | null = null
-/** Handle do fluxo de credencial (aciona o popup/One Tap do Google). */
+/** Handle do fluxo de credencial (renderiza o botão oficial do Google). */
 export interface GoogleCredentialFlow {
-  /** Inicia a solicitação da credencial. `false` = Google indisponível. */
-  request: () => boolean
+  /**
+   * Renderiza o botão oficial do GIS em `container`. `false` = Google
+   * indisponível para este fluxo (script/identidade ausente).
+   */
+  request: (container: HTMLElement) => boolean
 }
 
 /**
@@ -124,34 +116,24 @@ function createFlow(): GoogleCredentialFlow | null {
   console.log('[Google GIS] createFlow', !!getIdentity())
   if (!getIdentity()) return null
   return {
-    request: () => {
+    request: (container: HTMLElement) => {
       const identity = getIdentity()
-      if (!identity) {
+      if (!identity || !container) {
         handlers?.onUnavailable?.('script-unavailable')
         return false
       }
-      console.log('[Google GIS] calling prompt')
-      identity.prompt((notification) => {
-        console.log(
-          '[Google GIS] prompt notification',
-          'notDisplayed=',
-          notification?.getNotDisplayedReason?.(),
-          'skipped=',
-          notification?.getSkippedReason?.(),
-          'dismissed=',
-          notification?.getDismissedReason?.(),
-        )
-        // O prompt não foi concluído (não exibido, ignorado ou dispensado):
-        // encerra o fluxo como tentativa não concluída, informando o chamador
-        // para que ele libere o estado de carregamento. Nenhuma credencial é
-        // entregue aqui.
-        const notCompleted =
-          notification?.isNotDisplayed?.() === true ||
-          notification?.isSkippedMoment?.() === true ||
-          notification?.isDismissedMoment?.() === true
-        if (notCompleted) {
-          handlers?.onUnavailable?.('cancelled')
-        }
+      // Fluxo oficial: renderButton entrega a credencial pelo callback de
+      // `initialize` (handleCredentialResponse), o mesmo já usado pelo projeto.
+      // O botão oficial é a ÚNICA entrada do Google — nada de `prompt()`.
+      console.log('[Google GIS] calling renderButton')
+      identity.renderButton(container, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: 384,
       })
       return true
     },
@@ -224,8 +206,8 @@ export function loadGoogleIdentityServices(): Promise<boolean> {
 
 /**
  * Inicializa o cliente do GIS uma única vez, usando sempre o mesmo callback
- * de módulo. O `prompt()` fica sob demanda (`startGoogleSignIn`), para que o
- * One Tap só apareça quando o usuário clicar no botão. Não dispara requisições.
+ * de módulo. A entrada do login é o botão oficial renderizado por
+ * `startGoogleSignIn` (`renderButton`), e não o One Tap. Não dispara requisições.
  */
 export function initializeGoogleIdentity(): boolean {
   const identity = window.google?.accounts?.id

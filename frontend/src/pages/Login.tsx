@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
-import { GoogleIcon } from '../components/icons/GoogleIcon.tsx'
 import {
   authenticate,
   authenticateWithGoogle,
@@ -56,13 +55,15 @@ export function Login() {
   )
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
   // true somente quando a vinculação Google foi concluída com sucesso (204).
   const [googleLinked, setGoogleLinked] = useState(false)
 
   // Fluxo do GIS já preparado (script + initialize acontecem uma única vez).
   const googleFlowRef = useRef<GoogleCredentialFlow | null>(null)
+  // Container onde o botão OFICIAL do Google (`renderButton`) é renderizado.
+  // É a única entrada do login com Google — nada de segundo botão.
+  const googleButtonRef = useRef<HTMLDivElement | null>(null)
   // Credential do Google que originou GOOGLE_ACCOUNT_LINK_REQUIRED, preservada
   // SOMENTE em memória para o próximo passo (vínculo pós-login por senha). Não é
   // state do React (evita re-render/exposição), não vai para localStorage,
@@ -148,53 +149,57 @@ export function Login() {
             ? error.message
             : 'Não foi possível entrar com o Google. Tente novamente.'
         setGoogleError(message)
-      } finally {
-        if (isMountedRef.current) setIsGoogleLoading(false)
       }
     },
     [goToPostLoginRoute, setPendingGoogleCredential, setUser],
   )
 
-  const handleGoogleUnavailable = useCallback(
-    (reason: 'not-configured' | 'script-unavailable' | 'cancelled') => {
-      if (!isMountedRef.current) return
-      setIsGoogleLoading(false)
-      if (reason === 'cancelled') return
-      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
-    },
-    [],
-  )
-
-  /** Clique no botão: carrega/inicializa o GIS uma única vez e pede a credencial. */
-  async function handleGoogleClick() {
-    console.log('[Google Login] click')
-    setGoogleError(null)
-    // Reiniciar o fluxo do Google descarta qualquer credential pendente antiga.
-    setPendingGoogleCredential(null)
-
-    if (!hasGoogleClientId()) {
-      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
-      return
-    }
-
-    console.log('[Google Login] before loading')
-    setIsGoogleLoading(true)
-    let flow = googleFlowRef.current
-    if (!flow) {
-      console.log('[Google Login] before startGoogleSignIn')
-      flow = await startGoogleSignIn({
-        onCredential: handleGoogleCredential,
-        onUnavailable: handleGoogleUnavailable,
-      })
-    }
-    console.log('[Google Login] after startGoogleSignIn', flow)
-    googleFlowRef.current = flow
+  const handleGoogleUnavailable = useCallback((reason: 'not-configured' | 'script-unavailable' | 'cancelled') => {
     if (!isMountedRef.current) return
-    if (!flow || !flow.request()) {
-      setIsGoogleLoading(false)
-      setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+    if (reason === 'cancelled') return
+    setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+  }, [])
+
+  /**
+   * Prepara o GIS e renderiza o botão oficial do Google no container. O clique
+   * no botão oficial entrega a credencial pelo callback já existente
+   * (`handleGoogleCredential`), sem usar `prompt()`.
+   */
+  useEffect(() => {
+    let active = true
+    let retryFrame = 0
+    const renderOfficialButton = (flow: GoogleCredentialFlow) => {
+      if (!active) return
+      // O container só existe após o commit do React; se ainda não estiver
+      // disponível, tenta de novo no próximo frame.
+      if (!googleButtonRef.current) {
+        retryFrame = requestAnimationFrame(() => renderOfficialButton(flow))
+        return
+      }
+      if (!flow.request(googleButtonRef.current)) {
+        setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+      }
     }
-  }
+
+    if (!hasGoogleClientId()) return
+    void startGoogleSignIn({
+      onCredential: handleGoogleCredential,
+      onUnavailable: handleGoogleUnavailable,
+    }).then((flow) => {
+      if (!active) return
+      googleFlowRef.current = flow
+      if (!flow) {
+        setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
+        return
+      }
+      renderOfficialButton(flow)
+    })
+
+    return () => {
+      active = false
+      if (retryFrame) cancelAnimationFrame(retryFrame)
+    }
+  }, [handleGoogleCredential, handleGoogleUnavailable])
 
   function validate(): boolean {
     const errors: { email?: string; password?: string } = {}
@@ -410,9 +415,10 @@ export function Login() {
               </div>
             </form>
 
-            {/* Divisor + botão social. O botão inicia o fluxo do Google
-                Identity Services; a credencial é enviada uma única vez para
-                POST /auth/google e nunca é armazenada. */}
+            {/* Divisor + botão social. A entrada do Google é o botão OFICIAL
+                do GIS (`renderButton`), renderizado no container abaixo; a
+                credencial é enviada uma única vez para POST /auth/google e
+                nunca é armazenada. */}
             <div className="mt-5 space-y-5">
               <div className="flex items-center gap-3" aria-hidden="true">
                 <span className="h-px flex-1 bg-slate-200" />
@@ -424,16 +430,12 @@ export function Login() {
                 <FeedbackMessage variant="error" description={googleError} />
               )}
 
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => void handleGoogleClick()}
-                isLoading={isGoogleLoading}
-                leftIcon={<GoogleIcon className="h-4 w-4" />}
-              >
-                Continuar com Google
-              </Button>
+              {/* Único botão do Google na tela: o oficial do GIS. */}
+              <div
+                ref={googleButtonRef}
+                data-testid="google-signin-button"
+                className="flex w-full justify-center"
+              />
             </div>
           </div>
 

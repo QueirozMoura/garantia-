@@ -46,17 +46,36 @@ const mockAuthenticateWithGoogle = vi.mocked(authenticateWithGoogle)
 const mockLinkGoogleAccount = vi.mocked(linkGoogleAccount)
 const mockStartGoogleSignIn = vi.mocked(startGoogleSignIn)
 
-/** Faz o GIS entregar uma credencial assim que o botão pedir a credencial. */
-function stubGoogleCredential(credential: string) {
-  mockStartGoogleSignIn.mockResolvedValue({
+/**
+ * Credencial que o botão OFICIAL do Google entregará ao ser renderizado no
+ * container (`renderButton`). O clique real acontece dentro do botão do Google;
+ * nestes testes a entrega é simulada quando o fluxo renderiza o botão.
+ */
+let deliverCredential: string | null = null
+/**
+ * Configura `startGoogleSignIn` para devolver um fluxo que, ao renderizar o
+ * botão, entrega a credencial informada pelo callback existente. Configurado
+ * por padrão em `beforeEach`, para que o efeito de montagem do Login já o use.
+ */
+function installGoogleFlowMock() {
+  mockStartGoogleSignIn.mockImplementation(async (handlers) => ({
     request: () => {
-      void Promise.resolve().then(() =>
-        mockStartGoogleSignIn.mock.calls[0]?.[0].onCredential(credential),
-      )
+      if (deliverCredential !== null) {
+        const credential = deliverCredential
+        void Promise.resolve().then(() => handlers.onCredential(credential))
+      }
       return true
     },
-  })
+  }))
 }
+
+/** Define a credencial que o botão oficial entregará ao renderizar. */
+function stubGoogleCredential(credential: string) {
+  deliverCredential = credential
+}
+
+/** Aguarda o container do botão oficial do Google ser renderizado na tela. */
+const findGoogleButton = () => screen.findByTestId('google-signin-button')
 
 const FIELDS: PurchaseFormFields = {
   productName: 'Notebook Dell XPS 15',
@@ -111,6 +130,13 @@ const fromNewEntry: Entry = {
   state: { from: { pathname: '/purchases/new' } },
 }
 
+// Todo teste monta o Login (que renderiza o botão oficial no efeito de
+// montagem), então o fluxo do GIS precisa estar mockado por padrão.
+beforeEach(() => {
+  deliverCredential = null
+  installGoogleFlowMock()
+})
+
 describe('Login — retomada de rascunho', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -157,6 +183,8 @@ describe('Login — fluxo com Google', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    deliverCredential = null
+    installGoogleFlowMock()
     mockAuthenticate.mockResolvedValue({ accessToken: 'token', user: TEST_USER })
     mockAuthenticateWithGoogle.mockResolvedValue({
       accessToken: 'token-google',
@@ -173,9 +201,9 @@ describe('Login — fluxo com Google', () => {
     const CREDENTIAL = 'credencial-do-google'
     stubGoogleCredential(CREDENTIAL)
     const setUser = vi.fn()
-    const { user } = renderLogin(['/login'], { setUser })
+    renderLogin(['/login'], { setUser })
 
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await findGoogleButton()
 
     await waitFor(() =>
       expect(mockAuthenticateWithGoogle).toHaveBeenCalledWith(CREDENTIAL),
@@ -190,9 +218,9 @@ describe('Login — fluxo com Google', () => {
     saveGuestPurchaseDraft(FIELDS)
     stubGoogleCredential('credencial-do-google')
     const setUser = vi.fn()
-    const { user } = renderLogin([resumeEntry], { setUser })
+    renderLogin([resumeEntry], { setUser })
 
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await findGoogleButton()
 
     expect(await screen.findByText('NEW_PURCHASE_PAGE')).toBeInTheDocument()
     expect(setUser).toHaveBeenCalledWith(TEST_USER)
@@ -206,9 +234,9 @@ describe('Login — fluxo com Google', () => {
       ),
     )
     const setUser = vi.fn()
-    const { user } = renderLogin(['/login'], { setUser })
+    renderLogin(['/login'], { setUser })
 
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await findGoogleButton()
 
     expect(
       await screen.findByText(
@@ -228,9 +256,9 @@ describe('Login — fluxo com Google', () => {
       ),
     )
     const setUser = vi.fn()
-    const { user } = renderLogin(['/login'], { setUser })
+    renderLogin(['/login'], { setUser })
 
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await findGoogleButton()
 
     expect(
       await screen.findByText(
@@ -261,6 +289,8 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
     vi.clearAllMocks()
     localStorage.clear()
     sessionStorage.clear()
+    deliverCredential = null
+    installGoogleFlowMock()
     mockAuthenticate.mockResolvedValue({ accessToken: 'token', user: TEST_USER })
     mockAuthenticateWithGoogle.mockResolvedValue({
       accessToken: 'token-google',
@@ -280,9 +310,14 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
    * (sem autenticar/navegar), a mensagem correta aparece e a credential não vaza
    * para nenhum armazenamento.
    */
-  async function triggerLinkRequired(
-    user: ReturnType<typeof userEvent.setup>,
+  /**
+   * Monta o Login já com a credential pendente configurada, garantindo que o
+   * efeito de montagem (que renderiza o botão oficial e entrega a credential)
+   * a veja, e aguarda a mensagem de vínculo pendente aparecer.
+   */
+  async function renderLoginWithLinkRequired(
     credential: string,
+    authOverrides: Partial<AuthContextValue> = {},
   ) {
     stubGoogleCredential(credential)
     mockAuthenticateWithGoogle.mockRejectedValueOnce(
@@ -291,15 +326,15 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
         GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
       ),
     )
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
-    return screen.findByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+    const utils = renderLogin(['/login'], authOverrides)
+    await findGoogleButton()
+    await screen.findByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+    return utils
   }
 
   it('mostra a mensagem e PARA o fluxo nesse erro (sem autenticar nem navegar)', async () => {
     const setUser = vi.fn()
-    const { user } = renderLogin(['/login'], { setUser })
-
-    await triggerLinkRequired(user, 'credencial-pendente-1')
+    await renderLoginWithLinkRequired('credencial-pendente-1', { setUser })
 
     expect(setUser).not.toHaveBeenCalled()
     expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
@@ -314,9 +349,9 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
         'GOOGLE_EMAIL_NOT_VERIFIED',
       ),
     )
-    const { user } = renderLogin(['/login'])
+    renderLogin(['/login'])
 
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await findGoogleButton()
     await screen.findByText(
       'Seu email do Google precisa ser verificado antes de continuar.',
     )
@@ -328,9 +363,7 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
 
   it('mantém a mensagem mas não persiste a credential', async () => {
     const CREDENTIAL = 'credencial-super-secreta'
-    const { user } = renderLogin(['/login'])
-
-    await triggerLinkRequired(user, CREDENTIAL)
+    await renderLoginWithLinkRequired(CREDENTIAL)
 
     expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
     expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
@@ -341,9 +374,7 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
 
   it('não deixa rastro da credential após desmontar a página de login', async () => {
     const CREDENTIAL = 'credencial-pendente-desmontar'
-    const { user, unmount } = renderLogin(['/login'])
-
-    await triggerLinkRequired(user, CREDENTIAL)
+    const { unmount } = await renderLoginWithLinkRequired(CREDENTIAL)
 
     unmount()
 
@@ -356,12 +387,10 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
 
   it('reiniciar o fluxo do Google não reaproveita a credential anterior', async () => {
     const CREDENTIAL = 'credencial-pendente-reinicio'
-    const { user } = renderLogin(['/login'])
+    await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
-
-    // Novo clique reinicia o fluxo: nenhum dado antigo vaza para lugar nenhum.
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    // Um novo fluxo (novo botão oficial) não reaproveita a credential anterior.
+    await findGoogleButton()
 
     expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
     expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
@@ -371,9 +400,7 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
 
   it('login por senha após o erro não persiste a credential pendente', async () => {
     const CREDENTIAL = 'credencial-pendente-senha'
-    const { user } = renderLogin(['/login'])
-
-    await triggerLinkRequired(user, CREDENTIAL)
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
     await submitLogin(user)
 
@@ -391,9 +418,7 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
     mockAuthenticate.mockRejectedValueOnce(
       new LoginFormError('Email ou senha inválidos.'),
     )
-    const { user } = renderLogin(['/login'])
-
-    await triggerLinkRequired(user, CREDENTIAL)
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
     await submitLogin(user)
 
@@ -421,10 +446,14 @@ describe('Login — vinculação Google após o login por senha', () => {
     vi.useRealTimers()
   })
 
-  /** Faz o fluxo do Google terminar em GOOGLE_ACCOUNT_LINK_REQUIRED. */
-  async function triggerLinkRequired(
-    user: ReturnType<typeof userEvent.setup>,
+  /**
+   * Monta o Login com a credential pendente configurada e aguarda o fluxo
+   * terminar em GOOGLE_ACCOUNT_LINK_REQUIRED, deixando a credential pendente
+   * pronta para o login por senha.
+   */
+  async function renderLoginWithLinkRequired(
     credential: string,
+    authOverrides: Partial<AuthContextValue> = {},
   ) {
     stubGoogleCredential(credential)
     mockAuthenticateWithGoogle.mockRejectedValueOnce(
@@ -433,8 +462,10 @@ describe('Login — vinculação Google após o login por senha', () => {
         GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
       ),
     )
-    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    const utils = renderLogin(['/login'], authOverrides)
+    await findGoogleButton()
     await screen.findByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+    return utils
   }
 
   const LINKED_MESSAGE = 'Conta Google vinculada com sucesso.'
@@ -459,9 +490,8 @@ describe('Login — vinculação Google após o login por senha', () => {
 
   it('login por senha com credential pendente envia a credential para vinculação', async () => {
     const CREDENTIAL = 'credencial-para-vincular'
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     // A vinculação usa exatamente a credential pendente, depois do login por senha.
@@ -476,9 +506,8 @@ describe('Login — vinculação Google após o login por senha', () => {
 
   it('vinculação com sucesso (204) mostra a mensagem de vínculo', async () => {
     const CREDENTIAL = 'credencial-mostra-mensagem'
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     // A mensagem aparece enquanto o usuário ainda está na tela de login.
@@ -491,9 +520,8 @@ describe('Login — vinculação Google após o login por senha', () => {
 
   it('resposta 204 conclui a vinculação e limpa a credential pendente', async () => {
     const CREDENTIAL = 'credencial-limpar-204'
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     expect(await screen.findByText(LINKED_MESSAGE)).toBeInTheDocument()
@@ -509,9 +537,8 @@ describe('Login — vinculação Google após o login por senha', () => {
     mockLinkGoogleAccount.mockRejectedValueOnce(
       new LoginFormError('Não foi possível entrar com o Google. Tente novamente.'),
     )
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
@@ -524,9 +551,8 @@ describe('Login — vinculação Google após o login por senha', () => {
       new LoginFormError('Não foi possível entrar com o Google. Tente novamente.'),
     )
     const setUser = vi.fn()
-    const { user } = renderLogin(['/login'], { setUser })
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL, { setUser })
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     // Login por senha preservado: usuário autenticado e navegação normal.
@@ -545,9 +571,8 @@ describe('Login — vinculação Google após o login por senha', () => {
       localStorage.setItem('access_token', 'token')
       return { accessToken: 'token', user: TEST_USER }
     })
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
 
     expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
@@ -559,9 +584,8 @@ describe('Login — vinculação Google após o login por senha', () => {
     const CREDENTIAL = 'credencial-nunca-exposta'
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { user } = renderLogin(['/login'])
+    const { user } = await renderLoginWithLinkRequired(CREDENTIAL)
 
-    await triggerLinkRequired(user, CREDENTIAL)
     await submitLogin(user)
     await screen.findByText(LINKED_MESSAGE)
 
