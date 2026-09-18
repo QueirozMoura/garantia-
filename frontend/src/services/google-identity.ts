@@ -81,6 +81,7 @@ function prepareGoogleSignIn(
   if (initializing) return initializing.then(() => createFlow())
 
   initializing = loadGoogleIdentityServices().then((loaded) => {
+    console.log('[Google GIS] load resolved', loaded, !!window.google?.accounts?.id)
     if (!loaded || !initializeGoogleIdentity()) {
       onUnavailable?.('script-unavailable')
       return false
@@ -98,6 +99,7 @@ function prepareGoogleSignIn(
  */
 function createFlow(): GoogleCredentialFlow | null {
   const getIdentity = () => window.google?.accounts?.id
+  console.log('[Google GIS] createFlow', !!getIdentity())
   if (!getIdentity()) return null
   return {
     request: () => {
@@ -185,6 +187,7 @@ export function loadGoogleIdentityServices(): Promise<boolean> {
 function initializeGoogleIdentity(): boolean {
   const identity = window.google?.accounts?.id
   if (!hasGoogleClientId() || !identity) return false
+  console.log('[Google GIS] before initialize')
   identity.initialize({
     client_id: googleClientId,
     callback: handleCredentialResponse,
