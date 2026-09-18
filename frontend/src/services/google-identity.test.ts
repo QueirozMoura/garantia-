@@ -14,9 +14,12 @@ interface InitializeConfig {
 const initialize = vi.fn<(config: InitializeConfig) => void>()
 const prompt = vi.fn<() => void>()
 const cancel = vi.fn<() => void>()
+// Adaptação mínima de tipo: o mock agora precisa cobrir `renderButton`.
+const renderButton = vi.fn<() => void>()
 
 function installGoogleApi() {
-  window.google = { accounts: { id: { initialize, prompt, cancel } } }
+  window.google = { accounts: { id: { initialize, prompt, renderButton, cancel } }
+}
 }
 
 async function importService(clientId: string) {

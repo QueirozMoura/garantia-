@@ -27,6 +27,10 @@ vi.mock('../services/google-identity.ts', () => ({
   hasGoogleClientId: () => true,
   startGoogleSignIn: vi.fn(),
   cancelGoogleSignIn: vi.fn(),
+  // Adaptação mínima: o Login agora também renderiza o botão oficial (diagnóstico).
+  renderGoogleButtonForTest: vi.fn(),
+  loadGoogleIdentityServices: vi.fn(() => Promise.resolve(true)),
+  initializeGoogleIdentity: vi.fn(),
 }))
 
 const mockAuthenticate = vi.mocked(authenticate)
