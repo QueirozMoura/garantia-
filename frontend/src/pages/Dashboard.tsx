@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   Receipt,
-  CheckCircle2,
   ArrowRight,
   FileText,
   LockKeyhole,
@@ -25,6 +24,7 @@ import { DashboardErrorState } from '../components/dashboard/DashboardErrorState
 import { DashboardEmptyState } from '../components/dashboard/DashboardEmptyState.tsx'
 import { XmlImportDialog } from '../components/dashboard/XmlImportDialog.tsx'
 import { DashboardImportCard } from '../components/dashboard/DashboardImportCard.tsx'
+import { FeedbackMessage } from '../components/ui'
 import { getDashboard, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL } from '../lib/formatters.ts'
@@ -155,13 +155,10 @@ export function Dashboard() {
       </section>
 
       {importSuccess && (
-        <div
-          role="status"
-          className="animate-slide-up flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 shadow-sm"
-        >
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>Compra cadastrada a partir da NF-e com sucesso!</span>
-        </div>
+        <FeedbackMessage
+          variant="success"
+          message="Compra cadastrada a partir da NF-e com sucesso!"
+        />
       )}
 
       {state.status === 'loading' && <DashboardSkeleton />}
@@ -197,7 +194,7 @@ export function Dashboard() {
 function GuestDashboard({ from }: { from: RouterLocation }) {
   return (
     <div className="space-y-8 sm:space-y-10">
-      <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-8 text-white shadow-[0_24px_60px_-36px_rgb(15_23_42/0.7)] sm:px-9 sm:py-10">
+      <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-8 text-white shadow-[0_24px_60px_-36px_rgb(15_23_42/0.7)] sm:px-9 sm:py-10">
         <div className="surface-grid absolute inset-0 -z-10 opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
         <div className="absolute -right-20 -top-24 -z-10 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
         <div className="relative max-w-2xl">
@@ -212,7 +209,7 @@ function GuestDashboard({ from }: { from: RouterLocation }) {
             Conheça o Garantia+ e explore o produto como visitante. Entre ou crie uma
             conta quando quiser acessar seus dados e recursos pessoais.
           </p>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <Link
               to="/login"
               state={{ from }}
@@ -261,7 +258,7 @@ function GuestFeature({
   text: string
 }) {
   return (
-    <article className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_16px_40px_-32px_rgb(15_23_42/0.55)]">
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_40px_-32px_rgb(15_23_42/0.55)] transition-[border-color,box-shadow] duration-200 hover:border-emerald-100 hover:shadow-[0_20px_42px_-32px_rgb(15_23_42/0.45)]">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </div>

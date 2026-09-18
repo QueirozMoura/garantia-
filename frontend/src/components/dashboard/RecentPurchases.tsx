@@ -11,11 +11,11 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
   return (
     <div className="h-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_16px_38px_-32px_rgb(15_23_42/0.5)]">
       <div className="flex items-end justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
-        <div>
+        <div className="min-w-0">
           <p className="text-[10px] font-bold tracking-[0.16em] text-slate-400 uppercase">
             Linha do tempo
           </p>
-          <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+          <h3 className="mt-1 truncate text-xl font-semibold tracking-[-0.025em] text-slate-950">
             Compras recentes
           </h3>
           <p className="mt-1 text-sm text-slate-500">
@@ -71,8 +71,8 @@ export function RecentPurchases({ purchases }: RecentPurchasesProps) {
                   </span>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <p className="text-sm font-bold text-slate-900">
+              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                <p className="text-xs font-bold text-slate-900 sm:text-sm">
                   {formatCurrencyBRL(purchase.price)}
                 </p>
                 <ArrowRight className="hidden h-4 w-4 text-slate-300 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-emerald-600 sm:block" />

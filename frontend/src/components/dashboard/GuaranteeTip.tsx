@@ -20,7 +20,7 @@ export function GuaranteeTip({
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_10px_18px_-12px_rgb(5_150_105/0.8)]">
             <Lightbulb className="h-5 w-5" aria-hidden="true" />
           </div>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <p className="text-[10px] font-bold tracking-[0.16em] text-emerald-700 uppercase">
               Conhecimento útil
             </p>
@@ -30,8 +30,8 @@ export function GuaranteeTip({
             <p className="pt-1 text-sm leading-6 text-emerald-900/80">{content}</p>
           </div>
         </div>
-        <div className="relative flex items-center gap-2 text-xs font-semibold text-emerald-700">
-          Proteja seus documentos para o futuro
+        <div className="relative flex flex-wrap items-center gap-2 text-xs font-semibold text-emerald-700">
+          <span>Proteja seus documentos para o futuro</span>
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </div>
       </div>

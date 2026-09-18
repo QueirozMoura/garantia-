@@ -30,7 +30,7 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
       />
 
       <div className="relative flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
               <ShieldAlert className="h-4.5 w-4.5" aria-hidden="true" />
@@ -46,7 +46,7 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
             Acompanhe os prazos que pedem sua atenção nos próximos 30 dias.
           </p>
         </div>
-        <span className="rounded-full bg-white/75 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-700/10">
+        <span className="shrink-0 rounded-full bg-white/75 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-700/10">
           {warranties.length}
         </span>
       </div>
@@ -88,8 +88,8 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-amber-700" />
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-slate-500">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+                  <span className="min-w-0 text-slate-500">
                     Vence em{' '}
                     <strong className="font-semibold text-slate-700">
                       {formatDateBR(item.endDate)}

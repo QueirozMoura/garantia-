@@ -22,7 +22,7 @@ export function GuestAccessState({
 }: GuestAccessStateProps) {
   return (
     <section
-      className={`rounded-2xl border-slate-200 bg-white px-6 py-10 text-center shadow-[0_16px_40px_-32px_rgb(15_23_42/0.55)] sm:px-10 sm:py-14 ${className}`}
+      className={`rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center shadow-[0_16px_40px_-32px_rgb(15_23_42/0.55)] sm:px-10 sm:py-14 ${className}`}
     >
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
         <Icon className="h-7 w-7" aria-hidden="true" />

@@ -156,7 +156,7 @@ export function DocumentsToolbar({
       </div>
 
       {hasActiveFilters && (
-        <div className="mt-4 flex justify-end border-t border-slate-100 pt-3">
+        <div className="mt-4 flex justify-start border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={onClear}

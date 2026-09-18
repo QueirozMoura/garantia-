@@ -32,7 +32,7 @@ export function Card({ variant = 'default', className, tabIndex, ...props }: Car
       tabIndex={interactive ? 0 : tabIndex}
       className={cn(
         visualTokens.radius,
-        'border p-4 sm:p-5',
+        'min-w-0 border p-4 sm:p-5',
         'transition-all duration-150 ease-out',
         interactive && visualTokens.focus,
         variants[variant],

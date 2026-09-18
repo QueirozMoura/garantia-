@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle, Package, Plus, ShieldCheck } from 'lucide-react'
+import { Package, Plus, ShieldCheck } from 'lucide-react'
 import { PurchasesList } from '../components/purchases/PurchasesList.tsx'
 import { PurchasesSkeleton } from '../components/purchases/PurchasesSkeleton.tsx'
 import { PurchasesEmptyState } from '../components/purchases/PurchasesEmptyState.tsx'
@@ -17,6 +17,7 @@ import {
 import { getPurchases, AuthenticationError, ApiError } from '../lib/api.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
+import { FeedbackMessage } from '../components/ui'
 import type { Purchase } from '../types/purchase.ts'
 
 type FetchState =
@@ -104,7 +105,7 @@ export function Purchases() {
   if (status === 'guest') {
     return (
       <div className="space-y-8 sm:space-y-10">
-        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-200 bg-white px-6 py-7 shadow-[0_20px_48px_-36px_rgb(15_23_42/0.55)] sm:px-9 sm:py-9">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_20px_48px_-36px_rgb(15_23_42/0.55)] sm:px-9 sm:py-9">
           <p className="text-[10px] font-bold tracking-[0.17em] text-emerald-600 uppercase">
             Biblioteca pessoal
           </p>
@@ -171,13 +172,7 @@ export function Purchases() {
       </section>
 
       {flashMessage && (
-        <div
-          role="status"
-          className="flex items-start gap-2.5 rounded-lg border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800"
-        >
-          <CheckCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
-          <span>{flashMessage}</span>
-        </div>
+        <FeedbackMessage variant="success" message={flashMessage} />
       )}
 
       {state.status === 'loading' && <PurchasesSkeleton />}

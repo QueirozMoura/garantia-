@@ -64,7 +64,7 @@ export function Warranties() {
   if (status === 'guest') {
     return (
       <div className="space-y-8 sm:space-y-10">
-        <section className="relative isolate overflow-hidden rounded-[2rem] border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-7 text-white shadow-[0_24px_60px_-38px_rgb(15_23_42/0.75)] sm:px-9 sm:py-9">
           <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">
             Central de proteção
           </p>

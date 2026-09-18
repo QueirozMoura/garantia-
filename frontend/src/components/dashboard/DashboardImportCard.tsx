@@ -10,11 +10,11 @@ export function DashboardImportCard({ onImportXml }: DashboardImportCardProps) {
       <div className="surface-grid absolute inset-0 -z-10 opacity-40 [mask-image:linear-gradient(110deg,black,transparent_72%)]" />
       <div className="absolute -right-10 -top-10 -z-10 h-36 w-36 rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110" />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_18px_-12px_rgb(5_150_105/0.8)] transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-105">
             <FileCode2 className="h-6 w-6" aria-hidden="true" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-700 uppercase">
               Atalho inteligente
             </p>
@@ -29,7 +29,7 @@ export function DashboardImportCard({ onImportXml }: DashboardImportCardProps) {
         <button
           type="button"
           onClick={onImportXml}
-          className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98]"
+          className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98] sm:w-auto"
         >
           <FileUp className="h-4 w-4" aria-hidden="true" />
           Importar arquivo

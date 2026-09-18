@@ -94,7 +94,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
           aria-disabled="true"
           aria-label="Notificações (em breve)"
           title="Notificações em breve"
-          className="relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
+          className="relative flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg text-slate-400"
         >
           <Bell className="h-4 w-4" />
         </button>

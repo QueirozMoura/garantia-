@@ -69,7 +69,7 @@ export function PageHeader({
           {title}
         </h2>
         {(subtitle ?? description) && (
-          <p className="mt-1 text-sm text-slate-500">{subtitle ?? description}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-500">{subtitle ?? description}</p>
         )}
       </div>
       {(action ?? actions) && (

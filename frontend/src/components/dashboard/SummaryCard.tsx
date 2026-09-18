@@ -25,7 +25,7 @@ export function SummaryCard({
   return (
     <div
       className={cn(
-        `group relative overflow-hidden rounded-[1.5rem] border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-24px_rgb(15_23_42/0.48)] ${
+        `group relative min-w-0 overflow-hidden rounded-[1.5rem] border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-24px_rgb(15_23_42/0.48)] sm:p-6 ${
           isWarning
             ? 'border-amber-200/80 bg-amber-50/70 hover:border-amber-300'
             : isSpending
@@ -48,10 +48,10 @@ export function SummaryCard({
                 : 'bg-blue-400'
         }`}
       />
-      <div className="flex items-center justify-between">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <span
           className={cn(
-            'text-xs font-medium tracking-wide uppercase',
+            'min-w-0 truncate text-xs font-medium tracking-wide uppercase',
             isSpending
               ? 'text-slate-400'
               : isWarning
@@ -62,7 +62,7 @@ export function SummaryCard({
           {title}
         </span>
         <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 ${
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 ${
             isWarning
               ? 'bg-amber-100 text-amber-700'
               : isProtection
@@ -81,10 +81,10 @@ export function SummaryCard({
         <p
           className={`tracking-tight ${
             isSpending
-              ? 'text-3xl font-semibold text-white sm:text-4xl'
+              ? 'text-3xl font-semibold text-white tabular-nums sm:text-4xl'
               : `text-2xl font-bold sm:text-3xl ${
                   isWarning ? 'text-amber-950' : 'text-slate-950'
-                }`
+                  } tabular-nums`
           }`}
         >
           {value}
