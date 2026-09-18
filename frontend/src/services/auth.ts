@@ -1,6 +1,7 @@
 import {
   login,
   loginWithGoogle,
+  linkGoogleAccount as linkGoogleAccountRequest,
   register,
   getMe,
   logout as logoutRequest,
@@ -135,6 +136,20 @@ function toErrorCode(error: unknown): string | undefined {
 export async function authenticateWithGoogle(credential: string): Promise<LoginResponse> {
   try {
     return await loginWithGoogle(credential)
+  } catch (error) {
+    throw new LoginFormError(toGoogleFriendlyMessage(error), toErrorCode(error))
+  }
+}
+
+/**
+ * Vincula a credencial Google pendente à conta já autenticada.
+ * POST /auth/google/link — usa a sessão criada pelo login por senha e recebe
+ * apenas a credential. Erros são traduzidos para `LoginFormError`, no mesmo
+ * formato do resto do serviço; a credencial nunca é armazenada nem logada.
+ */
+export async function linkGoogleAccount(credential: string): Promise<void> {
+  try {
+    await linkGoogleAccountRequest(credential)
   } catch (error) {
     throw new LoginFormError(toGoogleFriendlyMessage(error), toErrorCode(error))
   }

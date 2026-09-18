@@ -6,6 +6,7 @@ import { GoogleIcon } from '../components/icons/GoogleIcon.tsx'
 import {
   authenticate,
   authenticateWithGoogle,
+  linkGoogleAccount,
   LoginFormError,
   GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
   GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
@@ -30,6 +31,14 @@ interface LocationState {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/** Feedback exibido quando a conta Google é vinculada após o login por senha. */
+const GOOGLE_LINKED_MESSAGE = 'Conta Google vinculada com sucesso.'
+/**
+ * Tempo que a mensagem de vínculo fica visível antes da navegação pós-login,
+ * seguindo o mesmo padrão de confirmação breve já usado em Register.tsx.
+ */
+const GOOGLE_LINKED_FEEDBACK_MS = 1500
+
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -52,6 +61,8 @@ export function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
+  // true somente quando a vinculação Google foi concluída com sucesso (204).
+  const [googleLinked, setGoogleLinked] = useState(false)
 
   // Fluxo do GIS já preparado (script + initialize acontecem uma única vez).
   const googleFlowRef = useRef<GoogleCredentialFlow | null>(null)
@@ -234,11 +245,39 @@ export function Login() {
     setFormError(null)
 
     if (!validate()) return
-
     setIsSubmitting(true)
     try {
       const { user } = await authenticate({ email: email.trim(), password })
+      // Sessão por senha JÁ criada (access token persistido por `authenticate`).
       setUser(user)
+
+      // Se o login por senha veio logo após um GOOGLE_ACCOUNT_LINK_REQUIRED,
+      // existe uma credential Google pendente: aproveitamos a sessão recém-criada
+      // para vinculá-la. Lê uma única vez e limpa o ref em seguida.
+      const pendingCredential = pendingGoogleCredentialRef.current
+      if (pendingCredential) {
+        setPendingGoogleCredential(null)
+        let linked = false
+        try {
+          await linkGoogleAccount(pendingCredential)
+          linked = true
+        } catch {
+          // Falha ao vincular NÃO desfaz o login por senha nem desloga: apenas
+          // ignora a vinculação e segue a navegação pós-login normal.
+        }
+
+        if (linked) {
+          // Confirmação breve antes de navegar, para o usuário perceber que a
+          // conta Google foi vinculada (mesmo padrão de Register.tsx).
+          setGoogleLinked(true)
+          setIsSubmitting(false)
+          window.setTimeout(() => {
+            goToPostLoginRoute()
+          }, GOOGLE_LINKED_FEEDBACK_MS)
+          return
+        }
+      }
+
       goToPostLoginRoute()
     } catch (error) {
       // Login por senha falhou: a credential pendente não é válida para seguir
@@ -342,6 +381,9 @@ export function Login() {
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {googleLinked && (
+                <FeedbackMessage variant="success" description={GOOGLE_LINKED_MESSAGE} />
+              )}
               {formError && <FeedbackMessage variant="error" description={formError} />}
 
               <Input

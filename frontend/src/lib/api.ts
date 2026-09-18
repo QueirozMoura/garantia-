@@ -689,6 +689,21 @@ export async function loginWithGoogle(credential: string): Promise<LoginResponse
 }
 
 /**
+ * Vincula a credencial do Google à conta JÁ autenticada.
+ * POST /auth/google/link — exige o access token da sessão atual, recebe apenas
+ * `{ credential }` e responde 204 sem corpo. Reutiliza `request<T>`, portanto
+ * herda a mesma base URL, o mesmo envio automático do Bearer token e a mesma
+ * política de refresh/erros das demais chamadas autenticadas. A credencial é
+ * enviada uma única vez e nunca é armazenada.
+ */
+export async function linkGoogleAccount(credential: string): Promise<void> {
+  await request<void>('/auth/google/link', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  })
+}
+
+/**
  * Cria uma nova conta no backend.
  * POST /auth/register — responde 201 `{ user }`, sem access token nem sessão.
  */

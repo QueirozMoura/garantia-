@@ -15,6 +15,7 @@ import { Login } from './Login.tsx'
 import {
   authenticate,
   authenticateWithGoogle,
+  linkGoogleAccount,
   LoginFormError,
   GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
   GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
@@ -23,7 +24,12 @@ import { startGoogleSignIn } from '../services/google-identity.ts'
 
 vi.mock('../services/auth.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/auth.ts')>()
-  return { ...actual, authenticate: vi.fn(), authenticateWithGoogle: vi.fn() }
+  return {
+    ...actual,
+    authenticate: vi.fn(),
+    authenticateWithGoogle: vi.fn(),
+    linkGoogleAccount: vi.fn(),
+  }
 })
 
 // O GIS é substituído por um dublê: o clique no botão entrega uma credencial
@@ -41,6 +47,7 @@ vi.mock('../services/google-identity.ts', () => ({
 
 const mockAuthenticate = vi.mocked(authenticate)
 const mockAuthenticateWithGoogle = vi.mocked(authenticateWithGoogle)
+const mockLinkGoogleAccount = vi.mocked(linkGoogleAccount)
 const mockStartGoogleSignIn = vi.mocked(startGoogleSignIn)
 
 /** Faz o GIS entregar uma credencial assim que o botão pedir a credencial. */
@@ -263,6 +270,7 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
       accessToken: 'token-google',
       user: TEST_USER,
     })
+    mockLinkGoogleAccount.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -373,7 +381,10 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
 
     await submitLogin(user)
 
-    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    // O feedback de vínculo (com sucesso) antecede a navegação pós-login.
+    expect(
+      await screen.findByText('DASHBOARD_PAGE', {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
     expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
     expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
     expect(window.location.href).not.toContain(CREDENTIAL)
@@ -393,5 +404,179 @@ describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', 
     expect(await screen.findByText('Email ou senha inválidos.')).toBeInTheDocument()
     expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
     expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+  })
+})
+describe('Login — vinculação Google após o login por senha', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    sessionStorage.clear()
+    mockAuthenticate.mockResolvedValue({ accessToken: 'token', user: TEST_USER })
+    mockAuthenticateWithGoogle.mockResolvedValue({
+      accessToken: 'token-google',
+      user: TEST_USER,
+    })
+    mockLinkGoogleAccount.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    delete window.google
+    vi.useRealTimers()
+  })
+
+  /** Faz o fluxo do Google terminar em GOOGLE_ACCOUNT_LINK_REQUIRED. */
+  async function triggerLinkRequired(
+    user: ReturnType<typeof userEvent.setup>,
+    credential: string,
+  ) {
+    stubGoogleCredential(credential)
+    mockAuthenticateWithGoogle.mockRejectedValueOnce(
+      new LoginFormError(
+        GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
+        GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await screen.findByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+  }
+
+  const LINKED_MESSAGE = 'Conta Google vinculada com sucesso.'
+
+  it('login normal (sem credential pendente) NÃO chama /auth/google/link', async () => {
+    const { user } = renderLogin(['/login'])
+
+    await submitLogin(user)
+
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    expect(mockLinkGoogleAccount).not.toHaveBeenCalled()
+  })
+
+  it('login normal NÃO mostra a mensagem de vínculo Google', async () => {
+    const { user } = renderLogin(['/login'])
+
+    await submitLogin(user)
+
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    expect(screen.queryByText(LINKED_MESSAGE)).not.toBeInTheDocument()
+  })
+
+  it('login por senha com credential pendente envia a credential para vinculação', async () => {
+    const CREDENTIAL = 'credencial-para-vincular'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    // A vinculação usa exatamente a credential pendente, depois do login por senha.
+    expect(mockLinkGoogleAccount).toHaveBeenCalledTimes(1)
+    expect(mockLinkGoogleAccount).toHaveBeenCalledWith(CREDENTIAL)
+
+    // Após o feedback breve, navega normalmente.
+    expect(
+      await screen.findByText('DASHBOARD_PAGE', {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+  })
+
+  it('vinculação com sucesso (204) mostra a mensagem de vínculo', async () => {
+    const CREDENTIAL = 'credencial-mostra-mensagem'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    // A mensagem aparece enquanto o usuário ainda está na tela de login.
+    expect(await screen.findByText(LINKED_MESSAGE)).toBeInTheDocument()
+    // E, após o feedback, a navegação pós-login acontece normalmente.
+    expect(
+      await screen.findByText('DASHBOARD_PAGE', {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+  })
+
+  it('resposta 204 conclui a vinculação e limpa a credential pendente', async () => {
+    const CREDENTIAL = 'credencial-limpar-204'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    expect(await screen.findByText(LINKED_MESSAGE)).toBeInTheDocument()
+    expect(mockLinkGoogleAccount).toHaveBeenCalledWith(CREDENTIAL)
+    // Não persiste a credential em nenhum armazenamento após a vinculação.
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+  })
+
+  it('falha na vinculação NÃO mostra a mensagem de vínculo', async () => {
+    const CREDENTIAL = 'credencial-falha-sem-mensagem'
+    mockLinkGoogleAccount.mockRejectedValueOnce(
+      new LoginFormError('Não foi possível entrar com o Google. Tente novamente.'),
+    )
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    expect(screen.queryByText(LINKED_MESSAGE)).not.toBeInTheDocument()
+  })
+
+  it('falha na vinculação mantém o usuário autenticado e a navegação pós-login', async () => {
+    const CREDENTIAL = 'credencial-falha-vinculo'
+    mockLinkGoogleAccount.mockRejectedValueOnce(
+      new LoginFormError('Não foi possível entrar com o Google. Tente novamente.'),
+    )
+    const setUser = vi.fn()
+    const { user } = renderLogin(['/login'], { setUser })
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    // Login por senha preservado: usuário autenticado e navegação normal.
+    expect(setUser).toHaveBeenCalledWith(TEST_USER)
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    // Sem mensagem de erro exposta pela falha do vínculo.
+    expect(screen.queryByText('Email ou senha inválidos.')).not.toBeInTheDocument()
+  })
+
+  it('falha na vinculação NÃO desloga nem limpa a sessão por senha', async () => {
+    const CREDENTIAL = 'credencial-sem-logout'
+    mockLinkGoogleAccount.mockRejectedValueOnce(new Error('boom'))
+    // Reproduz a persistência real de `api.login`: a sessão por senha grava o
+    // access token antes de qualquer tentativa de vinculação.
+    mockAuthenticate.mockImplementationOnce(async () => {
+      localStorage.setItem('access_token', 'token')
+      return { accessToken: 'token', user: TEST_USER }
+    })
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    // O access token do login por senha permanece armazenado após a falha.
+    expect(localStorage.getItem('access_token')).toBe('token')
+  })
+
+  it('nunca expõe a credential em logs/URL/localStorage/sessionStorage', async () => {
+    const CREDENTIAL = 'credencial-nunca-exposta'
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+    await submitLogin(user)
+    await screen.findByText(LINKED_MESSAGE)
+
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+    expect(document.body.textContent).not.toContain(CREDENTIAL)
+    expect(consoleLog).not.toHaveBeenCalledWith(expect.stringContaining(CREDENTIAL))
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining(CREDENTIAL))
+
+    consoleLog.mockRestore()
+    consoleError.mockRestore()
   })
 })
