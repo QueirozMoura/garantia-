@@ -141,6 +141,17 @@ function createFlow(): GoogleCredentialFlow | null {
           'dismissed=',
           notification?.getDismissedReason?.(),
         )
+        // O prompt não foi concluído (não exibido, ignorado ou dispensado):
+        // encerra o fluxo como tentativa não concluída, informando o chamador
+        // para que ele libere o estado de carregamento. Nenhuma credencial é
+        // entregue aqui.
+        const notCompleted =
+          notification?.isNotDisplayed?.() === true ||
+          notification?.isSkippedMoment?.() === true ||
+          notification?.isDismissedMoment?.() === true
+        if (notCompleted) {
+          handlers?.onUnavailable?.('cancelled')
+        }
       })
       return true
     },

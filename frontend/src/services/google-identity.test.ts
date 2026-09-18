@@ -11,8 +11,14 @@ interface InitializeConfig {
   callback: (response: { credential?: string }) => void
 }
 
+interface PromptNotification {
+  isNotDisplayed?: () => boolean
+  isSkippedMoment?: () => boolean
+  isDismissedMoment?: () => boolean
+}
+
 const initialize = vi.fn<(config: InitializeConfig) => void>()
-const prompt = vi.fn<() => void>()
+const prompt = vi.fn<(listener?: (notification: PromptNotification) => void) => void>()
 const cancel = vi.fn<() => void>()
 // Adaptação mínima de tipo: o mock agora precisa cobrir `renderButton`.
 const renderButton = vi.fn<() => void>()
@@ -102,5 +108,65 @@ describe('google-identity — fluxo do GIS', () => {
 
     expect(onCredential).not.toHaveBeenCalled()
     expect(onUnavailable).toHaveBeenCalledWith('cancelled')
+  })
+
+  it('prompt notDisplayed encerra o fluxo como não concluído', async () => {
+    installGoogleApi()
+    const { startGoogleSignIn } = await importService('client-id-de-teste')
+    const onCredential = vi.fn()
+    const onUnavailable = vi.fn()
+
+    const flow = await startGoogleSignIn({ onCredential, onUnavailable })
+    flow?.request()
+
+    // Simula a notificação do GIS: o One Tap não foi exibido.
+    const listener = prompt.mock.calls[0]?.[0]
+    listener?.({ isNotDisplayed: () => true, isSkippedMoment: () => false })
+
+    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
+    expect(onCredential).not.toHaveBeenCalled()
+  })
+
+  it('prompt skipped encerra o fluxo como não concluído', async () => {
+    installGoogleApi()
+    const { startGoogleSignIn } = await importService('client-id-de-teste')
+    const onUnavailable = vi.fn()
+
+    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
+    flow?.request()
+
+    const listener = prompt.mock.calls[0]?.[0]
+    listener?.({ isSkippedMoment: () => true })
+
+    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
+  })
+
+  it('prompt dismissed encerra o fluxo como não concluído', async () => {
+    installGoogleApi()
+    const { startGoogleSignIn } = await importService('client-id-de-teste')
+    const onUnavailable = vi.fn()
+
+    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
+    flow?.request()
+
+    const listener = prompt.mock.calls[0]?.[0]
+    listener?.({ isDismissedMoment: () => true })
+
+    expect(onUnavailable).toHaveBeenCalledWith('cancelled')
+  })
+
+  it('notificação de prompt exibido (sem dispensa) não encerra o fluxo', async () => {
+    installGoogleApi()
+    const { startGoogleSignIn } = await importService('client-id-de-teste')
+    const onUnavailable = vi.fn()
+
+    const flow = await startGoogleSignIn({ onCredential: vi.fn(), onUnavailable })
+    flow?.request()
+
+    const listener = prompt.mock.calls[0]?.[0]
+    // Momento intermediário (ex.: "display"): nada de não concluído.
+    listener?.({})
+
+    expect(onUnavailable).not.toHaveBeenCalled()
   })
 })
