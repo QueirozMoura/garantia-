@@ -189,7 +189,7 @@ export function ConfirmExtraction() {
               <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
                 {item.label}
               </dt>
-              <dd className="mt-0.5 truncate text-sm text-slate-900">{item.value}</dd>
+              <dd className="mt-0.5 text-sm break-words text-slate-900">{item.value}</dd>
             </div>
           ))}
         </dl>
