@@ -172,4 +172,6 @@ describe('POST /documents/:documentId/extract — erro de IA chega ao cliente', 
       error: { message: 'Something went wrong', code: 'INTERNAL_ERROR' },
     });
   });
+
+  
 });
