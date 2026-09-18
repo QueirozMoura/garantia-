@@ -112,6 +112,7 @@ export function Login() {
 
   /** Clique no botão: carrega/inicializa o GIS uma única vez e pede a credencial. */
   async function handleGoogleClick() {
+    console.log('[Google Login] click')
     setGoogleError(null)
 
     if (!hasGoogleClientId()) {
@@ -119,13 +120,17 @@ export function Login() {
       return
     }
 
+    console.log('[Google Login] before loading')
     setIsGoogleLoading(true)
-    const flow =
-      googleFlowRef.current ??
-      (await startGoogleSignIn({
+    let flow = googleFlowRef.current
+    if (!flow) {
+      console.log('[Google Login] before startGoogleSignIn')
+      flow = await startGoogleSignIn({
         onCredential: handleGoogleCredential,
         onUnavailable: handleGoogleUnavailable,
-      }))
+      })
+    }
+    console.log('[Google Login] after startGoogleSignIn', flow)
     googleFlowRef.current = flow
     if (!isMountedRef.current) return
     if (!flow || !flow.request()) {
