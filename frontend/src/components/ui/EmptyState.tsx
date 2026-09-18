@@ -28,7 +28,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center px-6 py-12 text-center sm:py-16',
+        'flex flex-col items-center justify-center px-5 py-10 text-center sm:px-6 sm:py-16',
         variant === 'dashed'
           ? 'rounded-2xl border border-dashed border-slate-300 bg-white'
           : 'rounded-xl bg-slate-50/60',
@@ -48,7 +48,7 @@ export function EmptyState({
         <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{description}</p>
       )}
       {action && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-6 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           {action}
         </div>
       )}

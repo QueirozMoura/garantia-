@@ -33,17 +33,17 @@ export function GuestAccessState({
       <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
         {description}
       </p>
-      <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+      <div className="mt-7 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
         <Link
           to="/login"
           state={returnTo ? { from: { pathname: returnTo } } : undefined}
-          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
         >
           Entrar
         </Link>
         <Link
           to="/register"
-          className="inline-flex min-h-10 items-center justify-center rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
         >
           Criar conta
         </Link>

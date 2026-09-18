@@ -126,6 +126,7 @@ function createFlow(): GoogleCredentialFlow | null {
       // `initialize` (handleCredentialResponse), o mesmo já usado pelo projeto.
       // O botão oficial é a ÚNICA entrada do Google — nada de `prompt()`.
       console.log('[Google GIS] calling renderButton')
+      const width = Math.min(384, container.clientWidth || 384)
       identity.renderButton(container, {
         type: 'standard',
         theme: 'outline',
@@ -133,7 +134,7 @@ function createFlow(): GoogleCredentialFlow | null {
         text: 'continue_with',
         shape: 'rectangular',
         logo_alignment: 'left',
-        width: 384,
+        width,
       })
       return true
     },

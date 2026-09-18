@@ -9,11 +9,11 @@ export function MobileNavigation({ activeId = 'dashboard' }: MobileNavigationPro
   return (
     <nav
       aria-label="Navegação mobile"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/90 shadow-[0_-10px_30px_-24px_rgb(15_23_42/0.5)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_-24px_rgb(15_23_42/0.5)] backdrop-blur-xl md:hidden"
     >
       <ul className="flex h-16 items-stretch justify-around px-1">
         {BOTTOM_NAV_ITEMS.map((item) => (
-          <li key={item.id} className="flex flex-1">
+          <li key={item.id} className="flex min-w-0 flex-1">
             <MobileNavItemButton item={item} isActive={item.id === activeId} />
           </li>
         ))}

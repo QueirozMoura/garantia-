@@ -351,10 +351,11 @@ function WarrantyCard({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <Button
               onClick={onEdit}
               variant="outline"
+              className="w-full sm:w-auto"
               leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
             >
               Editar
@@ -362,6 +363,7 @@ function WarrantyCard({
             <Button
               onClick={onDelete}
               variant="danger"
+              className="w-full sm:w-auto"
               leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
             >
               Excluir garantia

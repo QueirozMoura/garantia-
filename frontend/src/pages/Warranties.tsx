@@ -123,8 +123,10 @@ export function Warranties() {
           )}
         </div>
         <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-          <span>Seus prazos importantes, organizados em um só lugar.</span>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">
+            Seus prazos importantes, organizados em um só lugar.
+          </span>
         </div>
       </section>
 

@@ -146,9 +146,11 @@ export function Dashboard() {
         </div>
 
         <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
-          <FileText className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-          <span>Seus documentos e prazos importantes, sempre à vista.</span>
-          <ArrowRight className="ml-auto h-4 w-4 text-slate-500" aria-hidden="true" />
+          <FileText className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">
+            Seus documentos e prazos importantes, sempre à vista.
+          </span>
+          <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
         </div>
       </section>
 
@@ -210,18 +212,18 @@ function GuestDashboard({ from }: { from: RouterLocation }) {
             Conheça o Garantia+ e explore o produto como visitante. Entre ou crie uma
             conta quando quiser acessar seus dados e recursos pessoais.
           </p>
-          <div className="mt-7 flex-wrap items-center gap-3">
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
               to="/login"
               state={{ from }}
-              className="inline-flex min-h-10 items-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
             >
               Entrar
             </Link>
             <Link
               to="/register"
               state={{ from }}
-              className="inline-flex min-h-10 items-center rounded-lg border-white/15 bg-white/[0.06] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border-white/15 bg-white/[0.06] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
             >
               Criar conta
             </Link>

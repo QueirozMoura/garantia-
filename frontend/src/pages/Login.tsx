@@ -434,7 +434,7 @@ export function Login() {
               <div
                 ref={googleButtonRef}
                 data-testid="google-signin-button"
-                className="flex w-full justify-center"
+                className="flex min-w-0 w-full max-w-full justify-center overflow-hidden"
               />
             </div>
           </div>

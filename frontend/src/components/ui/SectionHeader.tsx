@@ -24,12 +24,12 @@ export function SectionHeader({
   className,
 }: SectionHeaderProps) {
   return (
-    <div className={cn('flex items-start justify-between gap-4', className)}>
-      <div className="min-w-0">
+    <div className={cn('flex min-w-0 flex-wrap items-start justify-between gap-4', className)}>
+      <div className="min-w-0 flex-1">
         <h3 className={titleSizes[size]}>{title}</h3>
         {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="min-w-0 shrink-0">{action}</div>}
     </div>
   )
 }
@@ -61,7 +61,7 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="relative">
+      <div className="relative min-w-0">
         <p className="mb-2 text-[10px] font-bold tracking-[0.18em] text-emerald-600 uppercase">
           Área protegida
         </p>
@@ -73,7 +73,7 @@ export function PageHeader({
         )}
       </div>
       {(action ?? actions) && (
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           {action ?? actions}
         </div>
       )}

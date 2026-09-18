@@ -183,7 +183,7 @@ export function ConfirmExtraction() {
       <PurchaseFlowStepper current="confirm" />
 
       <div className="rounded-xl border-slate-200 bg-white p-5 sm:p-6">
-        <dl className="grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="grid min-w-0 grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {summary.map((item) => (
             <div key={item.label} className="min-w-0">
               <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">

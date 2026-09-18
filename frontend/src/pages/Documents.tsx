@@ -179,8 +179,10 @@ export function Documents() {
           )}
         </div>
         <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-          <span>Encontre rapidamente os arquivos que comprovam cada compra.</span>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">
+            Encontre rapidamente os arquivos que comprovam cada compra.
+          </span>
         </div>
       </section>
 
@@ -210,16 +212,16 @@ export function Documents() {
           <DocumentsNoResultsState onClear={handleClearFilters} />
         ) : (
           <section aria-label="Biblioteca de documentos" className="space-y-4">
-            <div className="flex items-end justify-between gap-4 px-1">
-              <div>
+            <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+              <div className="min-w-0">
                 <p className="text-[10px] font-bold tracking-[0.16em] text-blue-700 uppercase">
                   Arquivo pessoal
                 </p>
-                <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+                <h3 className="mt-1 break-words text-xl font-semibold tracking-[-0.025em] text-slate-950">
                   Sua documentoteca
                 </h3>
               </div>
-              <p aria-live="polite" className="text-xs font-medium text-slate-400">
+              <p aria-live="polite" className="shrink-0 text-xs font-medium text-slate-400">
                 {counterLabel}
               </p>
             </div>

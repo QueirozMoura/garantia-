@@ -605,11 +605,11 @@ function ExtractionStage({
           <p className="mt-3 text-sm text-slate-500">
             Sua compra e a nota fiscal foram salvas. Você pode tentar a análise novamente.
           </p>
-          <div className="mt-4 flex-wrap items-center gap-3">
+          <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               <span>Tentar novamente</span>
@@ -617,7 +617,7 @@ function ExtractionStage({
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:w-auto"
             >
               Ir para a compra
             </button>

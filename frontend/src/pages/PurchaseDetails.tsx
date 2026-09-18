@@ -157,11 +157,12 @@ export function PurchaseDetails() {
             : 'Informações registradas sobre este produto.'
         }
         actions={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               as={Link}
               to="/purchases"
               variant="outline"
+              className="w-full sm:w-auto"
               leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}
             >
               Voltar para compras
@@ -172,6 +173,7 @@ export function PurchaseDetails() {
                 as={Link}
                 to={`/purchases/${currentState.purchase.id}/edit`}
                 variant="primary"
+                className="w-full sm:w-auto"
                 leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
               >
                 Editar compra
@@ -185,6 +187,7 @@ export function PurchaseDetails() {
                   setIsDeleteOpen(true)
                 }}
                 variant="danger"
+                className="w-full sm:w-auto"
                 leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
               >
                 Excluir compra
@@ -263,7 +266,7 @@ function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
             <p className="mb-1 text-[10px] font-bold tracking-[0.18em] text-emerald-700 uppercase">
               Compra protegida
             </p>
-            <h2 className="text-2xl font-bold tracking-[-0.03em] text-slate-950">
+            <h2 className="break-words text-2xl font-bold tracking-[-0.03em] text-slate-950">
               {purchase.productName}
             </h2>
             {brandModel && (

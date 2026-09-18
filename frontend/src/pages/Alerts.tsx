@@ -151,8 +151,8 @@ export function Alerts() {
           )}
         </div>
         <div className="relative mt-8 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-slate-400">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-          <span>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">
             Prioridades importantes, organizadas para você agir no momento certo.
           </span>
         </div>
@@ -171,16 +171,16 @@ export function Alerts() {
           <div className="space-y-8">
             {expiringAlerts.length > 0 && (
               <section aria-label="Vencendo em breve" className="space-y-4">
-                <div className="flex items-end justify-between gap-4 px-1">
-                  <div>
+                <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold tracking-[0.16em] text-amber-700 uppercase">
                       Atenção necessária
                     </p>
-                    <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+                    <h3 className="mt-1 break-words text-xl font-semibold tracking-[-0.025em] text-slate-950">
                       Vencendo em breve
                     </h3>
                   </div>
-                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-600/15">
+                  <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-600/15">
                     {expiringAlerts.length}
                   </span>
                 </div>
@@ -194,16 +194,16 @@ export function Alerts() {
 
             {expiredAlerts.length > 0 && (
               <section aria-label="Garantias expiradas" className="space-y-4">
-                <div className="flex items-end justify-between gap-4 px-1">
-                  <div>
+                <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold tracking-[0.16em] text-red-700 uppercase">
                       Prioridade crítica
                     </p>
-                    <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-slate-950">
+                    <h3 className="mt-1 break-words text-xl font-semibold tracking-[-0.025em] text-slate-950">
                       Garantias expiradas
                     </h3>
                   </div>
-                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-800 ring-1 ring-red-600/15">
+                  <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-800 ring-1 ring-red-600/15">
                     {expiredAlerts.length}
                   </span>
                 </div>
