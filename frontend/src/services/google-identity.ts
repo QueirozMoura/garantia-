@@ -226,6 +226,10 @@ export function initializeGoogleIdentity(): boolean {
     auto_select: false,
     cancel_on_tap_outside: true,
   } as Parameters<NonNullable<typeof identity.initialize>>[0])
+  // Registra que o GIS já foi inicializado para que `startGoogleSignIn()`
+  // reutilize esta inicialização em vez de chamar `initialize()` de novo
+  // (o GIS avisa "initialize() is called multiple times").
+  if (!initializing) initializing = Promise.resolve(true)
   return true
 }
 
