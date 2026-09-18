@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../config/prisma.js';
-import { conflict } from '../utils/http-error.js';
+import { conflict, notFound } from '../utils/http-error.js';
 import type { GoogleIdentity } from './google-token.service.js';
 
 /**
@@ -38,6 +38,36 @@ export class GoogleIdentityInvalidError extends Error {
   constructor(message = 'Google identity is incomplete or unverified') {
     super(message);
     this.name = 'GoogleIdentityInvalidError';
+  }
+}
+
+/**
+ * O email do Google não corresponde ao email da conta autenticada. Vincular um
+ * Google com outro email seria um vetor de account takeover (logar no Google
+ * alheio e anexá-lo à própria conta), então é recusado com 403.
+ */
+export class GoogleAccountEmailMismatchError extends Error {
+  readonly code = 'GOOGLE_ACCOUNT_EMAIL_MISMATCH';
+  readonly statusCode = 403;
+
+  constructor(message = 'The Google account email does not match your account email.') {
+    super(message);
+    this.name = 'GoogleAccountEmailMismatchError';
+  }
+}
+
+/**
+ * O Google já está vinculado — à conta autenticada (tentativa de vincular de
+ * novo) ou a outro usuário (o mesmo `sub` já pertence a alguém). Nos dois casos
+ * uma nova Account seria duplicada/inválida, então respondemos 409.
+ */
+export class GoogleAccountAlreadyLinkedError extends Error {
+  readonly code = 'GOOGLE_ACCOUNT_ALREADY_LINKED';
+  readonly statusCode = 409;
+
+  constructor(message = 'This Google account is already linked.') {
+    super(message);
+    this.name = 'GoogleAccountAlreadyLinkedError';
   }
 }
 
@@ -204,4 +234,81 @@ const resolveAfterConcurrentCreate = async (
   // Corrida perdida sem registros visíveis: estado inconsistente, melhor falhar
   // do que arriscar inventar dados.
   throw conflict('Could not resolve Google account', 'GOOGLE_ACCOUNT_RESOLUTION_FAILED');
+};
+
+/**
+ * Vincula uma identidade Google já verificada a um usuário JÁ autenticado
+ * (POST /auth/google/link). Diferente de `resolveGoogleAccount`, aqui o User
+ * existe por definição — o vínculo é uma ação explícita sobre ele, nunca uma
+ * busca por email.
+ *
+ * Regras de segurança:
+ * - o email do Google precisa ser IGUAL ao email do usuário autenticado (após a
+ *   mesma normalização de `assertIdentityUsable`), senão 403;
+ * - o `sub` não pode pertencer a outro usuário, nem a conta já pode ter um
+ *   Google vinculado — qualquer um dos casos é 409 (nada de segunda vinculação);
+ * - apenas o par (provider, providerAccountId) é persistido: nada de email,
+ *   token, picture ou qualquer outro dado do Google é gravado ou devolvido.
+ */
+export const linkGoogleAccount = async (
+  userId: string,
+  identity: GoogleIdentity,
+): Promise<void> => {
+  const { sub, email } = assertIdentityUsable(identity);
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+
+  if (!user) {
+    throw notFound('User not found', 'USER_NOT_FOUND');
+  }
+
+  // Mesma normalização do cadastro/login (email em minúsculas) antes de comparar.
+  if (email !== user.email.trim().toLowerCase()) {
+    throw new GoogleAccountEmailMismatchError();
+  }
+
+  // O `sub` já pertence a alguém? Se for ao próprio usuário, é re-vínculo (409).
+  // Se for a outra conta, evita anexar identidade que não é dele (409).
+  const existingAccount = await prisma.account.findUnique({
+    where: {
+      provider_providerAccountId: { provider: GOOGLE_PROVIDER, providerAccountId: sub },
+    },
+    select: { userId: true },
+  });
+
+  if (existingAccount) {
+    throw new GoogleAccountAlreadyLinkedError();
+  }
+
+  // O usuário já tem QUALQUER conta Google vinculada? Não criamos uma segunda.
+  const userGoogleAccount = await prisma.account.findFirst({
+    where: { userId: user.id, provider: GOOGLE_PROVIDER },
+    select: { id: true },
+  });
+
+  if (userGoogleAccount) {
+    throw new GoogleAccountAlreadyLinkedError();
+  }
+
+  try {
+    await prisma.account.create({
+      data: {
+        userId: user.id,
+        provider: GOOGLE_PROVIDER,
+        providerAccountId: sub,
+      },
+    });
+  } catch (error) {
+    // Corrida: outra requisição criou a mesma Account (provider, sub) sob a
+    // unique constraint. Tratamos como já vinculado em vez de propagar P2002 ou
+    // deixar duplicata — o estado final é o mesmo que a checagem acima.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new GoogleAccountAlreadyLinkedError();
+    }
+
+    throw error;
+  }
 };

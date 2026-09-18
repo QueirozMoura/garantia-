@@ -12,7 +12,13 @@ import { makeAuthValue, TEST_USER } from '../test/auth-test-utils.tsx'
 import { saveGuestPurchaseDraft } from '../services/guest-drafts.ts'
 import type { PurchaseFormFields } from '../components/purchases/purchase-form.ts'
 import { Login } from './Login.tsx'
-import { authenticate, authenticateWithGoogle, LoginFormError } from '../services/auth.ts'
+import {
+  authenticate,
+  authenticateWithGoogle,
+  LoginFormError,
+  GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
+  GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
+} from '../services/auth.ts'
 import { startGoogleSignIn } from '../services/google-identity.ts'
 
 vi.mock('../services/auth.ts', async (importOriginal) => {
@@ -210,6 +216,28 @@ describe('Login — fluxo com Google', () => {
     expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
   })
 
+  it('GOOGLE_ACCOUNT_LINK_REQUIRED mostra a mensagem específica de vinculação', async () => {
+    stubGoogleCredential('credencial-de-conta-existente')
+    mockAuthenticateWithGoogle.mockRejectedValueOnce(
+      new LoginFormError(
+        GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
+        GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
+      ),
+    )
+    const setUser = vi.fn()
+    const { user } = renderLogin(['/login'], { setUser })
+
+    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+
+    expect(
+      await screen.findByText(
+        'Já existe uma conta com este email. Entre com sua senha para vincular o Google.',
+      ),
+    ).toBeInTheDocument()
+    expect(setUser).not.toHaveBeenCalled()
+    expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
+  })
+
   it('login por email/senha continua funcionando', async () => {
     const setUser = vi.fn()
     const { user } = renderLogin(['/login'], { setUser })
@@ -222,5 +250,148 @@ describe('Login — fluxo com Google', () => {
     })
     expect(setUser).toHaveBeenCalledWith(TEST_USER)
     expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+  })
+})
+
+describe('Login — credential Google pendente (GOOGLE_ACCOUNT_LINK_REQUIRED)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    sessionStorage.clear()
+    mockAuthenticate.mockResolvedValue({ accessToken: 'token', user: TEST_USER })
+    mockAuthenticateWithGoogle.mockResolvedValue({
+      accessToken: 'token-google',
+      user: TEST_USER,
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    delete window.google
+  })
+
+  /**
+   * A credential pendente é um detalhe interno (ref em memória), sem observador
+   * externo. Os testes verificam o contrato observável: o fluxo para nesse erro
+   * (sem autenticar/navegar), a mensagem correta aparece e a credential não vaza
+   * para nenhum armazenamento.
+   */
+  async function triggerLinkRequired(
+    user: ReturnType<typeof userEvent.setup>,
+    credential: string,
+  ) {
+    stubGoogleCredential(credential)
+    mockAuthenticateWithGoogle.mockRejectedValueOnce(
+      new LoginFormError(
+        GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
+        GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    return screen.findByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+  }
+
+  it('mostra a mensagem e PARA o fluxo nesse erro (sem autenticar nem navegar)', async () => {
+    const setUser = vi.fn()
+    const { user } = renderLogin(['/login'], { setUser })
+
+    await triggerLinkRequired(user, 'credencial-pendente-1')
+
+    expect(setUser).not.toHaveBeenCalled()
+    expect(screen.queryByText('DASHBOARD_PAGE')).not.toBeInTheDocument()
+    expect(screen.queryByText('NEW_PURCHASE_PAGE')).not.toBeInTheDocument()
+  })
+
+  it('não guarda nada do Google em outros erros do Google', async () => {
+    stubGoogleCredential('credencial-generica')
+    mockAuthenticateWithGoogle.mockRejectedValueOnce(
+      new LoginFormError(
+        'Seu email do Google precisa ser verificado antes de continuar.',
+        'GOOGLE_EMAIL_NOT_VERIFIED',
+      ),
+    )
+    const { user } = renderLogin(['/login'])
+
+    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+    await screen.findByText(
+      'Seu email do Google precisa ser verificado antes de continuar.',
+    )
+
+    expect(JSON.stringify(localStorage)).not.toContain('credencial-generica')
+    expect(JSON.stringify(sessionStorage)).not.toContain('credencial-generica')
+    expect(window.location.href).not.toContain('credencial-generica')
+  })
+
+  it('mantém a mensagem mas não persiste a credential', async () => {
+    const CREDENTIAL = 'credencial-super-secreta'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+    // E a mensagem não vaza a credencial na tela.
+    expect(document.body.textContent).not.toContain(CREDENTIAL)
+  })
+
+  it('não deixa rastro da credential após desmontar a página de login', async () => {
+    const CREDENTIAL = 'credencial-pendente-desmontar'
+    const { user, unmount } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+
+    unmount()
+
+    // A tela some; nada da credential permanece em armazenamento/URL/DOM.
+    expect(screen.queryByText(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)).not.toBeInTheDocument()
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+  })
+
+  it('reiniciar o fluxo do Google não reaproveita a credential anterior', async () => {
+    const CREDENTIAL = 'credencial-pendente-reinicio'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+
+    // Novo clique reinicia o fluxo: nenhum dado antigo vaza para lugar nenhum.
+    await user.click(screen.getByRole('button', { name: 'Continuar com Google' }))
+
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+    expect(document.body.textContent).not.toContain(CREDENTIAL)
+  })
+
+  it('login por senha após o erro não persiste a credential pendente', async () => {
+    const CREDENTIAL = 'credencial-pendente-senha'
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+
+    await submitLogin(user)
+
+    expect(await screen.findByText('DASHBOARD_PAGE')).toBeInTheDocument()
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
+    expect(window.location.href).not.toContain(CREDENTIAL)
+  })
+
+  it('login por senha que falha não persiste a credential pendente', async () => {
+    const CREDENTIAL = 'credencial-pendente-senha-falha'
+    mockAuthenticate.mockRejectedValueOnce(
+      new LoginFormError('Email ou senha inválidos.'),
+    )
+    const { user } = renderLogin(['/login'])
+
+    await triggerLinkRequired(user, CREDENTIAL)
+
+    await submitLogin(user)
+
+    expect(await screen.findByText('Email ou senha inválidos.')).toBeInTheDocument()
+    expect(JSON.stringify(localStorage)).not.toContain(CREDENTIAL)
+    expect(JSON.stringify(sessionStorage)).not.toContain(CREDENTIAL)
   })
 })

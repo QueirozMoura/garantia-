@@ -3,7 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, ShieldCheck, FileText, Bell } from 'lucide-react'
 import { BrandLogo } from '../components/brand/BrandLogo.tsx'
 import { GoogleIcon } from '../components/icons/GoogleIcon.tsx'
-import { authenticate, authenticateWithGoogle, LoginFormError } from '../services/auth.ts'
+import {
+  authenticate,
+  authenticateWithGoogle,
+  LoginFormError,
+  GOOGLE_ACCOUNT_LINK_REQUIRED_CODE,
+  GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE,
+} from '../services/auth.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { hasGuestPurchaseDraft } from '../services/guest-drafts.ts'
 import {
@@ -49,6 +55,19 @@ export function Login() {
 
   // Fluxo do GIS já preparado (script + initialize acontecem uma única vez).
   const googleFlowRef = useRef<GoogleCredentialFlow | null>(null)
+  // Credential do Google que originou GOOGLE_ACCOUNT_LINK_REQUIRED, preservada
+  // SOMENTE em memória para o próximo passo (vínculo pós-login por senha). Não é
+  // state do React (evita re-render/exposição), não vai para localStorage,
+  // sessionStorage, URL, banco ou qualquer endpoint; vive apenas enquanto esta
+  // página de login estiver montada. Nunca é logada.
+  const pendingGoogleCredentialRef = useRef<string | null>(null)
+  // Único ponto de (des)guarda da credential pendente.
+  const setPendingGoogleCredential = useCallback(
+    (credential: string | null) => {
+      pendingGoogleCredentialRef.current = credential
+    },
+    [],
+  )
   // Evita atualizar estado depois que a tela de login for desmontada.
   const isMountedRef = useRef(true)
   // DIAGNÓSTICO TEMPORÁRIO: container do botão oficial do GIS.
@@ -85,7 +104,13 @@ export function Login() {
       isMountedRef.current = false
       cancelGoogleSignIn()
       googleFlowRef.current = null
+      // Desmontar a página descarta a credential pendente: ela pertence apenas
+      // ao fluxo atual desta tela. Escreve no ref direto (o gancho de observação
+      // não é chamado no unmount — o componente já não existe).
+      pendingGoogleCredentialRef.current = null
     }
+    // Deps vazias de propósito: este efeito marca o ciclo de vida da tela e não
+    // deve re-executar quando apenas os callbacks/props mudarem.
   }, [])
 
   /** Redireciona para o destino pós-login, preservando a retomada de rascunho. */
@@ -110,6 +135,9 @@ export function Login() {
   const handleGoogleCredential = useCallback(
     async (credential: string) => {
       setGoogleError(null)
+      // Qualquer nova tentativa parte de um estado limpo: não carrega uma
+      // credential pendente de um fluxo anterior.
+      setPendingGoogleCredential(null)
       try {
         const { user } = await authenticateWithGoogle(credential)
         if (!isMountedRef.current) return
@@ -118,6 +146,22 @@ export function Login() {
         goToPostLoginRoute()
       } catch (error) {
         if (!isMountedRef.current) return
+        // Caso específico: o email do Google já pertence a uma conta tradicional.
+        // O backend responde 409 com GOOGLE_ACCOUNT_LINK_REQUIRED e o usuário
+        // precisa entrar com a senha para vincular o Google. Os demais erros do
+        // Google seguem o fluxo normal (mensagem já traduzida ou genérica).
+        if (
+          error instanceof LoginFormError &&
+          error.code === GOOGLE_ACCOUNT_LINK_REQUIRED_CODE
+        ) {
+          // Preserva a credential apenas em memória para o próximo passo
+          // (login por senha + vínculo). Não é enviada a lugar nenhum agora.
+          setPendingGoogleCredential(credential)
+          setGoogleError(GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE)
+          return
+        }
+        // Qualquer outro erro do Google: nenhuma credential é guardada.
+        setPendingGoogleCredential(null)
         const message =
           error instanceof LoginFormError
             ? error.message
@@ -127,7 +171,7 @@ export function Login() {
         if (isMountedRef.current) setIsGoogleLoading(false)
       }
     },
-    [goToPostLoginRoute, setUser],
+    [goToPostLoginRoute, setPendingGoogleCredential, setUser],
   )
 
   const handleGoogleUnavailable = useCallback(
@@ -144,6 +188,8 @@ export function Login() {
   async function handleGoogleClick() {
     console.log('[Google Login] click')
     setGoogleError(null)
+    // Reiniciar o fluxo do Google descarta qualquer credential pendente antiga.
+    setPendingGoogleCredential(null)
 
     if (!hasGoogleClientId()) {
       setGoogleError('Login com Google indisponível no momento. Use seu email e senha.')
@@ -195,6 +241,9 @@ export function Login() {
       setUser(user)
       goToPostLoginRoute()
     } catch (error) {
+      // Login por senha falhou: a credential pendente não é válida para seguir
+      // (o próximo passo só existe com sessão bem-sucedida). Descarta.
+      setPendingGoogleCredential(null)
       const message =
         error instanceof LoginFormError
           ? error.message

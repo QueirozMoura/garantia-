@@ -19,9 +19,16 @@ import type {
 
 /** Erro de autenticação já traduzido para exibição amigável no formulário. */
 export class LoginFormError extends Error {
-  constructor(message: string) {
+  /**
+   * Código de erro específico do backend, quando houver (ex.:
+   * `GOOGLE_ACCOUNT_LINK_REQUIRED`). Permite que a tela identifique casos
+   * particulares sem depender apenas da mensagem exibida.
+   */
+  code?: string
+  constructor(message: string, code?: string) {
     super(message)
     this.name = 'LoginFormError'
+    this.code = code
   }
 }
 
@@ -71,6 +78,16 @@ export async function authenticate(
 }
 
 /**
+ * Código e mensagem do caso em que o email do Google já pertence a uma conta
+ * tradicional: o backend responde 409 e o usuário precisa entrar com a senha
+ * para vincular o Google. Exportados para que a tela de login identifique o
+ * caso explicitamente, sem depender de texto solto.
+ */
+export const GOOGLE_ACCOUNT_LINK_REQUIRED_CODE = 'GOOGLE_ACCOUNT_LINK_REQUIRED'
+export const GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE =
+  'Já existe uma conta com este email. Entre com sua senha para vincular o Google.'
+
+/**
  * Traduz os erros de POST /auth/google em mensagens amigáveis, sem expor
  * detalhes internos da API. Os códigos específicos do login com Google são
  * tratados individualmente; o restante cai nas mensagens genéricas.
@@ -81,12 +98,12 @@ function toGoogleFriendlyMessage(error: unknown): string {
       return 'Não foi possível conectar ao servidor. Tente novamente.'
     }
     switch (error.code) {
+      case GOOGLE_ACCOUNT_LINK_REQUIRED_CODE:
+        return GOOGLE_ACCOUNT_LINK_REQUIRED_MESSAGE
       case 'GOOGLE_TOKEN_INVALID':
         return 'Não foi possível validar sua conta Google. Tente novamente.'
       case 'GOOGLE_EMAIL_NOT_VERIFIED':
         return 'Seu email do Google precisa ser verificado antes de continuar.'
-      case 'GOOGLE_ACCOUNT_LINK_REQUIRED':
-        return 'Já existe uma conta com este email. Entre com sua senha para vincular o Google.'
       case 'GOOGLE_AUTH_NOT_CONFIGURED':
         return 'Login com Google indisponível no momento. Use seu email e senha.'
       default:
@@ -101,6 +118,15 @@ function toGoogleFriendlyMessage(error: unknown): string {
 }
 
 /**
+ * Extrai o código de erro do backend, quando presente. Serve para preservar o
+ * código específico (ex.: `GOOGLE_ACCOUNT_LINK_REQUIRED`) no erro do formulário,
+ * sem alterar o fluxo dos demais erros do Google.
+ */
+function toErrorCode(error: unknown): string | undefined {
+  return error instanceof ApiError ? error.code : undefined
+}
+
+/**
  * Autentica usando a credencial do Google Identity Services via POST /auth/google.
  * Reutiliza o mesmo formato de sucesso do login tradicional (access token já
  * persistido) e o mesmo tipo de erro já exibido no formulário.
@@ -110,7 +136,7 @@ export async function authenticateWithGoogle(credential: string): Promise<LoginR
   try {
     return await loginWithGoogle(credential)
   } catch (error) {
-    throw new LoginFormError(toGoogleFriendlyMessage(error))
+    throw new LoginFormError(toGoogleFriendlyMessage(error), toErrorCode(error))
   }
 }
 

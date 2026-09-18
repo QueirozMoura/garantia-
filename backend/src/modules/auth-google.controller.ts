@@ -12,8 +12,11 @@ import {
 } from '../services/google-token.service.js';
 import {
   resolveGoogleAccount,
+  linkGoogleAccount,
   GoogleAccountLinkRequiredError,
   GoogleIdentityInvalidError,
+  GoogleAccountEmailMismatchError,
+  GoogleAccountAlreadyLinkedError,
 } from '../services/google-account.service.js';
 
 /**
@@ -72,6 +75,18 @@ const accountLinkRequired = (error: GoogleAccountLinkRequiredError) =>
 const IDENTITY_INVALID = () =>
   new HttpError(401, 'Google credential is invalid', 'GOOGLE_TOKEN_INVALID');
 
+/** Email do Google diferente do email da conta autenticada: vínculo recusado. */
+const EMAIL_MISMATCH = () =>
+  new HttpError(
+    403,
+    'The Google account email does not match your account email.',
+    'GOOGLE_ACCOUNT_EMAIL_MISMATCH',
+  );
+
+/** Google já vinculado (ao próprio usuário ou a outro): nada de segunda Account. */
+const ALREADY_LINKED = () =>
+  new HttpError(409, 'This Google account is already linked.', 'GOOGLE_ACCOUNT_ALREADY_LINKED');
+
 /**
  * Traduz os erros dos serviços para respostas HTTP controladas. Erros não
  * previstos retornam null e seguem o caminho padrão do projeto (error-handler),
@@ -82,6 +97,8 @@ const toPublicError = (error: unknown) => {
   if (error instanceof GoogleTokenInvalidError) return INVALID_TOKEN();
   if (error instanceof GoogleEmailNotVerifiedError) return EMAIL_NOT_VERIFIED();
   if (error instanceof GoogleAccountLinkRequiredError) return accountLinkRequired(error);
+  if (error instanceof GoogleAccountEmailMismatchError) return EMAIL_MISMATCH();
+  if (error instanceof GoogleAccountAlreadyLinkedError) return ALREADY_LINKED();
   if (error instanceof GoogleIdentityInvalidError) return IDENTITY_INVALID();
   return null;
 };
@@ -108,6 +125,36 @@ export const google: RequestHandler = async (request, response, next) => {
 
     // Contrato idêntico ao do login tradicional: `{ user, accessToken }` + cookie.
     response.json({ user, accessToken });
+  } catch (error) {
+    next(toPublicError(error) ?? error);
+  }
+};
+
+/**
+ * POST /auth/google/link — vincula o Google a um usuário JÁ autenticado.
+ *
+ * Fluxo: requireAuth → credential → verifyGoogleIdToken() → linkGoogleAccount().
+ *
+ * Diferente de POST /auth/google, este endpoint NÃO emite sessão: o usuário já
+ * está autenticado e o vínculo é apenas uma nova Account para ele. Reutiliza
+ * exatamente a mesma validação de credencial (`verifyGoogleIdToken`), o mesmo
+ * shape de erro e a mesma fronteira de confiança: o único dado aceito do body é
+ * `credential`, e a identidade usada adiante vem exclusivamente do verificador.
+ *
+ * A resposta é 204 (sem corpo): nada de credential, token, email ou picture do
+ * Google é devolvido ou persistido — só o par (provider=google, sub) é gravado.
+ */
+export const link: RequestHandler = async (request, response, next) => {
+  try {
+    // requireAuth já garantiu o userId; aqui ele é apenas lido, nunca do body.
+    const userId = request.userId as string;
+
+    const { credential } = googleCredentialSchema.parse(request.body);
+    const identity = await verifyGoogleIdToken(credential);
+
+    await linkGoogleAccount(userId, identity);
+
+    response.status(204).end();
   } catch (error) {
     next(toPublicError(error) ?? error);
   }
