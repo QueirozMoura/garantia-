@@ -15,7 +15,7 @@ const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // Vision-language model used for document/invoice intelligence. It accepts
 // images (data URI) and text, not PDFs.
-const MODEL = 'nvidia/nemotron-nano-12b-v2-vl';
+const MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
 
 // Only the image formats the chosen model can consume. PDFs are intentionally
 // rejected for now (no PDF -> image conversion in this step).

@@ -84,7 +84,7 @@ describe('NvidiaProvider.extractPurchaseData', () => {
     expect(headers.Authorization).toBe('Bearer test-nvidia-key');
 
     const body = JSON.parse(init.body as string);
-    expect(body.model).toBe('nvidia/nemotron-nano-12b-v2-vl');
+    expect(body.model).toBe('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning');
 
     const content = body.messages[0].content;
     const imagePart = content.find((part: { type: string }) => part.type === 'image_url');
