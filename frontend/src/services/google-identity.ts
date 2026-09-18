@@ -189,7 +189,6 @@ function initializeGoogleIdentity(): boolean {
     callback: handleCredentialResponse,
     auto_select: false,
     cancel_on_tap_outside: true,
-    use_fedcm_for_prompt: true,
   } as Parameters<NonNullable<typeof identity.initialize>>[0])
   return true
 }
