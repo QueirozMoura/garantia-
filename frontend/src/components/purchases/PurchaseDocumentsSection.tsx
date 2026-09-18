@@ -202,6 +202,18 @@ export function PurchaseDocumentsSection({
           handleAuthError()
           return
         }
+        // 404: o documento não existe mais no backend. Mantém a mensagem
+        // amigável e remove o item obsoleto da lista local para sincronizar a UI.
+        if (error instanceof ApiError && error.status === 404) {
+          setState((current) =>
+            current.status === 'success'
+              ? {
+                  status: 'success',
+                  documents: current.documents.filter((item) => item.id !== document.id),
+                }
+              : current,
+          )
+        }
         setActionError(extractErrorMessage(error))
       } finally {
         setExtractingId(null)
