@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { badRequest, serviceUnavailable } from '../../utils/http-error.js';
 import { GeminiProvider } from './gemini.provider.js';
+import { NvidiaProvider } from './nvidia.provider.js';
 import {
   AIProviderInvalidResponseError,
   AIProviderNotConfiguredError,
@@ -197,6 +198,7 @@ export const getAIProvider = (): AIProvider => {
   if (env.aiProvider === 'mock') return createMockProvider();
   if (env.aiProvider === 'http') return createHttpProvider();
   if (env.aiProvider === 'gemini') return new GeminiProvider();
+  if (env.aiProvider === 'nvidia') return new NvidiaProvider();
   throw new AIProviderNotConfiguredError();
 };
 

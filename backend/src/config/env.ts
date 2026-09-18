@@ -44,6 +44,7 @@ export const env = {
   aiApiKey: process.env.AI_API_KEY,
   aiApiUrl: process.env.AI_API_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,
+  nvidiaApiKey: process.env.NVIDIA_API_KEY,
   rateLimitAuthMax: positiveIntFromEnv('RATE_LIMIT_AUTH_MAX'),
   rateLimitAiMax: positiveIntFromEnv('RATE_LIMIT_AI_MAX'),
   // Login com Google (Etapa 1). OPCIONAL: ausente significa "não configurado"
