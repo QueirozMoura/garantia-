@@ -33,7 +33,7 @@ interface GoogleIdentityApi {
         client_id: string
         callback: (response: GoogleCredentialResponse) => void
       }) => void
-      prompt: () => void
+      prompt: (momentListener?: (notification: GooglePromptNotification) => void) => void
       cancel: () => void
     }
   }
@@ -48,6 +48,16 @@ export interface GoogleSignInHandlers {
 
 export type GoogleUnavailableReason =
   'not-configured' | 'script-unavailable' | 'cancelled'
+
+/** Notificação do `prompt()` do GIS (motivos de não exibição/dispensa). */
+interface GooglePromptNotification {
+  getNotDisplayedReason?: () => string
+  getSkippedReason?: () => string
+  getDismissedReason?: () => string
+  isNotDisplayed?: () => boolean
+  isSkippedMoment?: () => boolean
+  isDismissedMoment?: () => boolean
+}
 
 /**
  * Estado de módulo: garante uma única inicialização do GIS por sessão do SPA.
@@ -109,7 +119,17 @@ function createFlow(): GoogleCredentialFlow | null {
         return false
       }
       console.log('[Google GIS] calling prompt')
-      identity.prompt()
+      identity.prompt((notification) => {
+        console.log(
+          '[Google GIS] prompt notification',
+          'notDisplayed=',
+          notification?.getNotDisplayedReason?.(),
+          'skipped=',
+          notification?.getSkippedReason?.(),
+          'dismissed=',
+          notification?.getDismissedReason?.(),
+        )
+      })
       return true
     },
   }
