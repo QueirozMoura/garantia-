@@ -68,6 +68,22 @@ export class NvidiaProvider implements AIProvider {
 
     const dataUri = `data:${document.mimeType};base64,${document.content.toString('base64')}`;
 
+    // TEMP DIAGNOSTIC (to be removed): serialized request body kept only to
+    // measure the payload size on failure. It still contains the data URI, so it
+    // is NEVER logged — only its byte length is.
+    const requestBody = JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: extractionPrompt },
+            { type: 'image_url', image_url: { url: dataUri } },
+          ],
+        },
+      ],
+    });
+
     let response: Response;
     try {
       response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
@@ -76,25 +92,47 @@ export class NvidiaProvider implements AIProvider {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: extractionPrompt },
-                { type: 'image_url', image_url: { url: dataUri } },
-              ],
-            },
-          ],
-        }),
+        body: requestBody,
       });
     } catch {
       // Network failures never expose the underlying error/credentials.
       throw new AIProviderRequestError();
     }
 
-    if (!response.ok) throw new AIProviderRequestError();
+    if (!response.ok) {
+      // TEMP DIAGNOSTIC (to be removed): sanitized error info only. Never logs
+      // the API key, Authorization header, image/base64, prompt, document data
+      // or the full provider response body.
+      let sanitizedNvidiaError: { code?: unknown; status?: unknown; message?: string } = {};
+      try {
+        const raw = await response.text();
+        const parsed = JSON.parse(raw) as {
+          error?: { code?: unknown; status?: unknown; message?: unknown };
+        };
+        const providerError = parsed?.error;
+        sanitizedNvidiaError = {
+          code: providerError?.code,
+          status: providerError?.status,
+          message:
+            typeof providerError?.message === 'string'
+              ? providerError.message.split('\n')[0]?.slice(0, 200)
+              : undefined,
+        };
+      } catch {
+        // Body missing or not JSON: nothing extra to report.
+      }
+
+      console.error('[nvidia.provider] extractPurchaseData request failed', {
+        httpStatus: response.status,
+        statusText: response.statusText,
+        model: MODEL,
+        mimeType: document.mimeType,
+        requestPayloadBytes: Buffer.byteLength(requestBody, 'utf8'),
+        nvidiaError: sanitizedNvidiaError,
+      });
+
+      throw new AIProviderRequestError();
+    }
 
     const payload = (await response.json().catch(() => {
       throw new AIProviderInvalidResponseError();
