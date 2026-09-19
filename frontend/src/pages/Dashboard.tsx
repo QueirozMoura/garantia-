@@ -288,7 +288,7 @@ function DashboardContent({
           value={String(summary.totalPurchases)}
           subtitle="Total de itens registrados"
           icon={ShoppingBag}
-          className="lg:col-span-2"
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Garantias ativas"
@@ -296,7 +296,7 @@ function DashboardContent({
           subtitle={`${summary.totalWarranties} garantias no total`}
           icon={ShieldCheck}
           variant="protection"
-          className="lg:col-span-2"
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Vencendo em breve"
@@ -304,7 +304,7 @@ function DashboardContent({
           subtitle="Próximos 30 dias"
           icon={AlertTriangle}
           variant="warning"
-          className="lg:col-span-2"
+          className="lg:col-span-3"
         />
         <SummaryCard
           title="Total gasto"
@@ -312,7 +312,7 @@ function DashboardContent({
           subtitle="Em bens sob garantia"
           icon={Receipt}
           variant="spending"
-          className="lg:col-span-6"
+          className="lg:col-span-3"
         />
       </section>
 

@@ -51,7 +51,7 @@ export function SummaryCard({
       <div className="flex min-w-0 items-center justify-between gap-3">
         <span
           className={cn(
-            'min-w-0 truncate text-xs font-medium tracking-wide uppercase',
+            'min-w-0 break-words text-xs font-medium tracking-wide uppercase',
             isSpending
               ? 'text-slate-400'
               : isWarning
