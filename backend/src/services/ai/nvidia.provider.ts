@@ -8,17 +8,20 @@ import {
   type AiAssistanceInput,
   type AiDocumentInput,
 } from './ai.provider.js';
+// Existing PDF -> PNG utility: rendering stays entirely inside that module (and
+// in memory), so the provider never duplicates conversion logic or touches disk.
+import { convertPdfToPngImages } from './pdf-to-images.js';
 
 // Hosted NVIDIA API (OpenAI-compatible chat completions). The base URL is fixed
-// here on purpose: this first step only wires up invoice extraction.
+// here on purpose: this step only wires up invoice extraction.
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // Vision-language model used for document/invoice intelligence. It accepts
 // images (data URI) and text, not PDFs.
 const MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
 
-// Only the image formats the chosen model can consume. PDFs are intentionally
-// rejected for now (no PDF -> image conversion in this step).
+// Only the image formats the chosen model can consume directly. PDFs are
+// supported too, but they go through `convertPdfToPngImages` first.
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
 
 const extractionPrompt = `Analyze this invoice or purchase document image and return only one JSON object with exactly these fields:
@@ -47,8 +50,9 @@ interface ChatCompletionResponse {
 
 /**
  * NVIDIA hosted API provider (vision-language). This step implements invoice
- * extraction from PNG/JPEG images only; PDF conversion and the assistance flows
- * are out of scope and are surfaced as unsupported without contacting NVIDIA.
+ * extraction from PNG/JPEG images and from PDFs (each page is converted to PNG
+ * in memory and sent as its own `image_url` part); the assistance flows are out
+ * of scope and are surfaced as unsupported without contacting NVIDIA.
  *
  * Reuses the shared AI contract errors so the public API keeps a stable,
  * provider-agnostic error surface (never leaking NVIDIA details or the API key).
@@ -62,14 +66,26 @@ export class NvidiaProvider implements AIProvider {
   }
 
   async extractPurchaseData(document: AiDocumentInput): Promise<unknown> {
-    if (!SUPPORTED_IMAGE_MIME_TYPES.has(document.mimeType)) {
+    const isPdf = document.mimeType === 'application/pdf';
+
+    if (!isPdf && !SUPPORTED_IMAGE_MIME_TYPES.has(document.mimeType)) {
       throw new AIProviderUnsupportedFormatError(document.mimeType);
     }
 
-    const dataUri = `data:${document.mimeType};base64,${document.content.toString('base64')}`;
+    // PNG/JPEG keep the exact previous behaviour: one image, one data URI. A PDF
+    // becomes one PNG per page (converted by the shared utility, in memory, in
+    // document order) and every page is sent as its own `image_url` part. The
+    // page-count limit is owned by the utility: its error propagates untouched.
+    const pageImages = isPdf ? await convertPdfToPngImages(document.content) : [document.content];
+    const imageMimeType = isPdf ? 'image/png' : document.mimeType;
+
+    const imageParts = pageImages.map((image) => ({
+      type: 'image_url',
+      image_url: { url: `data:${imageMimeType};base64,${image.toString('base64')}` },
+    }));
 
     // TEMP DIAGNOSTIC (to be removed): serialized request body kept only to
-    // measure the payload size on failure. It still contains the data URI, so it
+    // measure the payload size on failure. It still contains the data URIs, so it
     // is NEVER logged — only its byte length is.
     const requestBody = JSON.stringify({
       model: MODEL,
@@ -78,7 +94,7 @@ export class NvidiaProvider implements AIProvider {
           role: 'user',
           content: [
             { type: 'text', text: extractionPrompt },
-            { type: 'image_url', image_url: { url: dataUri } },
+            ...imageParts,
           ],
         },
       ],
@@ -127,6 +143,7 @@ export class NvidiaProvider implements AIProvider {
         statusText: response.statusText,
         model: MODEL,
         mimeType: document.mimeType,
+        imageCount: imageParts.length,
         requestPayloadBytes: Buffer.byteLength(requestBody, 'utf8'),
         nvidiaError: sanitizedNvidiaError,
       });
