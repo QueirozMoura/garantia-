@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WarrantiesSummary } from '../components/warranties/WarrantiesSummary.tsx'
 import { WarrantyCard } from '../components/warranties/WarrantyCard.tsx'
 import { WarrantiesSkeleton } from '../components/warranties/WarrantiesSkeleton.tsx'
 import { WarrantiesEmptyState } from '../components/warranties/WarrantiesEmptyState.tsx'
+import { WarrantiesNoResultsState } from '../components/warranties/WarrantiesNoResultsState.tsx'
 import { WarrantiesErrorState } from '../components/warranties/WarrantiesErrorState.tsx'
+import { WarrantiesToolbar } from '../components/warranties/WarrantiesToolbar.tsx'
+import {
+  ALL_WARRANTY_STATUSES,
+  EMPTY_FILTERS,
+  applyWarrantyFilters,
+  hasActiveFilters,
+  type WarrantyFilters,
+} from '../components/warranties/warranty-filters.ts'
 import { getWarranties, AuthenticationError, ApiError } from '../lib/api.ts'
+import type { WarrantyStatus } from '../lib/warranty-status.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { GuestAccessState } from '../components/auth/GuestAccessState.tsx'
 import type { WarrantyWithPurchase } from '../types/warranty.ts'
@@ -16,6 +26,9 @@ type FetchState =
   | { status: 'error'; message: string }
   | { status: 'success'; warranties: WarrantyWithPurchase[] }
 
+/** Referência estável para o estado "sem dados", evitando recriar o array. */
+const EMPTY_WARRANTIES: WarrantyWithPurchase[] = []
+
 const TITLE = 'Garantias'
 const FALLBACK_ERROR = 'Não foi possível carregar suas garantias.'
 
@@ -24,6 +37,10 @@ export function Warranties() {
   const { status, expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
+  // Busca, filtro por status e ordenação vivem SOMENTE no estado local: nada vai
+  // para a URL e nenhuma alteração dispara nova requisição (os dados já estão
+  // aqui). Mesmo padrão de Compras/Documentos.
+  const [filters, setFilters] = useState<WarrantyFilters>(EMPTY_FILTERS)
 
   useEffect(() => {
     let isActive = true
@@ -59,6 +76,36 @@ export function Warranties() {
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })
     setReloadKey((key) => key + 1)
+  }, [])
+
+  // Lista completa recebida da API. Estável entre renderizações de busca/filtro
+  // para que os `useMemo` abaixo só recalculem quando algo realmente muda.
+  const allWarranties = state.status === 'success' ? state.warranties : EMPTY_WARRANTIES
+  /** Resultado de busca + filtro por status + ordenação. Cópia, sem mutar. */
+  const visibleWarranties = useMemo(
+    () => applyWarrantyFilters(allWarranties, filters),
+    [allWarranties, filters],
+  )
+
+  const filtersActive = hasActiveFilters(filters)
+
+  /** Atualiza um controle de cada vez, sempre em cima do estado anterior. */
+  const handleFiltersChange = useCallback((patch: Partial<WarrantyFilters>) => {
+    setFilters((current) => ({ ...current, ...patch }))
+  }, [])
+
+  /** Restaura o padrão. Apenas estado local — sem navegação nem API. */
+  const handleClearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
+
+  /**
+   * Clique no card do resumo: aplica o filtro correspondente. Clicar de novo no
+   * card já ativo limpa o filtro (toggle), mantendo a busca e a ordenação.
+   */
+  const handleSelectStatus = useCallback((status: WarrantyStatus) => {
+    setFilters((current) => ({
+      ...current,
+      status: current.status === status ? ALL_WARRANTY_STATUSES : status,
+    }))
   }, [])
 
   if (status === 'guest') {
@@ -136,18 +183,59 @@ export function Warranties() {
         <WarrantiesErrorState message={state.message} onRetry={handleRetry} />
       )}
 
+      {/* Os controles só aparecem depois que os dados chegaram: durante o
+          loading mostra-se apenas o skeleton, e no erro só o Error State. */}
+      {state.status === 'success' && state.warranties.length > 0 && (
+        <WarrantiesToolbar
+          filters={filters}
+          onChange={handleFiltersChange}
+          hasActiveFilters={filtersActive}
+          onClear={handleClearFilters}
+        />
+      )}
+
       {state.status === 'success' &&
         (state.warranties.length === 0 ? (
+          // Nenhuma garantia cadastrada: mantém o Empty State original.
           <WarrantiesEmptyState />
         ) : (
           <>
-            <WarrantiesSummary warranties={state.warranties} />
+            <WarrantiesSummary
+              warranties={allWarranties}
+              activeStatus={filters.status}
+              onSelectStatus={handleSelectStatus}
+            />
 
-            <section aria-label="Lista de garantias" className="space-y-4">
-              {state.warranties.map((warranty) => (
-                <WarrantyCard key={warranty.id} warranty={warranty} />
-              ))}
-            </section>
+            {visibleWarranties.length === 0 ? (
+              // Existem garantias, mas nada corresponde à busca/filtros.
+              <WarrantiesNoResultsState onClear={handleClearFilters} />
+            ) : (
+              <section aria-label="Lista de garantias" className="space-y-4">
+                <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold tracking-[0.16em] text-emerald-700 uppercase">
+                      Prazos sob controle
+                    </p>
+                    <h3 className="mt-1 break-words text-xl font-semibold tracking-[-0.025em] text-slate-950">
+                      Suas garantias
+                    </h3>
+                  </div>
+                  <p
+                    aria-live="polite"
+                    className="shrink-0 text-xs font-medium text-slate-400"
+                  >
+                    {visibleWarranties.length === allWarranties.length
+                      ? `${allWarranties.length} ${
+                          allWarranties.length === 1 ? 'garantia' : 'garantias'
+                        }`
+                      : `${visibleWarranties.length} de ${allWarranties.length} garantias`}
+                  </p>
+                </div>
+                {visibleWarranties.map((warranty) => (
+                  <WarrantyCard key={warranty.id} warranty={warranty} />
+                ))}
+              </section>
+            )}
           </>
         ))}
     </div>
