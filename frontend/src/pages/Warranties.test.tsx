@@ -297,6 +297,15 @@ describe('Warranties — busca, filtros e ordenação', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('com garantias: o total é rotulado como "garantias no total"', async () => {
+    mockGetWarranties.mockResolvedValue(sampleWarranties())
+    renderPage('authenticated')
+
+    await screen.findByText('Notebook Dell')
+
+    expect(screen.getByText('garantias no total')).toBeInTheDocument()
+  })
+
   it('filtros sem resultado usam o estado de "sem resultados", não o vazio inicial', async () => {
     const user = await renderWithData(sampleWarranties())
 

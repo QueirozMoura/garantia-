@@ -162,8 +162,8 @@ export function Warranties() {
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                   {state.warranties.length === 1
-                    ? 'garantia cadastrada'
-                    : 'garantias cadastradas'}
+                    ? 'garantia no total'
+                    : 'garantias no total'}
                 </p>
               </div>
             </div>
