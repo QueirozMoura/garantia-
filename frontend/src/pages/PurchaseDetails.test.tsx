@@ -19,6 +19,7 @@ import {
   getPurchaseDocuments,
 } from '../lib/api.ts'
 import { AuthContext, type AuthContextValue } from '../contexts/auth-context.ts'
+import { NFE_IMPORT_CATEGORY } from '../components/dashboard/nfe-import.ts'
 import type { Purchase } from '../types/purchase.ts'
 import type { Warranty } from '../types/warranty.ts'
 import type { Document } from '../types/document.ts'
@@ -197,6 +198,54 @@ describe('PurchaseDetails', () => {
       await screen.findByRole('heading', { name: 'Notebook Dell XPS 15' })
       expect(mockUpdatePurchase).not.toHaveBeenCalled()
       expect(mockDeletePurchase).not.toHaveBeenCalled()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Chip "Importado por NF-e" (só para compras com a categoria de NF-e)
+  // -----------------------------------------------------------------------
+  describe('chip "Importado por NF-e"', () => {
+    /**
+     * Linha de chips de origem, logo abaixo do nome do produto. A categoria
+     * aparece também no subtítulo da página; o chip é o `span` que carrega o
+     * valor. Usamos o chip para chegar à linha e evitar ambiguidade de texto.
+     */
+    const categoryChip = (category: string): HTMLElement => {
+      const chip = screen
+        .getAllByText(category)
+        .find((element) => element.tagName === 'SPAN')
+      if (!chip) throw new Error(`Chip de categoria não encontrado: ${category}`)
+      return chip
+    }
+
+    it('aparece quando a categoria é a de importação por NF-e', async () => {
+      mockGetPurchase.mockResolvedValue(
+        makePurchase({ category: NFE_IMPORT_CATEGORY }),
+      )
+
+      renderDetails()
+
+      await screen.findByRole('heading', { name: 'Notebook Dell XPS 15' })
+      // O chip de categoria é a de NF-e e há um chip de origem ao lado.
+      const chip = categoryChip(NFE_IMPORT_CATEGORY)
+      const row = chip.parentElement as HTMLElement
+      expect(
+        within(row).getAllByText('Importado por NF-e').some((el) => el.tagName === 'SPAN'),
+      ).toBe(true)
+    })
+
+    it('não aparece quando a categoria é outra', async () => {
+      mockGetPurchase.mockResolvedValue(makePurchase({ category: 'Eletrônicos' }))
+
+      renderDetails()
+
+      // A categoria normal continua sendo exibida no chip…
+      await screen.findByRole('heading', { name: 'Notebook Dell XPS 15' })
+      const chip = categoryChip('Eletrônicos')
+      expect(chip).toHaveTextContent('Eletrônicos')
+      // …e o chip de NF-e não é renderizado ao lado dele.
+      const row = chip.parentElement as HTMLElement
+      expect(within(row).queryByText('Importado por NF-e')).not.toBeInTheDocument()
     })
   })
 

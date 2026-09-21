@@ -9,6 +9,7 @@ import { PurchaseAssistanceSection } from '../components/purchases/PurchaseAssis
 import { PurchaseDocumentsSection } from '../components/purchases/PurchaseDocumentsSection.tsx'
 import { DeletePurchaseDialog } from '../components/purchases/DeletePurchaseDialog.tsx'
 import { getPurchase, deletePurchase, AuthenticationError, ApiError } from '../lib/api.ts'
+import { NFE_IMPORT_CATEGORY } from '../components/dashboard/nfe-import.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import type { Purchase } from '../types/purchase.ts'
@@ -281,9 +282,11 @@ function PurchaseDetailsContent({ purchase }: { purchase: Purchase }) {
               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/15">
                 {purchase.category}
               </span>
-              <span className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
-                Importado por NF-e
-              </span>
+              {purchase.category === NFE_IMPORT_CATEGORY && (
+                <span className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                  Importado por NF-e
+                </span>
+              )}
             </div>
           </div>
         </div>
