@@ -70,6 +70,8 @@ export function WarrantyCard({ warranty }: WarrantyCardProps) {
   const { purchase } = warranty
   const { status, daysRemaining } = getWarrantyStatus(warranty)
   const brandModel = [purchase.brand, purchase.model].filter(Boolean).join(' ')
+  const category =
+    typeof purchase.category === 'string' ? purchase.category.trim() : ''
   const StatusIcon = STATUS_ICON[status]
   const styles = STATUS_STYLES[status]
   const progress = getProgress(warranty.startDate, warranty.endDate)
@@ -113,7 +115,7 @@ export function WarrantyCard({ warranty }: WarrantyCardProps) {
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 sm:grid-cols-4">
-        <DetailItem label="Categoria" value={purchase.category} />
+        {category && <DetailItem label="Categoria" value={category} />}
         <DetailItem label="Duração" value={`${warranty.durationMonths} meses`} />
         <DetailItem label="Início" value={formatDateBR(warranty.startDate)} />
         <DetailItem label="Término" value={formatDateBR(warranty.endDate)} />

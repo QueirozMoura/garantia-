@@ -95,6 +95,33 @@ describe('WarrantyCard — link "Ver compra"', () => {
     expect(link).not.toHaveAttribute('rel')
   })
 
+  it('exibe o rótulo "Categoria" com o valor quando a categoria está preenchida', () => {
+    const warranty = makeWarranty({}, { category: 'Informática' })
+
+    renderCard(warranty)
+
+    expect(screen.getByText('Categoria')).toBeInTheDocument()
+    expect(screen.getByText('Informática')).toBeInTheDocument()
+  })
+
+  it('omite o rótulo "Categoria" quando a categoria está vazia', () => {
+    const warranty = makeWarranty({}, { category: '' })
+
+    renderCard(warranty)
+
+    expect(screen.queryByText('Categoria')).not.toBeInTheDocument()
+  })
+
+  it('omite o rótulo "Categoria" quando a categoria contém apenas espaços', () => {
+    const warranty = makeWarranty({}, { category: '   ' })
+
+    renderCard(warranty)
+
+    // O rótulo "Duração" continua presente (layout dos demais campos intacto).
+    expect(screen.getByText('Duração')).toBeInTheDocument()
+    expect(screen.queryByText('Categoria')).not.toBeInTheDocument()
+  })
+
   it('mantém os demais dados/status da garantia inalterados', () => {
     const warranty = makeWarranty(
       { durationMonths: 24 },
