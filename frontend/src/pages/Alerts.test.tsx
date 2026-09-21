@@ -62,4 +62,37 @@ describe('Alerts — modo visitante', () => {
 
     await waitFor(() => expect(mockGetAlerts).toHaveBeenCalledTimes(1))
   })
+
+  it('o link "Ver compra" do alerta aponta para a seção de garantia da compra', async () => {
+    mockGetAlerts.mockResolvedValue([
+      {
+        id: 'alert-1',
+        type: 'WARRANTY_EXPIRING',
+        title: 'Garantia vencendo',
+        message: 'Sua garantia está perto do fim.',
+        createdAt: '2026-01-10T00:00:00.000Z',
+        warranty: {
+          id: 'warranty-1',
+          purchaseId: 'p-7',
+          startDate: '2025-01-10T00:00:00.000Z',
+          endDate: '2026-02-10T00:00:00.000Z',
+        },
+        purchase: {
+          id: 'p-7',
+          productName: 'Notebook Ultra',
+          brand: 'Dell',
+          model: 'XPS',
+          category: 'Informática',
+        },
+      },
+    ])
+
+    renderPage('authenticated')
+
+    const links = await screen.findAllByRole('link', { name: /ver compra/i })
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/purchases/p-7#warranty')
+    }
+  })
 })

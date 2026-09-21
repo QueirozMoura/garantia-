@@ -71,7 +71,7 @@ export function ExpiringWarrantyCard({ warranties }: ExpiringWarrantyCardProps) 
             return (
               <Link
                 key={item.purchaseId}
-                to={`/purchases/${item.purchaseId}`}
+                to={`/purchases/${item.purchaseId}#warranty`}
                 className="group block rounded-2xl border border-amber-200/70 bg-white/75 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:bg-white hover:shadow-[0_12px_24px_-20px_rgb(146_64_14/0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
               >
                 <div className="flex items-start justify-between gap-3">

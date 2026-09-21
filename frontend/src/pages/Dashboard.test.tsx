@@ -89,6 +89,28 @@ describe('Dashboard — modo visitante', () => {
     await waitFor(() => expect(mockGetDashboard).toHaveBeenCalledTimes(1))
   })
 
+  it('o card de garantia vencendo aponta para a seção de garantia da compra', async () => {
+    mockGetDashboard.mockResolvedValue({
+      ...emptyDashboard,
+      expiringWarranties: [
+        {
+          purchaseId: 'p-42',
+          productName: 'Notebook Ultra',
+          brand: 'Dell',
+          model: 'XPS',
+          startDate: '2026-01-10T00:00:00.000Z',
+          endDate: '2026-02-10T00:00:00.000Z',
+          daysRemaining: 10,
+        },
+      ],
+    })
+
+    renderDashboard('authenticated')
+
+    const link = await screen.findByRole('link', { name: /Notebook Ultra/i })
+    expect(link).toHaveAttribute('href', '/purchases/p-42#warranty')
+  })
+
   it('loading não chama getDashboard e mostra o skeleton', () => {
     renderDashboard('loading')
 

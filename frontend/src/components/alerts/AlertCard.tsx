@@ -114,7 +114,7 @@ export function AlertCard({ alert }: AlertCardProps) {
       <div className="mt-5 flex justify-end border-t border-white/70 pt-4">
         <Button variant="secondary" asChild>
           <Link
-            to={`/purchases/${purchase.id}`}
+            to={`/purchases/${purchase.id}#warranty`}
             className="group/action inline-flex items-center gap-2"
           >
             Ver compra
