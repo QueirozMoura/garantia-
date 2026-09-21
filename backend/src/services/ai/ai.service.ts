@@ -1,4 +1,8 @@
 import { env } from '../../config/env.js';
+import {
+  isPurchaseCategory,
+  PURCHASE_CATEGORIES,
+} from '../../modules/categories.js';
 import { badRequest, serviceUnavailable } from '../../utils/http-error.js';
 import { GeminiProvider } from './gemini.provider.js';
 import { NvidiaProvider } from './nvidia.provider.js';
@@ -26,6 +30,8 @@ const extractionInstruction = [
   'Never infer, guess, calculate, or invent missing information.',
   'Return only a JSON object with the requested fields.',
   'Use purchaseDate in YYYY-MM-DD format and price as a number.',
+  `For category, return exactly one of these values: ${PURCHASE_CATEGORIES.join(', ')}.`,
+  'Do not create, combine, translate or invent categories, and never return a value outside the allowed list; return null when the document does not provide enough evidence to classify the product.',
 ].join(' ');
 
 const parseJsonObject = (value: unknown): unknown => {
@@ -208,13 +214,27 @@ const isKnownAIProviderError = (error: unknown) =>
   error instanceof AIProviderRequestError ||
   error instanceof AIProviderInvalidResponseError;
 
+/**
+ * Defende o sistema contra respostas inválidas da IA: a categoria só é mantida
+ * se for exatamente uma das categorias canônicas (PURCHASE_CATEGORIES).
+ *
+ * Sem comparação case-insensitive, sem correção de acentos e sem fuzzy matching:
+ * qualquer valor fora da lista vira `null` (nunca é convertido em outra
+ * categoria). `null`/vazio já chegam aqui como `null` (pelo schema).
+ */
+const normalizeCategory = (category: string | null): string | null =>
+  category !== null && isPurchaseCategory(category) ? category : null;
+
 export const extractPurchaseData = async (
   provider: AIProvider,
   document: AiDocumentInput,
 ): Promise<ExtractedPurchaseData> => {
   try {
     const result = await provider.extractPurchaseData(document);
-    return extractedPurchaseDataSchema.parse(parseJsonObject(result));
+    const parsed = extractedPurchaseDataSchema.parse(parseJsonObject(result));
+    // Ponto central por onde passam todos os providers (Gemini, NVIDIA, HTTP e
+    // mock): a categoria é normalizada aqui, garantindo o mesmo comportamento.
+    return { ...parsed, category: normalizeCategory(parsed.category) };
   } catch (error) {
     if (isKnownAIProviderError(error)) throw error;
 

@@ -1,6 +1,6 @@
 // Testes da confirmação final da extração (ConfirmExtraction), focados na
-// exibição de Categoria no resumo dos dados revisados. Nesta etapa a categoria
-// é apenas mostrada ao usuário — não é persistida (api.ts não a envia).
+// exibição de Categoria no resumo dos dados revisados. A categoria revisada é
+// enviada na confirmação e persistida pelo backend em `Purchase.category`.
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'

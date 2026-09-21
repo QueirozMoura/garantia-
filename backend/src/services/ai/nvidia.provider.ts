@@ -11,6 +11,7 @@ import {
 // Existing PDF -> PNG utility: rendering stays entirely inside that module (and
 // in memory), so the provider never duplicates conversion logic or touches disk.
 import { convertPdfToPngImages } from './pdf-to-images.js';
+import { PURCHASE_CATEGORIES } from '../../modules/categories.js';
 
 // Hosted NVIDIA API (OpenAI-compatible chat completions). The base URL is fixed
 // here on purpose: this step only wires up invoice extraction.
@@ -25,7 +26,7 @@ const MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
 
 const extractionPrompt = `Analyze this invoice or purchase document image and return only one JSON object with exactly these fields:
-productName, brand, model, purchaseDate, price, store, invoiceNumber, warrantyMonths.
+productName, brand, model, purchaseDate, price, store, invoiceNumber, warrantyMonths, category.
 
 Rules:
 - Extract only information explicitly present in the document.
@@ -36,6 +37,8 @@ Rules:
 - Use purchaseDate in YYYY-MM-DD format.
 - price must be a number, without currency symbols.
 - warrantyMonths must be an integer when present.
+- category must be exactly one of these values: ${PURCHASE_CATEGORIES.join(', ')}.
+- For category, do not create, combine, translate or invent categories, and never return a value outside the allowed list. If the document does not provide enough evidence to classify the product, return null.
 - Return only the JSON object, without Markdown fences or any additional text.`;
 
 // Minimal shape of the OpenAI-compatible response we care about. Only the first

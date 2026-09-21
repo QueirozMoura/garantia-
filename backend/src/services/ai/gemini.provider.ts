@@ -1,6 +1,7 @@
 import { ApiError, GoogleGenAI } from '@google/genai';
 
 import { env } from '../../config/env.js';
+import { PURCHASE_CATEGORIES } from '../../modules/categories.js';
 import {
   AIProviderInvalidResponseError,
   AIProviderNotConfiguredError,
@@ -14,7 +15,7 @@ import {
 const MODEL = 'gemini-3.5-flash';
 
 const extractionPrompt = `Analyze this invoice or purchase document and return only one JSON object with exactly these fields:
-productName, brand, model, purchaseDate, price, store, invoiceNumber, warrantyMonths.
+productName, brand, model, purchaseDate, price, store, invoiceNumber, warrantyMonths, category.
 
 Rules:
 - Extract only information explicitly present in the document.
@@ -25,6 +26,8 @@ Rules:
 - Use purchaseDate in YYYY-MM-DD format.
 - price must be a number, without currency symbols.
 - warrantyMonths must be an integer when present.
+- category must be exactly one of these values: ${PURCHASE_CATEGORIES.join(', ')}.
+- For category, do not create, combine, translate or invent categories, and never return a value outside the allowed list. If the document does not provide enough evidence to classify the product, return null.
 - Return only the JSON object, without Markdown fences or any additional text.`;
 
 const assistancePrompt = `You are a triage assistant for product warranty assistance. You receive a purchase summary, the warranty status already computed by the system, and the problem reported by the user. Return only one JSON object with exactly these fields: summary, possibleCauses, recommendedAction, safetyNote, warrantyGuidance, requiredDocuments.

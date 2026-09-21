@@ -24,6 +24,14 @@ const nullablePositiveInteger = z.preprocess(
   z.number().int().positive().nullable().default(null),
 );
 
+// Categoria sugerida pela IA. Nesta etapa NÃO valida contra a lista canônica
+// (backend/src/modules/categories.ts): apenas existe e é preservada pelo parse.
+// Ausente/vazio -> null, seguindo o mesmo padrão dos demais campos nullable.
+const nullableCategory = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+  z.string().trim().max(100).nullable().default(null),
+);
+
 export const extractedPurchaseDataSchema = z.object({
   productName: nullableText,
   brand: nullableText,
@@ -33,6 +41,7 @@ export const extractedPurchaseDataSchema = z.object({
   store: nullableText,
   invoiceNumber: nullableText,
   warrantyMonths: nullablePositiveInteger,
+  category: nullableCategory,
 });
 
 // Structured triage guidance produced by the AI for an assistance request.

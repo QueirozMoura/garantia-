@@ -588,7 +588,7 @@ describe('AddPurchase — authenticated: fluxo de documento preservado (Etapa 5)
       store: 'Magazine Luiza',
       invoiceNumber: null,
       warrantyMonths: null,
-      // A IA ainda não extrai categoria: a revisão começa vazia.
+      // A IA não sugeriu categoria neste caso: a revisão começa vazia.
       category: null,
     })
 
