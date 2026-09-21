@@ -67,12 +67,17 @@ export const EMPTY_FILTERS: PurchaseFilters = {
 const normalize = (value: string) => value.trim().toLowerCase()
 
 /**
- * Verifica se a compra corresponde ao termo buscado em `productName`, `brand`
- * ou `store`. Campos opcionais nulos são simplesmente ignorados.
+ * Verifica se a compra corresponde ao termo buscado em `productName`, `brand`,
+ * `store` ou `serialNumber`. Campos opcionais nulos são simplesmente ignorados.
  */
 function matchesQuery(purchase: Purchase, normalizedQuery: string): boolean {
   if (!normalizedQuery) return true
-  const haystacks = [purchase.productName, purchase.brand, purchase.store]
+  const haystacks = [
+    purchase.productName,
+    purchase.brand,
+    purchase.store,
+    purchase.serialNumber,
+  ]
   return haystacks.some(
     (field) => typeof field === 'string' && normalize(field).includes(normalizedQuery),
   )
