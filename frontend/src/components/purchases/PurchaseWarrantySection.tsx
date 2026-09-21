@@ -21,6 +21,7 @@ import {
 } from '../../lib/api.ts'
 import { useAuth } from '../../contexts/auth-context.ts'
 import { formatDateBR } from '../../lib/formatters.ts'
+import { getWarrantyStatus } from '../../lib/warranty-status.ts'
 import type { Warranty } from '../../types/warranty.ts'
 import { DeleteWarrantyDialog } from './DeleteWarrantyDialog.tsx'
 import {
@@ -82,18 +83,6 @@ const updateWarrantyErrorMessage = (error: unknown) => {
 
 export interface PurchaseWarrantySectionProps {
   purchaseId: string
-}
-
-function getWarrantyStatus(startDate: string, endDate: string): StatusBadgeStatus {
-  const start = new Date(startDate).getTime()
-  const end = new Date(endDate).getTime()
-  const now = Date.now()
-
-  if (now > end) return 'expired'
-  if (now < start) return 'upcoming'
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000
-  if (end - now <= thirtyDays) return 'expiring'
-  return 'active'
 }
 
 export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionProps) {
@@ -301,7 +290,9 @@ function WarrantyCard({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const status = getWarrantyStatus(warranty.startDate, warranty.endDate)
+  // Regra canônica vinda do helper central (`lib/warranty-status.ts`) — sem
+  // lógica de status duplicada aqui.
+  const { status } = getWarrantyStatus(warranty)
 
   const start = new Date(warranty.startDate).getTime()
   const end = new Date(warranty.endDate).getTime()

@@ -140,6 +140,70 @@ describe('PurchaseWarrantySection', () => {
 
       expect(await screen.findByText('Vencida')).toBeInTheDocument()
     })
+
+    // "Hoje" ancorado na meia-noite UTC, igual à regra canônica do helper.
+    const DAY = 24 * 60 * 60 * 1000
+    const startOfTodayUtcMs = () => {
+      const now = new Date()
+      return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    }
+    const isoUtcDaysFromToday = (days: number) =>
+      new Date(startOfTodayUtcMs() + days * DAY).toISOString()
+
+    it('exibe "Ainda não iniciada" quando a garantia ainda não começou', async () => {
+      mockGet.mockResolvedValue(
+        makeWarranty({
+          startDate: isoUtcDaysFromToday(10),
+          endDate: isoUtcDaysFromToday(375),
+        }),
+      )
+
+      renderSection()
+
+      expect(await screen.findByText('Ainda não iniciada')).toBeInTheDocument()
+    })
+
+    it('exibe "Vencendo em breve" quando faltam até 30 dias', async () => {
+      mockGet.mockResolvedValue(
+        makeWarranty({
+          startDate: isoUtcDaysFromToday(-100),
+          endDate: isoUtcDaysFromToday(10),
+        }),
+      )
+
+      renderSection()
+
+      expect(await screen.findByText('Vencendo em breve')).toBeInTheDocument()
+    })
+
+    it('vence hoje: mantém "Vencendo em breve" (regra canônica), não "Vencida"', async () => {
+      // No dia exato do término o helper central classifica como `expiring`
+      // (end === hoje em meia-noite UTC), permanecendo até o fim do dia.
+      mockGet.mockResolvedValue(
+        makeWarranty({
+          startDate: isoUtcDaysFromToday(-365),
+          endDate: isoUtcDaysFromToday(0),
+        }),
+      )
+
+      renderSection()
+
+      expect(await screen.findByText('Vencendo em breve')).toBeInTheDocument()
+      expect(screen.queryByText('Vencida')).not.toBeInTheDocument()
+    })
+
+    it('exibe "Ativa" quando faltam mais de 30 dias', async () => {
+      mockGet.mockResolvedValue(
+        makeWarranty({
+          startDate: isoUtcDaysFromToday(-100),
+          endDate: isoUtcDaysFromToday(200),
+        }),
+      )
+
+      renderSection()
+
+      expect(await screen.findByText('Ativa')).toBeInTheDocument()
+    })
   })
 
   // -----------------------------------------------------------------------
