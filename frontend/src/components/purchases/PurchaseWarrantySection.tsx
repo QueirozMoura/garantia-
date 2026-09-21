@@ -165,6 +165,8 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
       // Sucesso: fecha o modal e volta ao estado vazio, sem recarregar a página.
       setIsDeleteOpen(false)
       setState({ status: 'success', warranty: null })
+      // Feedback de sucesso no mesmo padrão do PUT (não aparece em caso de erro).
+      setSuccessMessage('Garantia excluída com sucesso.')
     } catch (error) {
       if (error instanceof AuthenticationError) {
         // Token inválido/expirado: consolida o estado visitante e volta ao login.
@@ -204,11 +206,20 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
                 setIsEditing(true)
               }}
               onDelete={() => {
+                setSuccessMessage(null)
                 setDeleteError(null)
                 setIsDeleteOpen(true)
               }}
             />
           </>
+        )}
+
+        {/* Feedback de sucesso da exclusão — aparece mesmo após a garantia ser
+            removida (estado `warranty: null`), quando não há WarrantyCard. */}
+        {state.status === 'success' && !state.warranty && successMessage && (
+          <div className="mb-5">
+            <FeedbackMessage variant="success" description={successMessage} />
+          </div>
         )}
 
         {/* Edição inline — reutiliza o mesmo layout de campos da criação. */}

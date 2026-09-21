@@ -728,6 +728,40 @@ describe('PurchaseWarrantySection', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(mockGet).toHaveBeenCalledTimes(1)
     })
+
+    it('após o sucesso exibe a mensagem de sucesso da exclusão', async () => {
+      mockGet.mockResolvedValue(makeWarranty())
+      mockDelete.mockResolvedValue(undefined)
+
+      const { user } = renderSection()
+      await openDeleteDialog(user)
+      const dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Excluir garantia' }))
+
+      expect(await screen.findByText('Garantia excluída com sucesso.')).toBeInTheDocument()
+      // A UI já reflete a remoção (estado vazio).
+      expect(
+        await screen.findByText('Esta compra ainda não possui garantia'),
+      ).toBeInTheDocument()
+    })
+
+    it('em caso de erro NÃO exibe a mensagem de sucesso', async () => {
+      mockGet.mockResolvedValue(makeWarranty())
+      mockDelete.mockRejectedValueOnce(new ApiError('boom', 500, 'INTERNAL_ERROR'))
+
+      const { user } = renderSection()
+      await openDeleteDialog(user)
+      const dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Excluir garantia' }))
+
+      // Erro exibido no próprio modal; nenhum feedback de sucesso.
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+      expect(
+        screen.queryByText('Garantia excluída com sucesso.'),
+      ).not.toBeInTheDocument()
+      // A garantia continua na tela (não foi removida).
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
   })
 
   // -----------------------------------------------------------------------
