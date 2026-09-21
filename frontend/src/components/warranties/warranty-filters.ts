@@ -39,7 +39,7 @@ export const SORT_OPTIONS: { value: WarrantySort; label: string }[] = [
 ]
 
 export interface WarrantyFilters {
-  /** Texto digitado na busca (produto, marca ou loja). */
+  /** Texto digitado na busca (produto ou marca). */
   query: string
   /** Status selecionado ou `ALL_WARRANTY_STATUSES`. */
   status: string
@@ -57,25 +57,16 @@ export const EMPTY_FILTERS: WarrantyFilters = {
 /** Normaliza texto para comparação: sem espaços nas pontas, minúsculo. */
 const normalize = (value: string) => value.trim().toLowerCase()
 
-/** Lê um campo textual possivelmente ausente sem alterar o contrato do tipo. */
-const optionalField = (source: object, key: string): string | null => {
-  const value = (source as Record<string, unknown>)[key]
-  return typeof value === 'string' ? value : null
-}
-
 /**
- * Verifica se a garantia corresponde ao termo buscado em `productName`, `brand`
- * ou `store` da compra relacionada. `store` nem sempre faz parte do payload
- * exposto por `GET /warranties`; quando ausente, é simplesmente ignorado.
+ * Verifica se a garantia corresponde ao termo buscado em `productName` ou
+ * `brand` da compra relacionada. Esses são os únicos campos textuais de
+ * identificação expostos por `GET /warranties` (o payload não inclui `store`
+ * nem `serialNumber`).
  */
 function matchesQuery(warranty: WarrantyWithPurchase, normalizedQuery: string): boolean {
   if (!normalizedQuery) return true
   const { purchase } = warranty
-  const haystacks = [
-    purchase.productName,
-    purchase.brand,
-    optionalField(purchase, 'store'),
-  ]
+  const haystacks = [purchase.productName, purchase.brand]
   return haystacks.some(
     (field) => typeof field === 'string' && normalize(field).includes(normalizedQuery),
   )

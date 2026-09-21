@@ -75,32 +75,47 @@ describe('applyWarrantyFilters — busca', () => {
     expect(result[0].purchase.brand).toBe('Brastemp')
   })
 
-  it('busca por loja quando o campo está disponível no payload', () => {
-    const withStore = makeWarranty()
-    const purchaseWithStore = {
-      ...withStore.purchase,
-      store: 'Magazine Luiza',
-    }
+  it('busca é case-insensitive', () => {
     const list = [
-      { ...withStore, purchase: purchaseWithStore } as WarrantyWithPurchase,
-      makeWarranty({}, { productName: 'Outro produto' }),
+      makeWarranty({}, { productName: 'Notebook Dell XPS' }),
+      makeWarranty({}, { productName: 'Geladeira Frost Free' }),
     ]
 
-    const result = applyWarrantyFilters(list, filters({ query: 'magazine' }), NOW)
+    const result = applyWarrantyFilters(list, filters({ query: 'NOTEBOOK' }), NOW)
 
     expect(result).toHaveLength(1)
     expect(result[0].purchase.productName).toBe('Notebook Dell XPS')
   })
 
-  it('ignora a loja quando ela não existe e não quebra', () => {
+  it('ignora espaços nas extremidades do termo buscado', () => {
+    const list = [
+      makeWarranty({}, { productName: 'Notebook Dell XPS' }),
+      makeWarranty({}, { productName: 'Geladeira Frost Free' }),
+    ]
+
+    const result = applyWarrantyFilters(list, filters({ query: '  geladeira  ' }), NOW)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].purchase.productName).toBe('Geladeira Frost Free')
+  })
+
+  it('query vazia ou só com espaços retorna todas', () => {
     const list = [makeWarranty(), makeWarranty()]
+
+    expect(applyWarrantyFilters(list, filters({ query: '' }), NOW)).toHaveLength(2)
+    expect(applyWarrantyFilters(list, filters({ query: '   ' }), NOW)).toHaveLength(2)
+  })
+
+  it('busca considera apenas os campos reais do contrato (produto e marca)', () => {
+    // `store`/`serialNumber` não fazem parte de `WarrantyPurchase`: buscar por
+    // eles não encontra nada e não acessa nenhum campo inexistente.
+    const list = [makeWarranty(), makeWarranty({}, { productName: 'Outro produto' })]
 
     expect(() =>
       applyWarrantyFilters(list, filters({ query: 'loja inexistente' }), NOW),
     ).not.toThrow()
-    expect(applyWarrantyFilters(list, filters({ query: 'qualquer' }), NOW)).toHaveLength(
-      0,
-    )
+    expect(applyWarrantyFilters(list, filters({ query: 'sn-0001' }), NOW)).toHaveLength(0)
+    expect(applyWarrantyFilters(list, filters({ query: 'qualquer' }), NOW)).toHaveLength(0)
   })
 })
 

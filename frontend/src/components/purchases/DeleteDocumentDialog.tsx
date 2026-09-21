@@ -124,13 +124,16 @@ export function DeleteDocumentDialog({
             role="alert"
             className="mx-5 flex items-start gap-2.5 rounded-lg border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700 sm:mx-6"
           >
-            <AlertCircle className="h-4 w-4 shrink-0 translate-y-0.5" aria-hidden="true" />
+            <AlertCircle
+              className="h-4 w-4 shrink-0 translate-y-0.5"
+              aria-hidden="true"
+            />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {/* Ações */}
-        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end sm:p-6">
+        <div className="mt-5 flex-col-reverse gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end sm:p-6">
           <button
             ref={cancelRef}
             type="button"

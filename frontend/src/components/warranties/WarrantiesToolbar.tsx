@@ -62,7 +62,7 @@ export function WarrantiesToolbar({
               type="search"
               value={filters.query}
               onChange={(event) => onChange({ query: event.target.value })}
-              placeholder="Buscar por produto, marca ou loja..."
+              placeholder="Buscar por produto ou marca..."
               autoComplete="off"
               /* Esconde o "x" nativo do input[type=search], que duplicaria o
                  botão de limpar próprio abaixo (e o Firefox não suporta a

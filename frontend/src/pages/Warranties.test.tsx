@@ -151,19 +151,15 @@ describe('Warranties — busca, filtros e ordenação', () => {
     expect(screen.queryByText('Notebook Dell')).not.toBeInTheDocument()
   })
 
-  it('busca por loja quando o campo existe no payload', async () => {
-    const list = sampleWarranties()
-    // `store` não faz parte do tipo WarrantyPurchase hoje; simulamos um payload
-    // que o inclua para exercitar o critério de busca defensivo.
-    list[0] = {
-      ...list[0],
-      purchase: { ...list[0].purchase, store: 'Magazine Luiza' },
-    } as unknown as WarrantyWithPurchase
-    const user = await renderWithData(list)
+  it('busca por marca considera apenas os campos reais do contrato', async () => {
+    // `WarrantyPurchase` expõe somente produto e marca: buscar por um termo que
+    // só existiria em `store`/`serialNumber` não encontra nada.
+    const user = await renderWithData(sampleWarranties())
 
-    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'magazine')
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'loja inexistente')
 
-    expect(screen.getByText('Notebook Dell')).toBeInTheDocument()
+    expect(screen.queryByText('Notebook Dell')).not.toBeInTheDocument()
+    expect(screen.queryByText('Máquina Samsung')).not.toBeInTheDocument()
     expect(screen.queryByText('TV LG')).not.toBeInTheDocument()
   })
 
