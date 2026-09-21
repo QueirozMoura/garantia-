@@ -99,6 +99,7 @@ export function ConfirmExtraction() {
             ? 'Não informado'
             : `${reviewed.warrantyMonths} meses`,
       },
+      { label: 'Categoria', value: reviewed.category ?? 'Não informado' },
     ]
   }, [reviewed])
 

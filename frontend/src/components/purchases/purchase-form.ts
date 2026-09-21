@@ -6,7 +6,8 @@ import type { CreatePurchaseInput } from '../../types/purchase.ts'
  */
 const PRODUCT_NAME_MAX = 255
 const OPTIONAL_TEXT_MAX = 255
-const CATEGORY_MAX = 100
+/** Máximo de caracteres da categoria, espelhando o backend (reutilizado pela revisão de extração). */
+export const CATEGORY_MAX = 100
 const CENT = 0.01
 /** Limite de preço aceito (espelha o schema do backend). Compartilhado. */
 export const PRICE_MAX = 9999.99

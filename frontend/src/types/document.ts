@@ -68,6 +68,10 @@ export interface DocumentResponse {
  * Todos os campos podem ser `null` quando a IA não conseguiu identificar o
  * valor. `purchaseDate` chega como string "YYYY-MM-DD" (ou null); `price` e
  * `warrantyMonths` são números ou null. O frontend não deve inventar valores.
+ *
+ * `category` é opcional/`null`: a IA ainda não extrai este campo, então ele
+ * pode estar ausente na resposta (tratado como null no frontend). Nesta etapa
+ * o valor é apenas revisável na UI — não é enviado ao backend.
  */
 export interface DocumentExtraction {
   productName: string | null
@@ -78,6 +82,7 @@ export interface DocumentExtraction {
   store: string | null
   invoiceNumber: string | null
   warrantyMonths: number | null
+  category: string | null
 }
 
 /** Envelope de POST /documents/:documentId/extract: `{ data }`. */

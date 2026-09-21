@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react'
 import type { DocumentExtraction } from '../../types/document.ts'
-import { isValidPurchaseDate, TEXT_MAX, validatePriceValue } from './purchase-form.ts'
+import {
+  CATEGORY_MAX,
+  isValidPurchaseDate,
+  TEXT_MAX,
+  validatePriceValue,
+} from './purchase-form.ts'
 import { NOT_IDENTIFIED } from './purchase-document.ts'
 
 export interface ExtractionPreviewProps {
@@ -30,6 +35,7 @@ interface FormValues {
   price: string
   store: string
   warrantyMonths: string
+  category: string
 }
 
 type FieldErrors = Partial<Record<keyof FormValues, string>>
@@ -43,6 +49,9 @@ const toFormValues = (data: DocumentExtraction): FormValues => ({
   price: data.price === null ? '' : String(data.price),
   store: data.store ?? '',
   warrantyMonths: data.warrantyMonths === null ? '' : String(data.warrantyMonths),
+  // Campo ainda não extraído pela IA: ausente/null vira string vazia (nunca
+  // um valor inventado). O usuário pode preencher/editar na revisão.
+  category: data.category ?? '',
 })
 
 const textOrNull = (value: string) => {
@@ -64,6 +73,9 @@ const toPayload = (values: FormValues): DocumentExtraction => {
     // invoiceNumber NÃO é editável nem enviado — permanece somente leitura.
     invoiceNumber: null,
     warrantyMonths: warranty === '' ? null : Number(warranty),
+    // Revisável nesta etapa, mas ainda NÃO é enviado ao backend (api.ts não a
+    // inclui no PATCH). Vazio vira null — nunca um valor inventado.
+    category: textOrNull(values.category),
   }
 }
 
@@ -89,6 +101,9 @@ const validate = (values: FormValues): FieldErrors => {
   }
   if (values.store.trim().length > TEXT_MAX) {
     errors.store = `A loja deve ter no máximo ${TEXT_MAX} caracteres.`
+  }
+  if (values.category.trim().length > CATEGORY_MAX) {
+    errors.category = `A categoria deve ter no máximo ${CATEGORY_MAX} caracteres.`
   }
 
   const purchaseDate = values.purchaseDate.trim()
@@ -122,6 +137,7 @@ const REVIEW_FIELD_IDS: Record<keyof FormValues, string> = {
   price: 'review-price',
   store: 'review-store',
   warrantyMonths: 'review-warranty',
+  category: 'review-category',
 }
 
 /**
@@ -231,6 +247,17 @@ export function ExtractionPreview({
           placeholder={NOT_IDENTIFIED}
           error={errors.store}
           onChange={(value) => update('store', value)}
+        />
+
+        {/* Categoria — texto livre nesta etapa (a IA ainda não a extrai e ela
+            ainda não é enviada ao backend). O usuário pode preencher/editar. */}
+        <ReviewField
+          id="review-category"
+          label="Categoria"
+          value={values.category}
+          placeholder="Ex.: Informática"
+          error={errors.category}
+          onChange={(value) => update('category', value)}
         />
 
         {/* Garantia — deixa explícito que o valor é em meses. */}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import type { DocumentExtraction } from '../../types/document.ts'
+import { CATEGORY_MAX } from './purchase-form.ts'
 
 export interface DocumentExtractionPanelProps {
   /** Dados extraídos pela IA, usados como valores iniciais dos inputs. */
@@ -34,6 +35,7 @@ interface FormValues {
   price: string
   store: string
   warrantyMonths: string
+  category: string
 }
 
 const toFormValues = (data: DocumentExtraction): FormValues => ({
@@ -44,6 +46,9 @@ const toFormValues = (data: DocumentExtraction): FormValues => ({
   price: data.price === null ? '' : String(data.price),
   store: data.store ?? '',
   warrantyMonths: data.warrantyMonths === null ? '' : String(data.warrantyMonths),
+  // Campo ainda não extraído pela IA: ausente/null vira string vazia (nunca
+  // um valor inventado). Editável na revisão.
+  category: data.category ?? '',
 })
 
 /** Campo de texto vazio vira `null` (nunca string vazia). */
@@ -73,6 +78,8 @@ const toPayload = (values: FormValues): DocumentExtraction => {
     // Mantido no estado por fidelidade à extração, mas não aplicado à compra.
     invoiceNumber: null,
     warrantyMonths: warranty === '' ? null : Number(warranty),
+    // Revisável nesta etapa, mas ainda NÃO é enviado ao backend.
+    category: textOrNull(values.category),
   }
 }
 
@@ -81,6 +88,7 @@ interface FormErrors {
   purchaseDate?: string
   price?: string
   warrantyMonths?: string
+  category?: string
 }
 
 /** Validação básica de UX. O backend continua sendo a fonte de verdade. */
@@ -113,6 +121,10 @@ const validate = (values: FormValues): FormErrors => {
     if (!Number.isInteger(numericWarranty) || numericWarranty <= 0) {
       errors.warrantyMonths = 'Informe um número inteiro de meses maior que zero.'
     }
+  }
+
+  if (values.category.trim().length > CATEGORY_MAX) {
+    errors.category = `A categoria deve ter no máximo ${CATEGORY_MAX} caracteres.`
   }
 
   return errors
@@ -268,6 +280,18 @@ export function DocumentExtractionPanel({
             placeholder="Não identificado"
             disabled={isSaving}
             onChange={(value) => update('store', value)}
+          />
+
+          {/* Categoria — texto livre nesta etapa (a IA ainda não a extrai e ela
+              ainda não é enviada ao backend). Editável. */}
+          <TextField
+            id="extraction-category"
+            label="Categoria"
+            value={values.category}
+            placeholder="Ex.: Informática"
+            disabled={isSaving}
+            error={errors.category}
+            onChange={(value) => update('category', value)}
           />
 
           {/* Número da nota: apenas informativo — não é aplicado à compra. */}
