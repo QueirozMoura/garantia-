@@ -30,6 +30,7 @@ import type {
   DocumentType,
 } from '../../types/document.ts'
 import { DocumentExtractionPanel } from './DocumentExtractionPanel.tsx'
+import { DeleteDocumentDialog } from './DeleteDocumentDialog.tsx'
 import {
   extractFriendlyMessage,
   formatFileSize,
@@ -100,6 +101,9 @@ export function PurchaseDocumentsSection({
   const [reloadKey, setReloadKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Documento aguardando confirmação de exclusão (null = modal fechado).
+  const [pendingDelete, setPendingDelete] = useState<Document | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [extractingId, setExtractingId] = useState<string | null>(null)
   // Extração aberta no painel, junto do documento de origem (para o PATCH).
@@ -155,38 +159,52 @@ export function PurchaseDocumentsSection({
     setShowForm(false)
   }, [])
 
+  /**
+   * Abre a confirmação visual de exclusão — nada é enviado ao backend até o
+   * usuário confirmar no modal.
+   */
   const handleDelete = useCallback(
-    async (document: Document) => {
+    (document: Document) => {
       if (deletingId) return
-      const confirmed = window.confirm(
-        `Excluir o documento "${document.name}"? Esta ação não pode ser desfeita.`,
-      )
-      if (!confirmed) return
-
-      setDeletingId(document.id)
-      setActionError(null)
-      try {
-        await deleteDocument(document.id)
-        setState((current) =>
-          current.status === 'success'
-            ? {
-                status: 'success',
-                documents: current.documents.filter((item) => item.id !== document.id),
-              }
-            : current,
-        )
-      } catch (error) {
-        if (error instanceof AuthenticationError) {
-          handleAuthError()
-          return
-        }
-        setActionError(error instanceof ApiError ? error.message : FALLBACK_DELETE_ERROR)
-      } finally {
-        setDeletingId(null)
-      }
+      setDeleteError(null)
+      setPendingDelete(document)
     },
-    [deletingId, handleAuthError],
+    [deletingId],
   )
+
+  /**
+   * Executa a exclusão (DELETE) somente quando o usuário confirma no modal.
+   * O fluxo é o mesmo de antes: remove o item da lista em caso de sucesso e
+   * mantém o tratamento de erro autenticação/amigável.
+   */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete || deletingId) return
+    const document = pendingDelete
+    setDeletingId(document.id)
+    setDeleteError(null)
+    setActionError(null)
+    try {
+      await deleteDocument(document.id)
+      setState((current) =>
+        current.status === 'success'
+          ? {
+              status: 'success',
+              documents: current.documents.filter((item) => item.id !== document.id),
+            }
+          : current,
+      )
+      setPendingDelete(null)
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        handleAuthError()
+        return
+      }
+      // Mantém o modal aberto para o usuário tentar novamente.
+      setDeleteError(error instanceof ApiError ? error.message : FALLBACK_DELETE_ERROR)
+    } finally {
+      setDeletingId(null)
+    }
+  }, [pendingDelete, deletingId, handleAuthError])
 
   const handleExtract = useCallback(
     async (document: Document) => {
@@ -340,6 +358,16 @@ export function PurchaseDocumentsSection({
           onConfirm={handleConfirm}
           isSaving={isConfirming}
           confirmError={confirmError}
+        />
+      )}
+
+      {pendingDelete && (
+        <DeleteDocumentDialog
+          document={pendingDelete}
+          onClose={() => setPendingDelete(null)}
+          onConfirm={handleConfirmDelete}
+          isDeleting={deletingId !== null}
+          errorMessage={deleteError}
         />
       )}
     </section>
