@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react'
+import { ShieldCheck, ShieldAlert, ShieldX, CalendarClock } from 'lucide-react'
 import { getWarrantyStatus, type WarrantyStatus } from '../../lib/warranty-status.ts'
 import type { WarrantyWithPurchase } from '../../types/warranty.ts'
 
@@ -24,18 +24,19 @@ export function WarrantiesSummary({
   let active = 0
   let expiring = 0
   let expired = 0
-
+  let upcoming = 0
   for (const warranty of warranties) {
     const { status } = getWarrantyStatus(warranty)
     if (status === 'active') active += 1
     else if (status === 'expiring') expiring += 1
     else if (status === 'expired') expired += 1
+    else if (status === 'upcoming') upcoming += 1
   }
 
   return (
     <section
       aria-label="Indicadores de garantias"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       <SummaryCard
         status="active"
@@ -77,6 +78,20 @@ export function WarrantiesSummary({
         iconClassName="bg-red-100 text-red-700"
         titleClassName="text-red-800"
         icon={ShieldX}
+      />
+
+      <SummaryCard
+        status="upcoming"
+        activeStatus={activeStatus}
+        onSelectStatus={onSelectStatus}
+        count={upcoming}
+        title="Ainda não iniciada"
+        description="Proteção que começa em uma data futura."
+        className="border-sky-200/80 bg-sky-50/70 shadow-[0_16px_38px_-32px_rgb(14_165_233/0.45)] hover:border-sky-300 hover:shadow-[0_20px_42px_-30px_rgb(14_165_233/0.38)]"
+        accentClassName="bg-sky-100/80"
+        iconClassName="bg-sky-100 text-sky-700"
+        titleClassName="text-sky-800"
+        icon={CalendarClock}
       />
     </section>
   )
