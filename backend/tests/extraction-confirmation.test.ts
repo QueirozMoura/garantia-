@@ -366,4 +366,155 @@ describe('PATCH /documents/:documentId/extraction', () => {
     });
     expect(documentAfter).toEqual(documentBefore);
   });
+
+  it('persiste a categoria quando uma categoria válida é enviada', async () => {
+    const { user, token } = await createUserWithToken();
+    const { purchase, document } = await createPurchaseWithDocument(user.id);
+
+    const payload = {
+      productName: 'Categorized Product',
+      brand: 'Categorized Brand',
+      model: 'Categorized Model',
+      purchaseDate: '2024-05-10',
+      price: 199.9,
+      store: 'Categorized Store',
+      category: 'Eletrônicos',
+      warrantyMonths: null,
+    };
+
+    const response = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+    expect(response.body.purchase).toMatchObject({ category: 'Eletrônicos' });
+
+    const persisted = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+    expect(persisted.category).toBe('Eletrônicos');
+  });
+
+  it('mantém a categoria atual quando category é null', async () => {
+    const { user, token } = await createUserWithToken();
+    const { purchase, document } = await createPurchaseWithDocument(user.id);
+    const originalCategory = purchase.category;
+
+    const payload = {
+      productName: 'Null Category Product',
+      brand: 'Null Category Brand',
+      model: 'Null Category Model',
+      purchaseDate: '2024-05-10',
+      price: 149.9,
+      store: 'Null Category Store',
+      category: null,
+      warrantyMonths: null,
+    };
+
+    const response = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+
+    const persisted = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+    expect(persisted.category).toBe(originalCategory);
+  });
+
+  it('mantém a categoria atual quando category está ausente', async () => {
+    const { user, token } = await createUserWithToken();
+    const { purchase, document } = await createPurchaseWithDocument(user.id);
+    const originalCategory = purchase.category;
+
+    // Payload sem o campo `category` (comportamento dos clientes anteriores).
+    const payload = {
+      productName: 'Absent Category Product',
+      brand: 'Absent Category Brand',
+      model: 'Absent Category Model',
+      purchaseDate: '2024-05-10',
+      price: 139.9,
+      store: 'Absent Category Store',
+      warrantyMonths: null,
+    };
+
+    const response = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+
+    const persisted = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+    expect(persisted.category).toBe(originalCategory);
+  });
+
+  it('rejeita category vazia com 400 sem alterar a Purchase', async () => {
+    const { user, token } = await createUserWithToken();
+    const { purchase, document } = await createPurchaseWithDocument(user.id);
+    const before = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+
+    const payload = {
+      productName: 'Empty Category Product',
+      brand: 'Empty Category Brand',
+      model: 'Empty Category Model',
+      purchaseDate: '2024-05-10',
+      price: 129.9,
+      store: 'Empty Category Store',
+      category: '',
+      warrantyMonths: null,
+    };
+
+    const response = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatchObject({ code: 'VALIDATION_ERROR' });
+
+    const after = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+    expect(after).toEqual(before);
+  });
+
+  it('rejeita category acima do limite com 400 sem alterar a Purchase', async () => {
+    const { user, token } = await createUserWithToken();
+    const { purchase, document } = await createPurchaseWithDocument(user.id);
+    const before = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+
+    const payload = {
+      productName: 'Too Long Category Product',
+      brand: 'Too Long Category Brand',
+      model: 'Too Long Category Model',
+      purchaseDate: '2024-05-10',
+      price: 119.9,
+      store: 'Too Long Category Store',
+      category: 'a'.repeat(101),
+      warrantyMonths: null,
+    };
+
+    const response = await api()
+      .patch(`/documents/${document.id}/extraction`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatchObject({ code: 'VALIDATION_ERROR' });
+
+    const after = await testPrisma.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+    });
+    expect(after).toEqual(before);
+  });
 });

@@ -72,6 +72,9 @@ export const confirmExtraction = async (
         purchaseDate: input.purchaseDate,
         price: new Prisma.Decimal(input.price.toFixed(2)),
         store: input.store,
+        // Persiste a categoria SOMENTE quando uma categoria válida foi enviada.
+        // null/ausente => mantém a categoria atual (a coluna é NOT NULL).
+        ...(input.category ? { category: input.category } : {}),
       },
       select: purchaseSelect,
     });

@@ -7,6 +7,18 @@ const optionalText = z
   .nullish()
   .transform((value) => value || null);
 
+// Categoria opcional na confirmação de extração: segue a MESMA regra do fluxo
+// manual (trim + min 1 + max 100), mas aceita ausência/null como "não aplicar".
+// Ausência/null -> null (o service mantém a categoria atual da compra); string
+// vazia -> erro de validação (o schema de compras também rejeita categoria vazia).
+const optionalCategory = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .nullish()
+  .transform((value) => value || null);
+
 const purchaseDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Purchase date must use YYYY-MM-DD format')
@@ -23,6 +35,7 @@ export const extractionConfirmationSchema = z.strictObject({
   purchaseDate,
   price: z.number({ message: 'Price must be a number' }).finite().nonnegative(),
   store: optionalText,
+  category: optionalCategory,
   warrantyMonths: z
     .number({ message: 'Warranty duration must be a number' })
     .int('Warranty duration must be an integer')

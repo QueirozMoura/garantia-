@@ -581,6 +581,9 @@ export async function confirmDocumentExtraction(
         purchaseDate: data.purchaseDate,
         price: data.price,
         store: data.store,
+        // Categoria revisada pelo usuário. Vazio/ausente vira null, que o backend
+        // trata como "manter a categoria atual" (nunca envia string vazia).
+        category: data.category || null,
         warrantyMonths: data.warrantyMonths,
       }),
     },

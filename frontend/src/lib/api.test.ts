@@ -762,3 +762,57 @@ describe('gestão do access token', () => {
     expect(localStorage.getItem(ACCESS_TOKEN_KEY)).toBe('token-novo')
   })
 })
+
+// -------------------------------------------------------------------------
+// H) Confirmação da extração — categoria no payload do PATCH
+// -------------------------------------------------------------------------
+describe('confirmDocumentExtraction — category no payload', () => {
+  const extractionResponse = () =>
+    jsonResponse(200, {
+      purchase: {},
+      warranty: null,
+    })
+
+  const sendConfirmation = async (
+    overrides: Partial<import('../types/document.ts').DocumentExtraction> = {},
+  ) => {
+    const api = await importApi()
+    api.setStoredAccessToken('token-valido')
+
+    const controller = installFetch([extractionResponse])
+
+    await api.confirmDocumentExtraction('doc-1', {
+      productName: 'Notebook Dell XPS 15',
+      brand: 'Dell',
+      model: 'XPS 15 9530',
+      purchaseDate: '2026-01-15',
+      price: 8749.9,
+      store: 'Magazine Luiza',
+      invoiceNumber: null,
+      warrantyMonths: null,
+      category: null,
+      ...overrides,
+    })
+
+    const body = JSON.parse(String(controller.calls[0]?.body)) as Record<string, unknown>
+    return body
+  }
+
+  it('envia a categoria preenchida como string', async () => {
+    const body = await sendConfirmation({ category: 'Eletrônicos' })
+
+    expect(body.category).toBe('Eletrônicos')
+  })
+
+  it('envia null quando a categoria está vazia (nunca string vazia)', async () => {
+    const body = await sendConfirmation({ category: '' })
+
+    expect(body.category).toBeNull()
+  })
+
+  it('envia null quando a categoria está ausente', async () => {
+    const body = await sendConfirmation({ category: null })
+
+    expect(body.category).toBeNull()
+  })
+})
