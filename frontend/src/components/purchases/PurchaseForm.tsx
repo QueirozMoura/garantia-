@@ -2,6 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { AlertCircle, Loader2, Save } from 'lucide-react'
 import type { CreatePurchaseInput } from '../../types/purchase.ts'
 import {
+  CUSTOM_CATEGORY_OPTION,
+  isStandardCategory,
+  PURCHASE_CATEGORIES,
+} from '../../lib/categories.ts'
+import {
   validatePurchaseFields,
   toPurchasePayload,
   type PurchaseFormFields,
@@ -50,9 +55,32 @@ export function PurchaseForm({
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof PurchaseFormFields, string>>
   >({})
+  // Um valor existente fora da lista (ex.: "electronics") é tratado como
+  // personalizado, para o select representá-lo sem sobrescrevê-lo.
+  const [isCustomCategory, setIsCustomCategory] = useState(
+    () => initialFields.category.trim() !== '' && !isStandardCategory(initialFields.category),
+  )
 
   function setField(name: keyof PurchaseFormFields, value: string) {
     setFields((current) => ({ ...current, [name]: value }))
+  }
+
+  /**
+   * `fields.category` é a única fonte da categoria enviada à API. O select e o
+   * campo personalizado apenas o alimentam:
+   * - categoria da lista -> grava o próprio valor e esconde o texto livre;
+   * - "Outra" -> mostra o texto livre e usa o que for digitado;
+   * - vazio -> categoria vazia (a validação existente decide se é válido).
+   */
+  function handleCategoryChange(value: string) {
+    if (value === CUSTOM_CATEGORY_OPTION) {
+      setIsCustomCategory(true)
+      // Limpa para o usuário digitar a categoria personalizada.
+      setField('category', '')
+      return
+    }
+    setIsCustomCategory(false)
+    setField('category', value)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -155,16 +183,53 @@ export function PurchaseForm({
       </div>
 
       {/* Categoria */}
-      <div className="sm:max-w-[calc(50%-0.625rem)]">
-        <Field
-          id="category"
-          label="Categoria"
-          required
-          value={fields.category}
-          onChange={(value) => setField('category', value)}
-          placeholder="Ex.: Informática"
-          error={fieldErrors.category}
-        />
+      <div className="space-y-5 sm:max-w-[calc(50%-0.625rem)]">
+        <div className="min-w-0">
+          <label
+            htmlFor="category"
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+          >
+            Categoria <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="category"
+            name="category"
+            value={isCustomCategory ? CUSTOM_CATEGORY_OPTION : fields.category}
+            onChange={(event) => handleCategoryChange(event.target.value)}
+            aria-invalid={Boolean(fieldErrors.category)}
+            aria-describedby={fieldErrors.category ? 'category-error' : undefined}
+            className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+              fieldErrors.category
+                ? 'border-red-300 focus-visible:border-red-400'
+                : 'border-slate-300 focus-visible:border-emerald-500'
+            }`}
+          >
+            <option value="">Selecione uma categoria</option>
+            {PURCHASE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+            <option value={CUSTOM_CATEGORY_OPTION}>{CUSTOM_CATEGORY_OPTION}</option>
+          </select>
+          {fieldErrors.category && (
+            <p id="category-error" className="mt-1.5 text-xs text-red-600">
+              {fieldErrors.category}
+            </p>
+          )}
+        </div>
+
+        {isCustomCategory && (
+          <Field
+            id="category-custom"
+            label="Categoria personalizada"
+            required
+            value={fields.category}
+            onChange={(value) => setField('category', value)}
+            placeholder="Ex.: Instrumentos musicais"
+            error={fieldErrors.category}
+          />
+        )}
       </div>
 
       {/* Ações */}

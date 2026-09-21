@@ -94,7 +94,7 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Loja'), FIELDS.store)
   await user.type(screen.getByLabelText(/Data da compra/), FIELDS.purchaseDate)
   await user.type(screen.getByLabelText(/Preço/), FIELDS.price)
-  await user.type(screen.getByLabelText(/Categoria/), FIELDS.category)
+  await user.selectOptions(screen.getByLabelText(/Categoria/), FIELDS.category)
 }
 
 describe('AddPurchase — guest', () => {

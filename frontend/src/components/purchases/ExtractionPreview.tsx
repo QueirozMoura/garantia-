@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react'
 import type { DocumentExtraction } from '../../types/document.ts'
 import {
+  CUSTOM_CATEGORY_OPTION,
+  isStandardCategory,
+  PURCHASE_CATEGORIES,
+} from '../../lib/categories.ts'
+import {
   CATEGORY_MAX,
   isValidPurchaseDate,
   TEXT_MAX,
@@ -156,6 +161,11 @@ export function ExtractionPreview({
 }: ExtractionPreviewProps) {
   const [values, setValues] = useState<FormValues>(() => toFormValues(data))
   const [errors, setErrors] = useState<FieldErrors>({})
+  // Categoria que não está na lista (ou vazia) abre o texto livre. Categoria
+  // personalizada já vinda da extração é representada como "Outra".
+  const [isCustomCategory, setIsCustomCategory] = useState(
+    () => data.category != null && data.category.trim() !== '' && !isStandardCategory(data.category),
+  )
   // Guarda síncrona: o "Continuar" não chama API, mas evita navegação
   // duplicada em dois cliques rápidos.
   const isContinuingRef = useRef(false)
@@ -175,6 +185,17 @@ export function ExtractionPreview({
       delete next[field]
       return next
     })
+  }
+
+  /** Alimenta `values.category` a partir do select (categoria da lista ou "Outra"). */
+  const handleCategorySelect = (value: string) => {
+    if (value === CUSTOM_CATEGORY_OPTION) {
+      setIsCustomCategory(true)
+      update('category', '')
+      return
+    }
+    setIsCustomCategory(false)
+    update('category', value)
   }
 
   const handleContinue = () => {
@@ -249,15 +270,14 @@ export function ExtractionPreview({
           onChange={(value) => update('store', value)}
         />
 
-        {/* Categoria — texto livre nesta etapa (a IA ainda não a extrai e ela
-            ainda não é enviada ao backend). O usuário pode preencher/editar. */}
-        <ReviewField
-          id="review-category"
-          label="Categoria"
+        {/* Categoria — select com a lista central + opção "Outra" (texto livre).
+            Opcional neste fluxo: vazio continua significando "não informado". */}
+        <CategoryReviewField
           value={values.category}
-          placeholder="Ex.: Informática"
+          isCustom={isCustomCategory}
           error={errors.category}
-          onChange={(value) => update('category', value)}
+          onSelect={handleCategorySelect}
+          onCustomChange={(value) => update('category', value)}
         />
 
         {/* Garantia — deixa explícito que o valor é em meses. */}
@@ -364,6 +384,80 @@ interface ReviewFieldProps {
   placeholder?: string
   error?: string
   inputMode?: 'text' | 'decimal'
+}
+
+interface CategoryReviewFieldProps {
+  value: string
+  isCustom: boolean
+  error?: string
+  onSelect: (value: string) => void
+  onCustomChange: (value: string) => void
+}
+
+/**
+ * Campo de Categoria da revisão: select com a lista central + "Outra", que
+ * revela um input de texto livre. Opcional — categoria vazia continua sendo
+ * "não informado". Valores fora da lista são representados como "Outra".
+ */
+function CategoryReviewField({
+  value,
+  isCustom,
+  error,
+  onSelect,
+  onCustomChange,
+}: CategoryReviewFieldProps) {
+  const selectValue = isCustom ? CUSTOM_CATEGORY_OPTION : value
+  const inputClass = `w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+    error ? 'border-red-300 focus-visible:border-red-400' : 'border-slate-300 focus-visible:border-emerald-500'
+  }`
+
+  return (
+    <div className="min-w-0">
+      <label
+        htmlFor="review-category"
+        className="mb-1.5 block text-xs font-medium tracking-wide text-slate-500 uppercase"
+      >
+        Categoria
+      </label>
+      <select
+        id="review-category"
+        name="category"
+        value={selectValue}
+        onChange={(event) => onSelect(event.target.value)}
+        aria-invalid={Boolean(error)}
+        className={inputClass}
+      >
+        <option value="">{NOT_IDENTIFIED}</option>
+        {PURCHASE_CATEGORIES.map((category) => (
+          <option key={category} value={category}>
+            {category}
+          </option>
+        ))}
+        <option value={CUSTOM_CATEGORY_OPTION}>{CUSTOM_CATEGORY_OPTION}</option>
+      </select>
+
+      {isCustom && (
+        <input
+          id="review-category-custom"
+          name="category-custom"
+          type="text"
+          value={value}
+          onChange={(event) => onCustomChange(event.target.value)}
+          placeholder="Ex.: Instrumentos musicais"
+          aria-label="Categoria personalizada"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'review-category-error' : undefined}
+          className={`mt-2 ${inputClass}`}
+        />
+      )}
+
+      {error && (
+        <p id="review-category-error" className="mt-1.5 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  )
 }
 
 /** Campo editável do formulário de revisão, no padrão visual do projeto. */

@@ -1,7 +1,7 @@
 // Testes da etapa de revisão dos dados extraídos (ExtractionPreview), focados
-// no campo Categoria: a IA ainda não extrai categoria, então ela começa vazia
-// (nunca um valor inventado), é editável e respeita o mesmo limite do
-// formulário manual (CATEGORY_MAX). Nada é persistido nesta etapa.
+// no campo Categoria: select com a lista central + opção "Outra" (texto livre).
+// Neste fluxo a categoria é OPCIONAL: vazia continua significando "não
+// informado" e nada é inventado.
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -31,10 +31,22 @@ function renderPreview(data: DocumentExtraction, onContinue = vi.fn()) {
 }
 
 describe('ExtractionPreview — campo Categoria', () => {
-  it('exibe o campo Categoria na revisão', () => {
+  it('exibe o select de Categoria na revisão', () => {
     renderPreview(makeExtraction())
 
     expect(screen.getByLabelText('Categoria')).toBeInTheDocument()
+  })
+
+  it('mostra a lista centralizada como opções do select', () => {
+    renderPreview(makeExtraction())
+
+    const select = screen.getByLabelText('Categoria') as HTMLSelectElement
+    const options = Array.from(select.options).map((option) => option.value)
+
+    for (const category of ['Informática', 'Eletrônicos', 'Eletrodomésticos', 'Outros']) {
+      expect(options).toContain(category)
+    }
+    expect(options).toContain('Outra')
   })
 
   it('começa vazio quando a extração não traz categoria (null) — sem valor inventado', () => {
@@ -53,20 +65,43 @@ describe('ExtractionPreview — campo Categoria', () => {
     expect(screen.getByLabelText('Categoria')).toHaveValue('')
   })
 
-  it('pré-preenche a categoria quando ela já vem na extração', () => {
+  it('pré-seleciona a categoria quando ela já vem na lista', () => {
     renderPreview(makeExtraction({ category: 'Informática' }))
 
     expect(screen.getByLabelText('Categoria')).toHaveValue('Informática')
   })
 
-  it('permite editar a categoria e repassa o valor revisado em onContinue', async () => {
+  it('representa como "Outra" uma categoria fora da lista, sem perdê-la', () => {
+    renderPreview(makeExtraction({ category: 'electronics' }))
+
+    const select = screen.getByLabelText('Categoria') as HTMLSelectElement
+    expect(select).toHaveValue('Outra')
+    expect(screen.getByLabelText('Categoria personalizada')).toHaveValue('electronics')
+  })
+
+  it('permite selecionar uma categoria padrão e repassa em onContinue', async () => {
     const { user, onContinue } = renderPreview(makeExtraction({ category: null }))
 
-    await user.type(screen.getByLabelText('Categoria'), 'Eletrônicos')
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Eletrônicos')
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     expect(onContinue).toHaveBeenCalledTimes(1)
     expect(onContinue.mock.calls[0][0]).toMatchObject({ category: 'Eletrônicos' })
+  })
+
+  it('"Outra" revela o texto livre e usa a categoria personalizada', async () => {
+    const { user, onContinue } = renderPreview(makeExtraction({ category: null }))
+
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Outra')
+    await user.type(
+      screen.getByLabelText('Categoria personalizada'),
+      'Instrumentos musicais',
+    )
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(onContinue.mock.calls[0][0]).toMatchObject({
+      category: 'Instrumentos musicais',
+    })
   })
 
   it('envia category null quando o campo fica vazio (não inventa valor)', async () => {
@@ -77,21 +112,26 @@ describe('ExtractionPreview — campo Categoria', () => {
     expect(onContinue.mock.calls[0][0]).toMatchObject({ category: null })
   })
 
-  it(`aceita categoria com exatamente ${CATEGORY_MAX} caracteres (mesmo limite do formulário manual)`, async () => {
+  it(`aceita categoria personalizada com exatamente ${CATEGORY_MAX} caracteres`, async () => {
     const { user, onContinue } = renderPreview(makeExtraction())
     const value = 'a'.repeat(CATEGORY_MAX)
 
-    await user.type(screen.getByLabelText('Categoria'), value)
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Outra')
+    await user.type(screen.getByLabelText('Categoria personalizada'), value)
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     expect(onContinue).toHaveBeenCalledTimes(1)
     expect(onContinue.mock.calls[0][0]).toMatchObject({ category: value })
   })
 
-  it('bloqueia o Continuar e exibe erro quando a categoria excede o limite', async () => {
+  it('bloqueia o Continuar e exibe erro quando a categoria personalizada excede o limite', async () => {
     const { user, onContinue } = renderPreview(makeExtraction())
 
-    await user.type(screen.getByLabelText('Categoria'), 'a'.repeat(CATEGORY_MAX + 1))
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Outra')
+    await user.type(
+      screen.getByLabelText('Categoria personalizada'),
+      'a'.repeat(CATEGORY_MAX + 1),
+    )
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     expect(onContinue).not.toHaveBeenCalled()

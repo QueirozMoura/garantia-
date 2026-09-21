@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import type { DocumentExtraction } from '../../types/document.ts'
+import {
+  CUSTOM_CATEGORY_OPTION,
+  isStandardCategory,
+  PURCHASE_CATEGORIES,
+} from '../../lib/categories.ts'
 import { CATEGORY_MAX } from './purchase-form.ts'
 
 export interface DocumentExtractionPanelProps {
@@ -148,6 +153,11 @@ export function DocumentExtractionPanel({
   const editable = onConfirm !== undefined
   const [values, setValues] = useState<FormValues>(() => toFormValues(data))
   const [errors, setErrors] = useState<FormErrors>({})
+  // Categoria fora da lista (ou vazia) abre o texto livre; personalizada já
+  // vinda da extração é representada como "Outra", sem sobrescrever o valor.
+  const [isCustomCategory, setIsCustomCategory] = useState(
+    () => data.category != null && data.category.trim() !== '' && !isStandardCategory(data.category),
+  )
 
   const update = (field: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }))
@@ -159,6 +169,17 @@ export function DocumentExtractionPanel({
       delete next[field as keyof FormErrors]
       return next
     })
+  }
+
+  /** Alimenta `values.category` a partir do select (categoria da lista ou "Outra"). */
+  const handleCategorySelect = (value: string) => {
+    if (value === CUSTOM_CATEGORY_OPTION) {
+      setIsCustomCategory(true)
+      update('category', '')
+      return
+    }
+    setIsCustomCategory(false)
+    update('category', value)
   }
 
   const handleConfirmClick = () => {
@@ -282,17 +303,61 @@ export function DocumentExtractionPanel({
             onChange={(value) => update('store', value)}
           />
 
-          {/* Categoria — texto livre nesta etapa (a IA ainda não a extrai e ela
-              ainda não é enviada ao backend). Editável. */}
-          <TextField
-            id="extraction-category"
-            label="Categoria"
-            value={values.category}
-            placeholder="Ex.: Informática"
-            disabled={isSaving}
-            error={errors.category}
-            onChange={(value) => update('category', value)}
-          />
+          {/* Categoria — select com a lista central + opção "Outra" (texto
+              livre). Opcional neste fluxo: vazio continua "não informado". */}
+          <div className="min-w-0">
+            <label
+              htmlFor="extraction-category"
+              className="mb-1.5 block text-xs font-medium tracking-wide text-slate-500 uppercase"
+            >
+              Categoria
+            </label>
+            <select
+              id="extraction-category"
+              name="category"
+              value={isCustomCategory ? CUSTOM_CATEGORY_OPTION : values.category}
+              onChange={(event) => handleCategorySelect(event.target.value)}
+              disabled={isSaving}
+              aria-invalid={Boolean(errors.category)}
+              className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-60 ${
+                errors.category
+                  ? 'border-red-300 focus-visible:border-red-400'
+                  : 'border-slate-300 focus-visible:border-emerald-500'
+              }`}
+            >
+              <option value="">{NOT_IDENTIFIED}</option>
+              {PURCHASE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+              <option value={CUSTOM_CATEGORY_OPTION}>{CUSTOM_CATEGORY_OPTION}</option>
+            </select>
+            {isCustomCategory && (
+              <input
+                id="extraction-category-custom"
+                name="category-custom"
+                type="text"
+                value={values.category}
+                onChange={(event) => update('category', event.target.value)}
+                placeholder="Ex.: Instrumentos musicais"
+                disabled={isSaving}
+                aria-label="Categoria personalizada"
+                aria-invalid={Boolean(errors.category)}
+                aria-describedby={errors.category ? 'extraction-category-error' : undefined}
+                className={`mt-2 w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-60 ${
+                  errors.category
+                    ? 'border-red-300 focus-visible:border-red-400'
+                    : 'border-slate-300 focus-visible:border-emerald-500'
+                }`}
+              />
+            )}
+            {errors.category && (
+              <p id="extraction-category-error" className="mt-1.5 text-xs text-red-600">
+                {errors.category}
+              </p>
+            )}
+          </div>
 
           {/* Número da nota: apenas informativo — não é aplicado à compra. */}
           <div className="min-w-0">
