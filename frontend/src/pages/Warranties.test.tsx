@@ -266,11 +266,53 @@ describe('Warranties — busca, filtros e ordenação', () => {
     expect(screen.getByText('TV LG')).toBeInTheDocument()
   })
 
-  it('não mostra a toolbar quando não há garantias', async () => {
+  it('sem garantias: mostra o estado vazio e não mostra a toolbar', async () => {
     mockGetWarranties.mockResolvedValue([])
     renderPage('authenticated')
 
     await screen.findByText('Suas garantias ficam aqui')
     expect(screen.queryByRole('searchbox', { name: /buscar/i })).not.toBeInTheDocument()
+  })
+
+  it('sem garantias: CTA principal "Adicionar compra" aponta para /purchases/new', async () => {
+    mockGetWarranties.mockResolvedValue([])
+    renderPage('authenticated')
+
+    const addLink = await screen.findByRole('link', { name: /adicionar compra/i })
+    expect(addLink).toHaveAttribute('href', '/purchases/new')
+  })
+
+  it('sem garantias: CTA secundário "Ver minhas compras" aponta para /purchases', async () => {
+    mockGetWarranties.mockResolvedValue([])
+    renderPage('authenticated')
+
+    const viewLink = await screen.findByRole('link', { name: /ver minhas compras/i })
+    expect(viewLink).toHaveAttribute('href', '/purchases')
+  })
+
+  it('com garantias: o estado vazio NÃO aparece', async () => {
+    mockGetWarranties.mockResolvedValue(sampleWarranties())
+    renderPage('authenticated')
+
+    await screen.findByText('Notebook Dell')
+    expect(screen.queryByText('Suas garantias ficam aqui')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /adicionar compra/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('filtros sem resultado usam o estado de "sem resultados", não o vazio inicial', async () => {
+    const user = await renderWithData(sampleWarranties())
+
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'inexistente')
+
+    expect(
+      screen.getByRole('heading', { name: /nenhuma garantia corresponde/i }),
+    ).toBeInTheDocument()
+    // O estado vazio de primeira utilização não deve aparecer.
+    expect(screen.queryByText('Suas garantias ficam aqui')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /adicionar compra/i }),
+    ).not.toBeInTheDocument()
   })
 })
