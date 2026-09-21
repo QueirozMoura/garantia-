@@ -158,7 +158,7 @@ export function WarrantyCard({ warranty }: WarrantyCardProps) {
 
       <div className="mt-5 flex justify-end border-t border-slate-100 pt-4">
         <Link
-          to={`/purchases/${purchase.id}`}
+          to={`/purchases/${purchase.id}#warranty`}
           className="group/action inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 active:scale-[0.98] sm:text-sm"
         >
           <span>Ver compra</span>

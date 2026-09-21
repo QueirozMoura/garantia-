@@ -307,6 +307,17 @@ describe('PurchaseDetails', () => {
         await screen.findByText('Esta compra ainda não possui garantia'),
       ).toBeInTheDocument()
     })
+
+    it('a seção de garantia expõe o anchor id="warranty" (destino do "Ver compra")', async () => {
+      mockGetPurchase.mockResolvedValue(makePurchase())
+      mockGetWarranty.mockResolvedValue(makeWarranty())
+
+      const { container } = renderDetails()
+
+      await screen.findByRole('heading', { name: 'Garantia' })
+      // O fragmento usado no link "Ver compra" das garantias aponta para cá.
+      expect(container.querySelector('#warranty')).not.toBeNull()
+    })
   })
 
   // -----------------------------------------------------------------------

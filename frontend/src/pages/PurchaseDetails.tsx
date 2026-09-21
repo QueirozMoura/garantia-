@@ -219,10 +219,15 @@ export function PurchaseDetails() {
       )}
 
       {currentState.status === 'success' && (
-        <PurchaseWarrantySection
-          key={warrantyReloadKey}
-          purchaseId={currentState.purchase.id}
-        />
+        // `id="warranty"` é o anchor estável da seção: o link "Ver compra" da
+        // lista de Garantias chega em /purchases/:id#warranty e o scroll nativo
+        // do navegador posiciona o usuário direto nesta seção.
+        <div id="warranty">
+          <PurchaseWarrantySection
+            key={warrantyReloadKey}
+            purchaseId={currentState.purchase.id}
+          />
+        </div>
       )}
 
       {currentState.status === 'success' && (
