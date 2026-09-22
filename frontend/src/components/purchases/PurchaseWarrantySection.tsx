@@ -83,12 +83,28 @@ const updateWarrantyErrorMessage = (error: unknown) => {
 
 export interface PurchaseWarrantySectionProps {
   purchaseId: string
+  /**
+   * Garantia já conhecida (ex.: retornada pela confirmação de uma extração).
+   * Quando presente, a seção a exibe diretamente e NÃO faz o GET inicial —
+   * evitando uma requisição duplicada. Quando ausente, o comportamento é o
+   * normal: a seção busca a garantia via `getPurchaseWarranty`.
+   */
+  initialWarranty?: Warranty | null
 }
 
-export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionProps) {
+export function PurchaseWarrantySection({
+  purchaseId,
+  initialWarranty,
+}: PurchaseWarrantySectionProps) {
   const navigate = useNavigate()
   const { expireSession } = useAuth()
-  const [state, setState] = useState<FetchState>({ status: 'loading' })
+  // Estado inicial derivado da prop: quando a página já traz a garantia
+  // (ex.: confirmação de extração), ela é exibida sem nenhum GET.
+  const [state, setState] = useState<FetchState>(() =>
+    initialWarranty !== undefined
+      ? { status: 'success', warranty: initialWarranty }
+      : { status: 'loading' },
+  )
   const [reloadKey, setReloadKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
   // Modo de edição da garantia existente (independente do form de criação).
@@ -99,7 +115,23 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
   // Feedback de sucesso do PUT, no mesmo padrão das outras telas do projeto.
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
+  // Acompanha a prop para sincronizar o estado quando ela chega/atualiza sem
+  // remontar a seção (padrão "ajustar estado ao mudar props" do React). Um
+  // `reloadKey` > 0 (retry explícito) tem precedência e deixa o efeito buscar
+  // de novo.
+  const [lastInitialWarranty, setLastInitialWarranty] = useState(initialWarranty)
+  if (initialWarranty !== lastInitialWarranty) {
+    setLastInitialWarranty(initialWarranty)
+    if (initialWarranty !== undefined && reloadKey === 0) {
+      setState({ status: 'success', warranty: initialWarranty })
+    }
+  }
+
   useEffect(() => {
+    // A prop é a fonte da verdade: com garantia entregue pela página (e sem
+    // retry), não há GET algum.
+    if (initialWarranty !== undefined && reloadKey === 0) return
+
     let isActive = true
     const load = async () => {
       try {
@@ -122,7 +154,7 @@ export function PurchaseWarrantySection({ purchaseId }: PurchaseWarrantySectionP
     return () => {
       isActive = false
     }
-  }, [purchaseId, reloadKey, navigate, expireSession])
+  }, [purchaseId, reloadKey, initialWarranty, navigate, expireSession])
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' })

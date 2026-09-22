@@ -17,6 +17,8 @@ import {
   deletePurchase,
   getPurchaseWarranty,
   getPurchaseDocuments,
+  extractDocument,
+  confirmDocumentExtraction,
 } from '../lib/api.ts'
 import { AuthContext, type AuthContextValue } from '../contexts/auth-context.ts'
 import { NFE_IMPORT_CATEGORY } from '../components/dashboard/nfe-import.ts'
@@ -55,6 +57,8 @@ const mockUpdatePurchase = vi.mocked(updatePurchase)
 const mockDeletePurchase = vi.mocked(deletePurchase)
 const mockGetWarranty = vi.mocked(getPurchaseWarranty)
 const mockGetDocuments = vi.mocked(getPurchaseDocuments)
+const mockExtractDocument = vi.mocked(extractDocument)
+const mockConfirmExtraction = vi.mocked(confirmDocumentExtraction)
 
 const PURCHASE_ID = 'purchase-42'
 
@@ -393,6 +397,46 @@ describe('PurchaseDetails', () => {
       expect(
         await screen.findByText('Esta compra ainda não possui documentos'),
       ).toBeInTheDocument()
+    })
+
+    it('extração confirmada usa a garantia da resposta sem novo GET de garantia', async () => {
+      mockGetPurchase.mockResolvedValue(makePurchase())
+      mockGetDocuments.mockResolvedValue([makeDocument()])
+      // Estado inicial: sem garantia (a seção faz 1 GET e mostra o estado vazio).
+      mockGetWarranty.mockResolvedValue(null)
+      // A extração devolve dados válidos para habilitar a confirmação.
+      mockExtractDocument.mockResolvedValue({
+        productName: 'Notebook Dell XPS 15',
+        brand: 'Dell',
+        model: 'XPS 15 9530',
+        purchaseDate: '2026-01-15',
+        price: 8749.9,
+        store: 'Magazine Luiza',
+        invoiceNumber: '123',
+        warrantyMonths: 12,
+        category: 'Informática',
+      })
+      // A resposta da confirmação já traz a garantia criada.
+      mockConfirmExtraction.mockResolvedValue({
+        purchase: makePurchase(),
+        warranty: makeWarranty(),
+      })
+
+      const { user } = renderDetails()
+
+      // Primeiro carregamento: 1 GET de garantia (sem garantia ainda).
+      await screen.findByText('Esta compra ainda não possui garantia')
+      await waitFor(() => expect(mockGetWarranty).toHaveBeenCalledTimes(1))
+
+      // Abre a extração da nota e confirma os dados.
+      await user.click(await screen.findByRole('button', { name: /Ler nota com IA/ }))
+      await user.click(await screen.findByRole('button', { name: 'Usar estes dados' }))
+
+      // A garantia da resposta é exibida diretamente…
+      expect(await screen.findByText('Ativa')).toBeInTheDocument()
+      expect(screen.getByText('12 meses')).toBeInTheDocument()
+      // …e NÃO há um segundo GET de garantia (a duplicação foi eliminada).
+      expect(mockGetWarranty).toHaveBeenCalledTimes(1)
     })
   })
 

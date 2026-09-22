@@ -56,7 +56,7 @@ describe('PurchaseWarrantySection', () => {
     expireSession = vi.fn()
   })
 
-  const renderSection = () => {
+  const renderSection = (props: { initialWarranty?: Warranty | null } = {}) => {
     const user = userEvent.setup()
     const authValue: AuthContextValue = {
       user: null,
@@ -74,7 +74,12 @@ describe('PurchaseWarrantySection', () => {
           <Routes>
             <Route
               path="/purchases/:id"
-              element={<PurchaseWarrantySection purchaseId={PURCHASE_ID} />}
+              element={
+                <PurchaseWarrantySection
+                  purchaseId={PURCHASE_ID}
+                  initialWarranty={props.initialWarranty}
+                />
+              }
             />
             <Route path="/login" element={<div>LOGIN_PAGE</div>} />
           </Routes>
@@ -107,6 +112,40 @@ describe('PurchaseWarrantySection', () => {
       renderSection()
 
       expect(screen.getByLabelText('Carregando garantia')).toBeInTheDocument()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Garantia inicial recebida por prop (evita GET duplicado)
+  // -----------------------------------------------------------------------
+  describe('initialWarranty (garantia já carregada)', () => {
+    it('sem initialWarranty faz o GET normalmente', async () => {
+      mockGet.mockResolvedValue(makeWarranty())
+
+      renderSection()
+
+      // Comportamento normal preservado: busca via API e exibe o resultado.
+      expect(await screen.findByText('Ativa')).toBeInTheDocument()
+      expect(mockGet).toHaveBeenCalledWith(PURCHASE_ID)
+      expect(mockGet).toHaveBeenCalledTimes(1)
+    })
+
+    it('com initialWarranty exibe a garantia sem chamar getPurchaseWarranty', async () => {
+      renderSection({ initialWarranty: makeWarranty() })
+
+      expect(await screen.findByText('Ativa')).toBeInTheDocument()
+      expect(screen.getByText('12 meses')).toBeInTheDocument()
+      // Nenhum GET: a garantia veio pronta pela prop.
+      expect(mockGet).not.toHaveBeenCalled()
+    })
+
+    it('com initialWarranty = null mostra o estado vazio sem chamar getPurchaseWarranty', async () => {
+      renderSection({ initialWarranty: null })
+
+      expect(
+        await screen.findByText('Esta compra ainda não possui garantia'),
+      ).toBeInTheDocument()
+      expect(mockGet).not.toHaveBeenCalled()
     })
   })
 

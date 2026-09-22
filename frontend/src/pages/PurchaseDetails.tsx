@@ -13,6 +13,7 @@ import { NFE_IMPORT_CATEGORY } from '../components/dashboard/nfe-import.ts'
 import { useAuth } from '../contexts/auth-context.ts'
 import { formatCurrencyBRL, formatDateBR } from '../lib/formatters.ts'
 import type { Purchase } from '../types/purchase.ts'
+import type { Warranty } from '../types/warranty.ts'
 import type { DocumentExtractionConfirmationResponse } from '../types/document.ts'
 import { PageHeader, FeedbackMessage, Button, Card } from '../components/ui'
 
@@ -46,8 +47,12 @@ export function PurchaseDetails() {
   const { expireSession } = useAuth()
   const [state, setState] = useState<FetchState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
-  // Incrementado após uma extração confirmada para recarregar a seção de garantia.
-  const [warrantyReloadKey, setWarrantyReloadKey] = useState(0)
+  // Garantia já retornada pela confirmação de uma extração; repassada à seção
+  // para evitar um GET /purchases/:id/warranty desnecessário. `undefined`
+  // significa "ainda não informada" — a seção então faz o GET normal.
+  const [initialWarranty, setInitialWarranty] = useState<Warranty | null | undefined>(
+    undefined,
+  )
   // Mensagem de sucesso vinda da edição (flash) ou da extração confirmada.
   const flashMessage =
     (location.state as { flashMessage?: string } | null)?.flashMessage ?? null
@@ -111,8 +116,9 @@ export function PurchaseDetails() {
     (result: DocumentExtractionConfirmationResponse) => {
       setState({ status: 'success', purchase: result.purchase })
       setSuccessMessage('Dados da nota aplicados à compra.')
-      // A garantia é carregada pela própria seção; força um novo fetch.
-      setWarrantyReloadKey((key) => key + 1)
+      // A resposta já traz a garantia: repassamos para a seção em vez de
+      // forçar um novo GET (evita a requisição duplicada).
+      setInitialWarranty(result.warranty)
     },
     [],
   )
@@ -225,8 +231,8 @@ export function PurchaseDetails() {
         // do navegador posiciona o usuário direto nesta seção.
         <div id="warranty">
           <PurchaseWarrantySection
-            key={warrantyReloadKey}
             purchaseId={currentState.purchase.id}
+            initialWarranty={initialWarranty}
           />
         </div>
       )}
