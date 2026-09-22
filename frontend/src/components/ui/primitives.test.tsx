@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { MemoryRouter, Link } from 'react-router-dom'
 import { Badge } from './Badge.tsx'
 import { Button } from './Button.tsx'
 import { Card } from './Card.tsx'
@@ -26,6 +27,39 @@ describe('visual primitives', () => {
     const button = screen.getByRole('button', { name: 'Salvar' })
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('asChild + Link renders a single anchor with the correct content', () => {
+    render(
+      <MemoryRouter>
+        <Button variant="secondary" asChild>
+          <Link to="/exemplo">Ver compra</Link>
+        </Button>
+      </MemoryRouter>,
+    )
+
+    // Um único <a>, sem anchor aninhado (Button.asChild não reembrulha o Link).
+    const anchors = screen.getAllByRole('link')
+    expect(anchors).toHaveLength(1)
+    expect(document.querySelectorAll('a')).toHaveLength(1)
+    const anchor = screen.getByRole('link', { name: 'Ver compra' })
+    expect(anchor).toHaveAttribute('href', '/exemplo')
+    // Mantém o estilo visual do botão mesclado ao className do Link.
+    expect(anchor).toHaveClass('bg-white')
+  })
+
+  it('asChild preserves left/right icons and loading without nesting the child', () => {
+    render(
+      <MemoryRouter>
+        <Button asChild leftIcon={<span data-testid="left-icon" />}>
+          <Link to="/x">Ir</Link>
+        </Button>
+      </MemoryRouter>,
+    )
+
+    expect(document.querySelectorAll('a')).toHaveLength(1)
+    expect(screen.getByTestId('left-icon')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ir' })).toBeInTheDocument()
   })
 
   it('provides an accessible IconButton and Badge variants', () => {

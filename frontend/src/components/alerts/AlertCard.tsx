@@ -17,9 +17,10 @@ function getTimeContext(alert: Alert) {
     return `${days} ${days === 1 ? 'dia' : 'dias'} restantes`
   }
 
-  const end = new Date(alert.warranty.endDate).getTime()
-  if (!Number.isFinite(end)) return 'Prazo encerrado'
-  const days = Math.max(0, Math.floor((Date.now() - end) / (24 * 60 * 60 * 1000)))
+  // Alerta expirado: usa a MESMA âncora UTC/calendário de `daysUntil` (mesma
+  // regra do backend e do ramo de vencimento próximo), evitando divergência de
+  // ±1 dia que o cálculo com `Date.now()`/`Math.floor` poderia introduzir.
+  const days = Math.max(0, -daysUntil(alert.warranty.endDate))
   return `Expirada há ${days} ${days === 1 ? 'dia' : 'dias'}`
 }
 

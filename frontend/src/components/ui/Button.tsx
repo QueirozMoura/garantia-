@@ -91,9 +91,23 @@ export function Button({
       className?: string
       children?: ReactNode
     }>
+    // `asChild` reuses the child element itself (e.g. a Link). To avoid nesting
+    // the child inside itself, the injected content is built from the child's
+    // OWN children (its label), never from `children` (which is the element).
+    const childContent = (
+      <>
+        {isLoadingState ? (
+          <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+        ) : (
+          leftIcon
+        )}
+        <span>{child.props.children}</span>
+        {!isLoadingState && rightIcon}
+      </>
+    )
     return cloneElement(child, {
       className: cn(buttonClassName, child.props.className),
-      children: content,
+      children: childContent,
     })
   }
 
