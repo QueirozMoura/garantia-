@@ -137,6 +137,44 @@ describe('GET /dashboard', () => {
     expect(response.body.dashboard.summary.activeWarranties).toBe(1);
   });
 
+  it('conta como ativa uma garantia que termina hoje (endDate = today)', async () => {
+    const { token, user } = await createUserWithToken();
+
+    const purchase = await createPurchase(user.id);
+    // Começa no passado e termina exatamente no dia de hoje (meia-noite UTC).
+    await createWarranty(purchase.id, daysFromToday(-30), startOfTodayUtc());
+
+    const response = await getDashboard(token);
+
+    expect(response.status).toBe(200);
+    expect(response.body.dashboard.summary.activeWarranties).toBe(1);
+  });
+
+  it('não conta garantia cujo endDate é anterior a hoje', async () => {
+    const { token, user } = await createUserWithToken();
+
+    const purchase = await createPurchase(user.id);
+    await createWarranty(purchase.id, daysFromToday(-40), daysFromToday(-1));
+
+    const response = await getDashboard(token);
+
+    expect(response.status).toBe(200);
+    expect(response.body.dashboard.summary.activeWarranties).toBe(0);
+  });
+
+  it('não conta garantia cujo startDate é posterior a hoje', async () => {
+    const { token, user } = await createUserWithToken();
+
+    const purchase = await createPurchase(user.id);
+    // Começa amanhã e vai além da janela: ainda não é ativa hoje.
+    await createWarranty(purchase.id, daysFromToday(1), daysFromToday(30));
+
+    const response = await getDashboard(token);
+
+    expect(response.status).toBe(200);
+    expect(response.body.dashboard.summary.activeWarranties).toBe(0);
+  });
+
   it('retorna no máximo 5 compras recentes', async () => {
     const { token, user } = await createUserWithToken();
 

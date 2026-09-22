@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-const dateSchema = z.coerce.date({ message: 'Date must be valid' });
-
-// Strict YYYY-MM-DD parser used by the update endpoint. It mirrors the UTC
+// Strict YYYY-MM-DD parser shared by creation and update. It mirrors the UTC
 // strategy already used by purchases.schemas.ts (`purchaseDate`): the calendar
 // date is validated and then materialized as UTC midnight, so no local
-// timezone conversion/offset can shift the stored day.
+// timezone conversion/offset can shift the stored day. Values carrying a time
+// or offset (e.g. `2026-01-15T00:00:00-03:00`) are rejected.
 const warrantyDateSchema = z
   .string({ message: 'Date must be a valid date' })
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD format')
@@ -20,11 +19,12 @@ const warrantyFields = {
     .number({ message: 'Duration in months must be a number' })
     .int('Duration in months must be an integer')
     .positive('Duration in months must be positive'),
-  startDate: dateSchema,
-  endDate: dateSchema,
+  startDate: warrantyDateSchema,
+  endDate: warrantyDateSchema,
 };
 
-// Creation keeps its previous contract untouched.
+// Creation uses the same strict YYYY-MM-DD parser as update, so dates are
+// always validated and materialized as UTC midnight.
 export const createWarrantySchema = z
   .object(warrantyFields)
   .refine((value) => value.endDate >= value.startDate, {

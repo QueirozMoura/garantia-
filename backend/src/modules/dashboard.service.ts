@@ -82,8 +82,10 @@ export const getDashboard = async (userId: string, now: Date = new Date()) => {
     prisma.warranty.count({
       where: {
         purchase: { userId },
-        startDate: { lte: now },
-        endDate: { gte: now },
+        // Anchored at UTC midnight like the rest of the system: a warranty
+        // ending today still counts as active during the whole calendar day.
+        startDate: { lte: today },
+        endDate: { gte: today },
       },
     }),
     prisma.purchase.aggregate({ where: { userId }, _sum: { price: true } }),
