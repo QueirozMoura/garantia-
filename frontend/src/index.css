@@ -17,10 +17,23 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    background: #f5f8f7;
+  }
+
   body {
+    min-width: 320px;
     background:
-      radial-gradient(circle at 100% 0%, rgb(16 185 129 / 0.055), transparent 28rem),
-      #f8fafc;
+      radial-gradient(circle at 7% 6%, rgb(16 185 129 / 0.12), transparent 22rem),
+      radial-gradient(circle at 96% 2%, rgb(37 99 235 / 0.09), transparent 24rem),
+      linear-gradient(135deg, #f8fbfa 0%, #f5f8fb 48%, #f7f7f5 100%);
+    background-attachment: fixed;
   }
 
   ::selection {
@@ -114,6 +127,27 @@
   }
 }
 
+@keyframes ambient-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(1rem, 0.5rem, 0) scale(1.04);
+  }
+}
+
+@keyframes nav-pop {
+  from {
+    opacity: 0.65;
+    transform: translateY(2px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* ─────────────────────────────────────────────────
    Utility classes
 ───────────────────────────────────────────────── */
@@ -156,6 +190,35 @@
     linear-gradient(rgb(148 163 184 / 0.07) 1px, transparent 1px),
     linear-gradient(90deg, rgb(148 163 184 / 0.07) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+.app-shell-glow {
+  position: fixed;
+  z-index: -1;
+  top: 5rem;
+  right: 7%;
+  width: 18rem;
+  height: 18rem;
+  pointer-events: none;
+  border: 1px solid rgb(16 185 129 / 0.09);
+  border-radius: 999px;
+  background: rgb(16 185 129 / 0.04);
+  filter: blur(1px);
+  animation: ambient-drift 9s ease-in-out infinite;
+}
+
+.app-shell-glow::after {
+  position: absolute;
+  inset: 2rem;
+  border: 1px solid rgb(37 99 235 / 0.08);
+  border-radius: inherit;
+  content: '';
+}
+
+.glass-surface {
+  background: rgb(255 255 255 / 0.72);
+  box-shadow: 0 18px 50px -38px rgb(15 23 42 / 0.35);
+  backdrop-filter: blur(18px);
 }
 
 /* Atrasos para stagger em listas */

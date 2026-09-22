@@ -10,10 +10,10 @@ export function Sidebar({ activeId = 'dashboard' }: SidebarProps) {
   return (
     <aside
       aria-label="Navegação principal"
-      className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-slate-200/80 bg-white/90 shadow-[8px_0_30px_-24px_rgb(15_23_42/0.35)] backdrop-blur-xl"
+      className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col border-r border-white/80 bg-white/72 shadow-[14px_0_44px_-30px_rgb(15_23_42/0.48)] backdrop-blur-2xl"
     >
       {/* Brand / Logo */}
-      <div className="flex h-20 items-center border-b border-slate-100 px-5">
+      <div className="flex h-20 items-center border-b border-slate-100/80 bg-white/35 px-5">
         <BrandLogo size="md" />
       </div>
 
@@ -32,7 +32,7 @@ export function Sidebar({ activeId = 'dashboard' }: SidebarProps) {
       </nav>
 
       {/* Footer / Settings */}
-      <div className="border-t border-slate-100 bg-slate-50/60 p-3">
+      <div className="border-t border-slate-100/80 bg-slate-50/45 p-3">
         <NavItemButton
           item={SETTINGS_NAV_ITEM}
           isActive={SETTINGS_NAV_ITEM.id === activeId}

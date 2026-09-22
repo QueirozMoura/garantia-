@@ -69,7 +69,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200/70 bg-white/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-20 flex h-18 items-center justify-between border-b border-white/70 bg-white/65 px-4 shadow-[0_12px_32px_-28px_rgb(15_23_42/0.7)] backdrop-blur-2xl sm:h-20 sm:px-6 lg:px-8">
       {/* Left: Mobile brand / Desktop page title context */}
       <div className="flex items-center gap-3">
         {/* Mobile brand (hidden on md+) */}
@@ -113,7 +113,7 @@ export function Header({ pageTitle = 'Dashboard', pageSubtitle }: HeaderProps) {
             <Button
               type="button"
               variant="secondary"
-              className="px-3 py-2 text-xs"
+              className="border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-700 hover:border-emerald-200 hover:bg-emerald-100"
               onClick={() => navigate('/login')}
             >
               Entrar

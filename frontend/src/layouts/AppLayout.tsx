@@ -15,6 +15,7 @@ export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProp
 
   return (
     <div className="min-h-screen text-slate-900 antialiased">
+      <div className="app-shell-glow" aria-hidden="true" />
       {/* Sidebar fixa no Desktop (md+) */}
       <Sidebar activeId={activeNavId} />
 
@@ -23,7 +24,7 @@ export function AppLayout({ children, activeNavId = 'dashboard' }: AppLayoutProp
         <Header />
 
         {/* Conteúdo da página com margem inferior no mobile para a bottom-bar */}
-        <main className="flex-1 px-4 py-6 pb-[calc(4rem+1px+env(safe-area-inset-bottom,0px))] sm:px-6 md:pb-8 lg:px-8">
+        <main className="flex-1 px-4 py-6 pb-[calc(4rem+1px+env(safe-area-inset-bottom,0px))] sm:px-6 md:py-8 md:pb-8 lg:px-8">
           <div className="page-enter mx-auto max-w-7xl">
             {isGuest && <GuestModeBanner />}
             {children}

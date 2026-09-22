@@ -9,7 +9,7 @@ export function MobileNavigation({ activeId = 'dashboard' }: MobileNavigationPro
   return (
     <nav
       aria-label="Navegação mobile"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_30px_-24px_rgb(15_23_42/0.5)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-white/80 bg-white/78 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-18px_42px_-24px_rgb(15_23_42/0.45)] backdrop-blur-2xl md:hidden"
     >
       <ul className="flex h-16 items-stretch justify-around px-1">
         {BOTTOM_NAV_ITEMS.map((item) => (
@@ -64,13 +64,13 @@ function MobileNavItemButton({ item, isActive }: MobileNavItemButtonProps) {
             <span
               className={[
                 'flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
-                active ? 'bg-emerald-50' : '',
+                active ? 'bg-emerald-50 shadow-[0_6px_16px_-8px_rgb(16_185_129/0.75)]' : '',
               ].join(' ')}
             >
               <Icon
                 className={[
                   'h-5 w-5 transition-all duration-150',
-                  active ? 'text-emerald-600 scale-110' : 'text-slate-400',
+                  active ? 'animate-[nav-pop_180ms_ease-out] text-emerald-600 scale-110' : 'text-slate-400',
                 ].join(' ')}
               />
             </span>
